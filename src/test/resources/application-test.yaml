@@ -1,0 +1,34 @@
+# TestContainers configuration - database connection is automatically configured
+# through @ServiceConnection annotation in TestContainersConfiguration
+
+spring:
+  # Database configuration is handled by TestContainers @ServiceConnection
+  # No need to specify datasource URL, username, or password
+  
+  # Flyway will use the same TestContainers database automatically
+  flyway:
+    # User and password will be set automatically by TestContainers
+    enabled: true
+    
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://sso.minds.k8s/auth/realms/creative
+          jwk-set-uri: http://sso.minds.k8s/auth/realms/creative/protocol/openid-connect/certs
+          
+application:
+  allowed-origins: "*"
+
+management:
+  tracing:
+    enabled: false
+
+otel:
+  sdk:
+    disabled: true
+# Enable TestContainers logging for debugging (optional)
+logging:
+  level:
+    org.testcontainers: INFO
+    com.minds.rgpd: DEBUG

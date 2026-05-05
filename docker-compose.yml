@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    command:
+      - "postgres"
+      - "-c"
+      - "track_activity_query_size=1048576"
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -h localhost -p 5432 -U $${POSTGRES_USER}" ]
+      interval: 5s
+      timeout: 30s
+      retries: 5
+      start_period: 5s
+    volumes:
+      - postgresdata_dev:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    environment:
+      - POSTGRES_USER=docker
+      - POSTGRES_PASSWORD=docker
+      - POSTGRES_DB=docker
+    networks:
+      - network_minds_rgpd_api
+  pgadmin:
+    image: elestio/pgadmin
+    restart: always
+    volumes:
+      - pgadmindata_dev:/var/lib/pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: docker@docker.com
+      PGADMIN_DEFAULT_PASSWORD: docker
+    ports:
+      - "8888:80"
+    networks:
+      - network_minds_rgpd_api
+networks:
+  network_minds_rgpd_api:
+volumes:
+  postgresdata_dev:
+  pgadmindata_dev:

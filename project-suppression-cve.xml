@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.4.xsd"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.4.xsd
+                                  https://dependency-check.github.io/DependencyCheck/dependency-suppression.1.4.xsd">
+
+    <suppress>
+        <notes><![CDATA[
+        Suppress Swagger UI bundled DOMPurify finding for swagger-ui-bundle.js.
+        ]]></notes>
+        <filePath regex="true">.*swagger-ui-5\.32\.2\.jar.*swagger-ui-bundle\.js</filePath>
+        <vulnerabilityName regex="true">.*</vulnerabilityName>
+    </suppress>
+
+    <suppress>
+        <notes><![CDATA[
+        Suppress Swagger UI bundled DOMPurify finding for swagger-ui-es-bundle.js.
+        ]]></notes>
+        <filePath regex="true">.*swagger-ui-5\.32\.2\.jar.*swagger-ui-es-bundle\.js</filePath>
+        <vulnerabilityName regex="true">.*</vulnerabilityName>
+    </suppress>
+
+</suppressions>
