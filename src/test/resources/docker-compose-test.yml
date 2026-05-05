@@ -1,0 +1,28 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    command:
+      - "postgres"
+      - "-c"
+      - "track_activity_query_size=1048576"
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -d healthcheck -U $${POSTGRES_USER}" ]
+      interval: 5s
+      timeout: 30s
+      retries: 5
+      start_period: 5s
+    volumes:
+      - postgresdata_test:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    environment:
+      - POSTGRES_USER=docker_test
+      - POSTGRES_PASSWORD=docker_test
+      - POSTGRES_DB=docker_test
+    networks:
+      - network_minds_rgpd_test
+networks:
+  network_minds_rgpd_test:
+volumes:
+  postgresdata_test:

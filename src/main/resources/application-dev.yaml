@@ -1,0 +1,38 @@
+spring:
+  jpa:
+    show-sql: true
+  datasource:
+    url: jdbc:postgresql://localhost:5434/docker
+    username: docker
+    password: docker
+  flyway:
+    user: docker
+    password: docker
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://sso.minds.k8s/auth/realms/creative
+          jwk-set-uri: https://sso.minds.k8s/auth/realms/creative/protocol/openid-connect/certs
+      #    jwk-set-uri: http://sso.minds.k8s/auth/realms/creative/protocol/openid-connect/certs
+application:
+  allowed-origins: "http://localhost:4200"
+
+management:
+  tracing:
+    enabled: false
+
+otel:
+  sdk:
+    disabled: true
+
+
+#server:
+#  ssl:
+#    trust-store-type: NONE
+
+# Optional: For debugging
+logging:
+  level:
+    org.springframework.security: DEBUG
+    org.springframework.security.oauth2: DEBUG

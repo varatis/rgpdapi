@@ -1,0 +1,75 @@
+application:
+  version: @project.version@
+
+# Configuration Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0
+
+spring:
+  jpa:
+    open-in-view: false
+  application:
+    name: minds-rgpd-api
+    description: @project.description@
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+    driverClassName: org.postgresql.Driver
+  flyway:
+    locations: classpath:db/migration
+    baseline-on-migrate: 'true'
+    user: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+  main:
+    allow-bean-definition-overriding: 'true'
+  mvc:
+    patchmatch:
+      matching-strategy: ant_path_matcher
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI}
+          jwk-set-uri: ${JWT_JWK_SET_URI}
+
+otel:
+  sdk:
+    disabled: true
+
+server:
+  forward-header-strategy: NATIVE
+  port: 8080
+
+      
+# Enhanced JWT and OpenTelemetry debugging
+logging:
+  level:
+    root: warn
+    # OpenTelemetry debugging  
+    # io.opentelemetry: TRACE
+    # io.opentelemetry.api: DEBUG
+    # io.opentelemetry.exporter.otlp: TRACE
+    # io.opentelemetry.instrumentation: TRACE
+    # io.opentelemetry.sdk: TRACE
+    # io.opentelemetry.sdk.trace: TRACE
+    # io.opentelemetry.instrumentation.spring.webmvc: TRACE
+
+# Configuration SpringDoc OpenAPI
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true

@@ -1,93 +1,118 @@
-# minds-rgpd-api
+# SaaS RGPD API
 
+<p>
+    <a href="https://srv-gitlab.domaine.local/minds-labs/minds-rgpd/minds-rgpd-api#readme" target="_blank">
+        <img alt="Documentation" src="https://img.shields.io/badge/documentation-yes-brightgreen.svg" />
+    </a>
+    <a href="https://srv-gitlab/minds-labs/minds-rgpd/graphs/commit-activity" target="_blank">
+        <img alt="Maintenance" src="https://img.shields.io/badge/Maintained%3F-yes-green.svg" />
+    </a>
+</p>
 
+> SaaS RGPD API
+
+## Accès rapides
+
+### 🔗 Accès local
+
+- 📘 [Documentation Swagger](http://localhost:8080/swagger-ui.html)
+- 🚀 [Informations de déploiement](http://localhost:8080/actuator/info)
+- 🧩 [Spécification OpenAPI (JSON)](http://localhost:8080/v3/api-docs)
+
+### Intégration
+- **URL de INT** :  https://int.minds-rgpd-api.minds.k8s/
+- [swagger] (${int-env}/swagger-ui.html)
+- [version_deployée] (${int-env}/actuator/info)
+- [appel OpenApi] (${int-env}/v3/api-docs)
+
+## Technologies
+
+- `Java 21 :` Langage
+- `Springboot 3 :` : Cadre de développement
+- `Docker \ Kubernetes :` L'application est conteneurisée et déployée sur Kubernetes, les logs sont émis dans la console
+  et les variables d'environnements sont utilisées pour paramétrer l'application
+- `Flyway :` Gère le versionning de schéma de la BDD
+- `Mockito :` Pour les Tests Unitaires
+- `TestRestTemplate :` Pour les Tests d'Intégration
+- `TestContainers :` Gestion automatique des bases de données de test
+- `Springdoc :` Annotations permettant la génération d'un fichier de spécification de l'API au
+  format [OpenApi](https://www.openapis.org).
+
+## Liens utiles
+- `Keycloack :` Gestion des droits applicatifs ([Keycloack](https://sso.minds.k8s/auth/realms/creative/account/applications))
+- `Jira :` Backlog du projet ([Jira](https://jira-groupe-creative.atlassian.net/jira/software/projects/MSR/boards/427))
+- `Jenkins A METTRE A JOUR :` CI/CD ([Jenkins](http://srv-jenkins2:8080/view/catalog/))
+
+## Documentation initiale
+- `Documentation : ` ([Contrat API](https://creativecorebusiness.sharepoint.com/:f:/s/CreativeAcademy-SaasRGPD/IgCKLA9_Af_nT78RkCmIHI4OAcek_wzV7BN27qgkaZBv2KQ?e=4XjnmU))
+- `CDC : ` ([Cahier des Charges](https://creativecorebusiness.sharepoint.com/:f:/s/CreativeAcademy-SaasRGPD/IgCDpJ_O2sVVT44o2f4MIiR9AfanC6VXQz8hVTR_zHkTrWY?e=Uv4lkm))
+- `PRT : ` ([Proposition technique](https://creativecorebusiness.sharepoint.com/:f:/s/CreativeAcademy-SaasRGPD/IgBYdnIqrMK7R4uzOI9nMAw6AYOgtqSrQiJ8EJWSUyNv8ak?e=yZ5EZg))
+- `BDD : ` ([Gestion BDD avec IA](https://creativecorebusiness.sharepoint.com/:f:/s/CreativeAcademy-SaasRGPD/IgCy8U_skMNOSLnxMPfaZuVKAeNwQaywQznWB92M_yUoMgU?e=pH5unb))
+- `Expression de besoin : ` ([Workflow et RG](https://creativecorebusiness.sharepoint.com/:o:/s/CreativeAcademy-SaasRGPD/IgBZzwkPcFMVS7asF8rILp4EASv9cDwimx4OOCMJ0rdRwbg?e=FuFglC))
+- `UX/UI : ` ([Design UI](https://creativecorebusiness.sharepoint.com/:f:/s/CreativeAcademy-SaasRGPD/IgB0en5tzVHLTbipgPBMj1RgAdNF6yUsaVpLgr1lcpKPogc?e=pde2NO&xsdata=MDV8MDJ8fDEyYzdkNWQ5MzU2YjQ5NTY4ODhiMDhkZTg0MGJhYWQxfDA3Y2RmNmMyYjg2NjRmZmNhN2NmZWFlYjc1NTQ1Zjk1fDB8MHw2MzkwOTMzODI3Nzg1NTQ1MDd8VW5rbm93bnxWR1ZoYlhOVFpXTjFjbWwwZVZObGNuWnBZMlY4ZXlKRFFTSTZJbFJsWVcxelgwRlVVRk5sY25acFkyVmZVMUJQVEU5R0lpd2lWaUk2SWpBdU1DNHdNREF3SWl3aVVDSTZJbGRwYmpNeUlpd2lRVTRpT2lKUGRHaGxjaUlzSWxkVUlqb3hNWDA9fDF8TDJOb1lYUnpMekU1T2pnNVpUTmhOelV5TFdKbFlUSXROREEwT0MxaE56TmlMVGN5TTJRNE1ESTJZakExTjE4NVlqZ3hZVGhtWWkwelpUUTFMVFJqWW1ZdE9UWTJOeTAyT0RnMU5XRmpNMk0yTVROQWRXNXhMbWRpYkM1emNHRmpaWE12YldWemMyRm5aWE12TVRjM016YzBNVFEzTkRjeU5BPT18MTAxMzAwMTgxZDE5NGYzNDAzYjUwOGRlODQwYmFhZDF8OGU3NzllNWQwODllNDkwZmE0MWJlODY1NzY1MjJhZWU%3D&sdata=WWpiUlRqWDhoUmtSTndDZFJEYXdUZnRwY1I4OGRHQVlOMDR6bThLVHRIbz0%3D&ovuser=07cdf6c2-b866-4ffc-a7cf-eaeb75545f95%2Colivier.burban%40groupe-creative.fr))
+
+## Prérequis
+
+- Java 21
+- Maven 3.6+
+- Docker (pour TestContainers et Docker Compose auto-start)
 
 ## Getting started
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+### Paramétrer la BDD
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+Scripts à initialiser :
 
-## Add your files
+- `src/main/resources/db/migration/`
+  - `V1.0__init_db.sql` : Initialise la base de données avec **Flyway** au démarrage de
+    l'application, sur environnement ou pour utilisation locale.
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+### Administrer la BDD
 
-```
-cd existing_repo
-git remote add origin https://srv-gitlab.domaine.local/minds-labs/minds-rgpd/minds-rgpd-api.git
-git branch -M main
-git push -uf origin main
-```
+* En utilisant le **docker-compose.yml**, vous lancerez l'interface d'administration PgAdmin.
+* Vous pouvez y accéder par votre navigateur à cette adresse http://localhost:8888.
+* Connectez vous en utilisant l'adresse mail et le mot de passe présent dans `application-{env}.yaml`
+* Cliquez sur `Add New Server`
+* Remplissez les champs du formulaire.
+  * Vous pouvez mettre le nom de votre choix dans l'onglet "General"
+  * Pour l'onglet "Connection" :
+  ![img.png](docs/images/pgadmin_connect_local_db.png)
 
-## Integrate with your tools
+### Paramétrer vos variables d'environnement
 
-- [ ] [Set up project integrations](https://srv-gitlab.domaine.local/minds-labs/minds-rgpd/minds-rgpd-api/-/settings/integrations)
+La liste des variables et leurs valeurs par défaut sont dans `docs/parametrage.md`
 
-## Collaborate with your team
+## Lancer les tests en Local
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+**Les tests utilisent maintenant TestContainers** - plus besoin de lancer Docker manuellement !
 
-## Test and Deploy
+### Tests Unitaires et d'Intégration
+- Depuis IDE 
+  - Clic droit sur le répertoire `src/test/java`, puis `Run 'Tests in 'java''`
+  - Si vous voulez lancer une classe de test en particulier, faites de même en cliquant sur la classe / le repertoire d'intérêt
+- Depuis commande maven
+  - Lancer `mvn test` (TestContainers démarre automatiquement PostgreSQL)
+  - Lancer `mvn test -Dtest=PocLazyLoadingIT` pour les tests d'intégration spécifiques
 
-Use the built-in continuous integration in GitLab.
+**Note :** TestContainers gère automatiquement le cycle de vie des conteneurs de test.
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+### Configurer les droits applicatifs
 
-***
+Les droits applicatifs sont attribués à des royaumes (realms) gérés par [Keycloack](https://sso.minds.k8s/auth/realms/creative/account/applications).
 
-# Editing this README
+**Note :** Ajouter explication de la gestion des droits utilisateurs.
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+## Run the app locally
 
-## Suggestions for a good README
+**Spring Boot démarre automatiquement les services Docker Compose** - plus besoin de `docker compose up` !
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+1. Compiler les sources si nécessaire
+   ```shell
+   mvn package
+   ```
+   2. Lancer l'application (démarre automatiquement PostgreSQL et PgAdmin)
+      ```shell
+      mvn spring-boot:run -Dspring-boot.run.profiles=dev
+      ```
 
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+**Note :** Le profil `dev` est requis car il contient les valeurs de configuration correspondant au `docker-compose.yml`. Spring Boot détecte automatiquement le fichier `docker-compose.yml` et démarre les services nécessaires.
