@@ -1,0 +1,2078 @@
+openapi: '3.0.3'
+info:
+  title: Minds Saas RGPD
+  version: '1.0'
+servers:
+  - url: https://localhost:4200
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "Access Token"
+  schemas:
+    AsyncExportStatus:
+      type: object
+      properties:
+        status:
+          description: "Statut du traitement"
+          type: string
+          enum:
+            - PENDING
+            - PROCESSED
+            - FAILED
+        xlfile:
+          description: "Fichier Excel"
+          type: object
+          properties:
+            name:
+              type: string
+              description: "Nom du fichier"
+            data:
+              type: string
+              description: "Contenu du fichier"
+    AsyncTaskStatus:
+      type: object
+      description: "Résultat du traitement d'une tâche asynchrone"
+      properties:
+        status:
+          description: "Statut du traitement"
+          type: string
+          enum:
+            - PENDING
+            - PROCESSED
+            - FAILED
+    ApiErrorDetail:
+      type: object
+      description: "Détail erreur API"
+      properties:
+        code:
+          type: string
+          x-extensible-enum:
+            - "LIST_NOT_NULL_NOT_EMPTY"
+            - "NOT_NULL"
+            - "NOT_EMPTY"
+            - "PAYLOAD"
+            - "LENGTH"
+          description: |
+            Code erreur.
+          example: "LENGTH"
+        field:
+          type: string
+          description: "Champs concerné par l'erreur, par exemple lors de la validation de la taille d'un champs"
+          example: "prenom"
+        message:
+          type: string
+          description: "Message lisible pour un humain"
+          example: "Champs non valide [prenom], taille maximale autorisée [1-50]"
+    ApiError:
+      type: object
+      description: "Erreur API"
+      required:
+        - "status"
+        - "kind"
+        - "code"
+      properties:
+        status:
+          type: number
+          format: integer
+          description: "HTTP status code (400, 409, 500, ...)"
+          nullable: false
+        kind:
+          type: string
+          description: "Type d'erreur"
+          default: "FUNCTIONAL"
+          nullable: false
+          enum:
+            - FUNCTIONAL
+            - TECHNICAL
+        code:
+          type: string
+          description: "Code erreur (UNIQUE)"
+          nullable: false
+          x-extensible-enum:
+            - "CLIENT_ALREADY_EXISTS"
+            - "USER_EMAIL_ALREADY_USED"
+        message:
+          type: string
+          description: "Message compréhensible pour un humain"
+          example: "Un client avec ce nom existe déjà"
+          nullable: false
+        details:
+          type: array
+          description: "Détails erreur"
+          items:
+            $ref: "#/components/schemas/ApiErrorDetail"
+    GeneratedId:
+      type: object
+      properties:
+        id:
+          type: string
+          description: "Identifiant externe type uuid généré"
+          example: "5cfe5a11-6b83-4ad3-918d-81b1969e867e"
+    PaginationResponse:
+      type: object
+      description: "Pagination d'une liste"
+      properties:
+        nbResultats:
+          type: integer
+          example: 67
+          description: "Nombre total de documents trouvés"
+        nbPages:
+          type: integer
+          example: "10"
+          description: "Nombre total de pages (fonction du nombre max de résultats par page demandés dans la requête)"
+        pageIndex:
+          type: integer
+          example: 4
+          description: "Index de la page courante (paramètre de la requête)"
+        pageSize:
+          type: integer
+          example: 25
+          description: "Nombre de résultats par page (paramètre de la requête)"
+    ClientResponseListDTO:
+      type: object
+      description: "Liste des clients"
+      properties:
+        pagination:
+          type: object
+          $ref: "#/components/schemas/PaginationResponse"
+        clients:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClientResponseDTO"
+    ClientResponseDTO:
+      type: object
+      description: "Détails client"
+      properties:
+        id:
+          type: string
+          example: "5cfe5a11-6b83-4ad3-918d-81b1969e867e"
+        nom:
+          type: string
+          example: "Client 1"
+        statut:
+          type: string
+          example: "ACTIF"
+      example:
+        - id: "5cfe5a11-6b83-4ad3-918d-81b1969e867e"
+          nom: "Client 1"
+          statut: "ACTIF"
+        - id: "82438529-e46a-4fe7-bcf4-736d82469d0e"
+          nom: "Client 2"
+          statut: "ACTIF"
+    EtablissementClientDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: "Identifiant unique du client"
+          example: "05bb3a60-f552-44a7-ac18-36bdeb0a30b9"
+        nom:
+          type: string
+          description: "Nom du client"
+          example: "Client 1"
+      required:
+        - id
+        - nom
+    EtablissementResponseListDto:
+      type: object
+      description: "Liste des établissements"
+      properties:
+        pagination:
+          type: object
+          $ref: "#/components/schemas/PaginationResponse"
+        etablissements:
+          type: array
+          items:
+            $ref: "#/components/schemas/EtablissementResponseDto"
+    EtablissementResponseDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: "Identifiant unique de l'établissement"
+          example: "05bb3a60-f552-44a7-ac18-36bdeb0a30b9"
+        nom:
+          type: string
+          description: "Nom de l'établissement"
+          example: "Résidences Les Gantelles et Les Fougères"      
+        client:
+          type: object
+          properties:
+            id:
+              type: string
+              description: "Identifiant du client"
+            nom:
+              type: string
+              description: "Nom du client"          
+    ClientCreateUpdateReqest:
+      type: object
+      description: "DTO création client"
+      properties:
+        nom:
+          type: string
+          description: "Nom du client"
+          minimum: 1
+          maximum: 100
+          nullable: false
+        statut:
+          type: string
+          default: "ACTIF"
+          enum:
+            - ACTIF
+            - INACTIF
+            - ARCHIVE
+          description: "Statut du client"      
+          example: "ACTIF"
+      required:
+        - nom
+        - statut
+    EtablissementCreateUpdateRequest:
+      type: object
+      description: "Payload création d'un établissement"
+      properties:
+        nom:
+          type: string
+          description: "Nom de l'établissement"
+          example: "Résidences Les Gantelles et Les Fougères"
+          minimum: 1
+          maximum: 50
+        statut:
+          type: string
+          enum:
+            - ACTIVATE
+            - ARCHIVE
+        clients:
+          type: array
+          description: "Liste des identifiants des clients associés à l'établiessement"
+          items:
+            type: string
+          example:
+            - "bbb9c662-d149-41ba-affa-2d139c69098a"
+            - "05bb3a60-f552-44a7-ac18-36bdeb0a30b9"
+    UserCreateUpdateRequest:
+      type: object
+      description: "Payload création d'un utilisateur"
+      properties:
+        nom:
+          type: string
+          description: "Nom de famille"
+          minimum: 1
+          maximum: 30
+        prenom:
+          type: string
+          description: "Prénom"
+          minimum: 1
+          maximum: 30
+        email:
+          type: string
+          description: "Adresse email"
+          minimum: 1
+          maximum: 60
+        fonction:
+          type: string
+          description: "???"
+          minimum: 1
+          maximum: 50
+        profilId:
+          type: string
+          description: "uuid du profil associé (Administrateur, ...)"
+      required:
+        - nom
+        - prenom
+        - email
+        - fonction
+        - profilId
+    UserListResponseDto:
+      type: object
+      description: "Liste des utilisateurs"
+      properties:
+        pagination:
+          type: object
+          $ref: "#/components/schemas/PaginationResponse"
+        utilisateurs:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserResponseDto"
+    UserResponseDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: "Identifiant unique de l'utilisateur"
+        prenom:
+          type: string
+          description: "Prénom de l'utilisateur"
+        email: 
+          type: string
+          description: "Email de l'utilisateur"
+        fonction:
+          type: string
+          description: "Fonction de l'utilisateur"
+        profilId:
+          type: string
+          description: "Identifiant unique profil"
+    ProfilCreateUpdateRequest:
+      type: object
+      description: "Création / mise à jour profil"
+      properties:
+        code:
+          type: string
+          description: "Code unique profil"
+        description:
+          type: string
+          description: "Description du profil"
+    ProfileListResponseDto:
+      type: object
+      description: "Liste des profils"
+      properties:
+        pagination:
+          type: object
+          $ref: "#/components/schemas/PaginationResponse"
+        profils:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProfilResponseDto"
+      example:
+        - pagination:
+            nbResultats: 12
+            nbPages: 2
+            pageIndex: 1
+        - profils:
+            - id: "8a18268a-16c0-456c-89ed-9095bbea9dbe"
+              code: "admin"
+              description: "Administrateur"
+            - id: "f8e64683-fcd5-4e15-b1d3-f2a50d05ddb2"
+              code: "user"
+              description: "Utilsateur"         
+    ProfilResponseDto:
+      type: object
+      description: "Profil"
+      properties:
+        id:
+          type: string
+          description: "Identifiant unique"
+        code:
+          type: string
+          description: "Code"
+        description:
+          type: string
+          description: "Description du profil"
+      required:
+        - id
+        - code
+        - description
+    TraitementEtablissementDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: "Identifiant etablissement"
+        nom:
+          type: string
+          description: "Nom de l'établissement"
+    TraitementResponseLightDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: "Identifiant du traitement"
+        nom:
+          type: string
+          description: "Nom du traitement"
+        gestionnaire:
+          type: string
+          description: "Gestionnaire"
+        etablissements:
+          type: array
+          items:
+            $ref: "#/components/schemas/TraitementEtablissementDto"
+    TraitementResponseListDto:
+      type: object
+      properties:
+        pagination:
+          type: object
+          $ref: "#/components/schemas/PaginationResponse"
+        traitements:
+          type: array
+          items:
+            $ref: "#/components/schemas/TraitementResponseLightDto"
+    TraitementIdentificationRequest:
+      type: object
+      properties:
+        nom:
+          type: string
+          description: "Nom du traitement"
+        statut:
+          type: string
+          description: "Statut du traitement"
+          enum:
+            - DRAFT
+            - FINISHED
+            - SENT
+        etablissements:
+          type: array
+          items:
+            type: string
+            description: "Identifiant établissement"
+        donneesConcernees:
+          type: string
+          description: "Données concernées"
+        dateIdentification:
+          type: string
+          format: date
+          description: "Date d'identification"
+        historiqueModification:
+          type: string
+          description: "Historique des modifications"
+        dpo:
+          type: string
+          description: "Data Protection Officer"
+        responsableTraitement:
+          type: string
+          description: "Responsable du traitement"
+        gestionnaire:
+          type: string
+          description: "Gestionnaire de la mise en oeuvre du traitement"
+        finalite:
+          type: string
+          description: "Finalité principale"
+        sousFinalites:
+          type: string
+          description: "Sous-finalités"
+    TraitementIdentificationDto:
+      type: object
+      description: "Partie racine du traitement"
+      properties:
+        nom:
+          type: string
+          description: "Nom du traitement"
+        etablissements:
+          type: array
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/TraitementEtablissementDto"
+            description: "Identifiants des établissements associés au traitement"
+        donneesConcernees:
+          type: string
+          description: "Données concernées"
+        dateIdentification:
+          type: string
+          format: date
+          description: "Date d'identification"
+        historiqueModification:
+          type: string
+          description: "Historique des modifications"
+        dpo:
+          type: string
+          description: "Data Protection Officer"
+        responsableTraitement:
+          type: string
+          description: "Responsable du traitement"
+        gestionnaire:
+          type: string
+          description: "Gestionnaire de la mise en oeuvre du traitement"
+        finalite:
+          type: string
+          description: "Finalité principale"
+        sousFinalites:
+          type: string
+          description: "Sous-finalités"
+    TraitementDonneesPersoDto:
+      type: object
+      description: "Données personnelles traitées"
+      properties:
+        categoriesPerCo:
+          type: string
+          description: "Catégories de personnes concernées par le traitement"
+        donneesIdentification:
+          type: string
+          description: "Données d'identification"
+        donneesConnexion:
+          type: string
+          description: "Données de connexion"
+        donneesCompVie:
+          type: string
+          description: "Données sur le comportement et la vie personnelle"
+        donnesEcoFin:
+          type: string
+          description: "Données économiques et financières"
+        categoriesPartDonnees:
+          type: string
+          description: "Catégories particulières de données (NIR, santé par exemple)"
+        sensiblite:
+          type: string
+          description: "Sensibilité"
+        pia:
+          type: string
+          description: "Etude d'impact"
+    TraitementDescriptionDto:
+      type: object
+      properties:
+        canauxCollecte:
+          type: string
+          description: "Canaux de collecte des données"
+        liceite:
+          type: string
+          description: "Licéité du traitement"
+        automatise:
+          type: boolean
+          description: "Recours au traitements automatisés (y compris profilage) ? (Oui / Non)"
+        emplacementPhysique:
+          type: string
+          description: "Emplacement physique du traitement"
+        dispositions:
+          type: string
+          description: "Dispositions existantes pour assurer la sécurité des données"
+        emplacementNum:
+          type: string
+          description: "Emplacement numérique du traitement"
+        dispoExistantes:
+          type: string
+          description: "Dispositions existantes pour assurer la sécurité des données"
+        herbergement:
+          type: string
+          description: "Hébergement"
+        dureeConservation:
+          type: string
+          description: "Durée de conservation"
+        archivage:
+          type: boolean
+          description: "Archivage (Oui/Non)"
+        dureeArchivage:
+          type: string
+          description: "Durée d'archivage"
+        categoriesDestinataires:
+          type: string
+          description: "Catégories des destinataire"
+        raisonsTransfert:
+          type: string
+          description: "Raisons du transfert vers les catégories de destinataires"
+        transfertHorsUE:
+          type: boolean
+          description: "Transferts hors UE (Oui / Non)"
+        paysDestinataires:
+          type: string
+          description: "Pays destinataires"
+        commentaires:
+          type: string
+          description: "Commentaires"
+    TraitementDetailDto:
+      type: object
+      properties:
+        identification:
+          type: object
+          $ref: "#/components/schemas/TraitementIdentificationDto"
+        donneesPerso:
+          type: object
+          $ref: "#/components/schemas/TraitementDonneesPersoDto"
+        description:
+          type: object
+          $ref: "#/components/schemas/TraitementDescriptionDto"
+    TraitementCreateUpdateRequest:
+      type: object
+      description: "Payload de création / modification d'un registre de traitement"
+      properties:
+        identification:
+          type: object
+          $ref: "#/components/schemas/TraitementIdentificationRequest"
+        donneesPerso:
+          type: object
+          $ref: "#/components/schemas/TraitementDonneesPersoDto"
+        description:
+          type: object
+          $ref: "#/components/schemas/TraitementDescriptionDto"
+paths:
+  /api/v1/clients:
+    get:
+      tags:
+        - Clients
+      description: "Liste des clients"
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: nom
+          in: query
+          description: "Filtre sur le nom"
+          required: false
+          schema:
+            type: string
+        - name: statut
+          in: query
+          description: "Filtre sur le statut"
+          required: false
+          schema:
+            type: string
+        - name: orderBy
+          in: query
+          description: "Tri sur colonne"
+          required: false
+          schema:
+            type: string
+        - name: orderDir
+          in: query
+          description: "Direction de tri (ascendant, descendant)"
+          required: false
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+        - name: pageSize
+          in: query
+          description: "Nombre de résultats par page"
+          required: false
+          schema:
+            type: integer
+        - name: pageIndex
+          in: query
+          description: "Index de la page recherchée"
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: "Liste des clients"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientResponseListDTO"             
+    post:
+      tags:
+        - Clients
+      description: |
+        Création d'un client
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientCreateUpdateReqest"
+            example:
+              nom: "Client 1"
+              statut: "ACTIF"
+      responses:
+        '201':
+          description: "Succés création du client"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneratedId"
+        '401':
+          description: "Accés non autorisé"
+        '403':
+          description: "Action non autorisée"
+        '400':
+          description: "Format de payload invalide"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        '409':
+          description: "Erreur fonctionnelle"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        '500':
+          description: "Erreur interne"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /api/v1/clients/{uuid}:
+    delete:
+      tags:
+        - Clients
+      description: "Suppression définitive d'un client (purge des données associées)"
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          description: "Identifiant unique du client"
+          required: true
+          schema:
+            type: string
+      responses:
+        '204': 
+          description: "Succés suppression"
+        '401':
+          description: "Accés non autorisé"
+        '403':
+          description: "Action non autorisée"
+        '404':
+          description: "Client non trouvé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "404"
+                kind: "FUNCTIONAL"
+                code: "CLIENT_UNKNOWN"
+                message: "Client inconnu"
+    put:
+      tags:
+        - Clients
+      description: "Modification d'un client"
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          description: "Identifiant unique du client"
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientCreateUpdateReqest"
+            example:
+              nom: "Client 1"
+              statut: "ACTIF"
+      responses:
+        '200':
+          description: "Succés modification"
+        '401':
+          description: "Accés non autorisé"
+        '403':
+          description: "Action non autorisée"
+        '400':
+          description: "Format de payload invalide"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "400"
+                kind: "FUNCTIONAL"
+                code: "VALIDATION_FAILED"
+                message: "Echec de la validation"
+                details:
+                  - code: NOT_NULL
+                    field: "nom"
+                    message: "Le champ [nom] est null ou vide"
+        '404':
+          description: "Client non trouvé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "404"
+                kind: "FUNCTIONAL"
+                code: "CLIENT_UNKNOWN"
+                message: "Client inconnu"
+        '409':
+          description: "Erreur fonctionnelle"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "409"
+                kind: "FUNCTIONAL"
+                code: "CLIENT_ALREADY_EXISTS"
+                message: "Un client avec ce nom existe déjà"
+        '500':
+          description: "Erreur interne"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "500"
+                kind: "TECHNICAL"
+                code: "INTERNAL_ERROR"
+                message: "Erreur interne"
+  /api/v1/clients/{client_uuid}/etablissements:
+    get:
+      tags:
+        - Etablissements
+      description: "Liste des établissements"
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: client_uuid
+          in: path
+          description: "Identifiant unique du client"
+          required: true
+          schema:
+            type: string
+        - name: nom
+          in: query
+          description: "Filtre sur le nom"
+          required: false
+          schema:
+            type: string
+        - name: statut
+          in: query
+          description: "Filtre sur le statut"
+          required: false
+          schema:
+            type: string
+        - name: client
+          in: query
+          description: "Filtre sur un client (nom ou identifiant ?)"
+          required: false
+          schema:
+            type: string
+        - name: orderBy
+          in: query
+          description: "Tri sur colonne"
+          required: false
+          schema:
+            type: string
+        - name: orderDir
+          in: query
+          description: "Direction de tri (ascendant, descendant)"
+          required: false
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+        - name: pageIndex
+          in: query
+          description: "Index de la page recherchée"
+          required: false
+          schema:
+            type: integer
+        - name: pageSize
+          in: query
+          description: "Nombre de résultats par page"
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EtablissementResponseListDto"
+    post:
+      tags:
+        - Etablissements
+      description: "Liste des établissements"
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: client_uuid
+          in: path
+          description: "Identifiant unique du client"
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EtablissementCreateUpdateRequest"
+      responses:
+        '201':
+          description: "Succés création de l'établissement"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneratedId"
+        '401':
+          description: "Accés non autorisé"
+        '403':
+          description: "Action non autorisée"
+        '400':
+          description: "Format de payload invalide"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "400"
+                kind: "FUNCTIONAL"
+                code: "VALIDATION_FAILED"
+                message: "Echec de la validation"
+                details:
+                  - code: NOT_NULL
+                    field: "nom"
+                    message: "Le champ [nom] est null ou vide"
+              
+        '409':
+          description: "Erreur fonctionnelle"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "409"
+                kind: "FUNCTIONAL"
+                code: "ETABLISSEMENT_ALREADY_EXISTS"
+                message: "Un établissement avec ce nom existe déjà"
+        '500':
+          description: "Erreur interne"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "500"
+                kind: "TECHNICAL"
+                code: "INTERNAL_ERROR"
+                message: "Erreur interne"
+  /api/v1/clients/{client_uuid}/etablissements/{uuid}:
+    delete:
+      tags:
+        - Etablissements
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: client_uuid
+          in: path
+          description: "Identifiant unique du client"
+          required: true
+          schema:
+            type: string
+        - name: uuid
+          in: path
+          description: "Identifiant unique de l'établissement"
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: "Etablissement supprimé avec succés"
+        '401':
+          description: "Accés non autorisé"
+        '403':
+          description: "Action non autorisée"
+        '404':
+          description: "Etablissement non trouvé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "404"
+                kind: "FUNCTIONAL"
+                code: "CLIENT_UNKNOWN"
+                message: "Client inconnu"
+        '500':
+          description: "Erreur interne"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "500"
+                kind: "TECHNICAL"
+                code: "INTERNAL_ERROR"
+                message: "Erreur interne"
+    put:
+      tags:
+        - Etablissements
+      description: "Détails d'un établissement"
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: client_uuid
+          in: path
+          description: "Identifiant unique du client"
+          required: true
+          schema:
+            type: string
+        - name: uuid
+          in: path
+          description: "Identifiant unique de l'établissement"
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EtablissementCreateUpdateRequest"
+      responses:
+        '200':
+          description: "Succés modification"
+        '401':
+          description: "Accés non autorisé"
+        '403':
+          description: "Action non autorisée"
+        '400':
+          description: "Format de payload invalide"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "400"
+                kind: "FUNCTIONAL"
+                code: "VALIDATION_FAILED"
+                message: "Echec de la validation"
+                details:
+                  - code: NOT_NULL
+                    field: "nom"
+                    message: "Le champ [nom] est null ou vide"
+        '404':
+          description: "Etablissement non trouvé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "404"
+                kind: "FUNCTIONAL"
+                code: "CLIENT_UNKNOWN"
+                message: "Client inconnu"
+        '409':
+          description: "Erreur fonctionnelle"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "409"
+                kind: "FUNCTIONAL"
+                code: "ETABLISSEMENT_ALREADY_EXISTS"
+                message: "Un établissement avec ce nom existe déjà"
+        '500':
+          description: "Erreur interne"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "500"
+                kind: "TECHNICAL"
+                code: "INTERNAL_ERROR"
+                message: "Erreur interne"
+  /api/v1/clients/{client_uuid}/utilisateurs:
+    get:
+      tags:
+        - Utilisateurs
+      description: "Liste des utilisateurs"
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: client_uuid
+          in: path
+          description: "Identifiant unique du client"
+          required: true
+          schema:
+            type: string
+        - name: nom
+          in: query
+          description: "Filtrage par nom"
+          required: false
+          schema:
+            type: string
+        - name: prenom
+          in: query
+          description: "Filtrage par prénom"
+          required: false
+          schema:
+            type: string
+        - name: email
+          in: query
+          description: "Filtrage par email"
+          required: false
+          schema:
+            type: string
+        - name: fonction
+          in: query
+          description: "Filtrage par fonction"
+          required: false
+          schema:
+            type: string
+        - name: profil
+          in: query
+          description: "Filtrage par profil"
+          required: false
+          schema:
+            type: string
+        - name: orderBy
+          in: query
+          description: "Tri sur colonne"
+          required: false
+          schema:
+            type: string
+        - name: orderDir
+          in: query
+          description: "Direction de tri (ascendant, descendant)"
+          required: false
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+        - name: pageIndex
+          in: query
+          description: "Index de la page recherchée"
+          required: false
+          schema:
+            type: integer
+        - name: pageSize
+          in: query
+          description: "Nombre de résultats par page"
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: "Succés"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserListResponseDto"
+              example:
+                pagination:
+                  nbResultats: 67
+                  nbPages: 12
+                  pageIndex: 3
+                utilisateurs:
+                  - nom: "HAMILTON"
+                    prenom: "Margaret"
+                    email: "m.hamilton@nasa.gov"
+                  - nom: "HOPPER"
+                    prenom: "Grace"
+                    email: "g.hopper@marine.gov"
+        '401':
+          description: "Accés non autorisé"
+        '403':
+          description: "Action non autorisée"
+        '404':
+          description: "Client non trouvé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "404"
+                kind: "FUNCTIONAL"
+                code: "CLIENT_UNKNOWN"
+                message: "Client inconnu"
+        '500':
+          description: "Erreur interne"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "500"
+                kind: "TECHNICAL"
+                code: "INTERNAL_ERROR"
+                message: "Erreur interne"
+    post:
+      tags:
+        - Utilisateurs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          description: "Identifiant unique du client"
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserCreateUpdateRequest"
+      responses:
+        '201':
+          description: "Succés création"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneratedId"
+        '401':
+          description: "Accés non autorisé"
+        '403':
+          description: "Action non autorisée"
+        '400':
+          description: "Format de payload invalide"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "400"
+                kind: "FUNCTIONAL"
+                code: "VALIDATION_FAILED"
+                message: "Echec de la validation"
+                details:
+                  - code: NOT_NULL
+                    field: "prenom"
+                    message: "Le champ [prenom] est null ou vide"
+        '404':
+          description: "Client non trouvé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "404"
+                kind: "FUNCTIONAL"
+                code: "CLIENT_UNKNOWN"
+                message: "Client inconnu"
+        '409':
+          description: "Erreur fonctionnelle"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "409"
+                kind: "FUNCTIONAL"
+                code: "ETABLISSEMENT_ALREADY_EXISTS"
+                message: "Un établissement avec ce nom existe déjà"
+        '500':
+          description: "Erreur interne"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "500"
+                kind: "TECHNICAL"
+                code: "INTERNAL_ERROR"
+                message: "Erreur interne"
+  /api/v1/clients/{client_uuid}/utilisateurs/{user_uuid}:
+    delete:
+      tags:
+        - Utilisateurs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: client_uuid
+          in: path
+          description: "Identifiant unique du client"
+          required: true
+          schema:
+            type: string
+        - name: user_uuid
+          in: path
+          description: "Identifiant unique de l'utilisateur"
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: "Suppression avec succés"
+        '401':
+          description: "Accés non autorisé"
+        '403':
+          description: "Action non autorisée"
+        '404':
+          description: "Utilisateur non trouvé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "404"
+                kind: "FUNCTIONAL"
+                code: "USER_UNKNOWN"
+                message: "Utilisateur inconnu"
+        '500':
+          description: "Erreur interne"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "500"
+                kind: "TECHNICAL"
+                code: "INTERNAL_ERROR"
+                message: "Erreur interne"
+    put:
+      tags:
+        - Utilisateurs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: client_uuid
+          in: path
+          description: "Identifiant unique du client"
+          required: true
+          schema:
+            type: string
+        - name: user_uuid
+          in: path
+          description: "Identifiant unique de l'utilisateur"
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserCreateUpdateRequest"
+            example:
+              "nom": "HAMILTON"
+              "prenom": "Margaret"
+              "email": "m.hamilton"
+              "fonction": "???"
+              "profilId": "ac88a526-e919-4cd3-b0db-dd96ec0f064c"
+      responses:
+        '200':
+          description: "Succés de la modification d'un utilisateur"
+        '400':
+          description: "Format de payload invalide"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "400"
+                kind: "FUNCTIONAL"
+                code: "VALIDATION_FAILED"
+                message: "Echec de la validation"
+                details:
+                  - code: NOT_NULL
+                    field: "nom"
+                    message: "Le champ [nom] est null ou vide"
+        '401':
+          description: "Accés non autorisé"
+        '403':
+          description: "Action non autorisée"
+        '404':
+          description: "Utilisateur non trouvé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "404"
+                kind: "FUNCTIONAL"
+                code: "USER_UNKNOWN"
+                message: "Utilisateur inconnu"
+        '409':
+          description: "Erreur fonctionnelle"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "409"
+                kind: "FUNCTIONAL"
+                code: "ETABLISSEMENT_ALREADY_EXISTS"
+                message: "Un établissement avec ce nom existe déjà"
+        '500':
+          description: "Erreur interne"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "500"
+                kind: "TECHNICAL"
+                code: "INTERNAL_ERROR"
+                message: "Erreur interne"
+  /api/v1/profils:
+    get:
+      tags:
+        - Profils
+      security:
+        - bearerAuth: []
+      description: "Liste de profils"
+      parameters:
+        - name: nom
+          in: query
+          description: "Filtre sur le nom"
+          required: false
+          schema:
+            type: string
+        - name: orderBy
+          in: query
+          description: "Tri sur colonne"
+          required: false
+          schema:
+            type: string
+        - name: orderDir
+          in: query
+          description: "Direction de tri (ascendant, descendant)"
+          required: false
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+        - name: pageSize
+          in: query
+          description: "Nombre de résultats par page"
+          required: false
+          schema:
+            type: integer
+        - name: pageIndex
+          in: query
+          description: "Index de la page recherchée"
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200': 
+          description: "Liste des profils"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileListResponseDto"      
+        '401':
+          description: "Accés non autorisé"
+        '403':
+          description: "Action non autorisée"
+        '500':
+          description: "Erreur interne"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    post:
+      tags:
+        - Profils
+      security:
+        - bearerAuth: []
+      description: "Création d'un profil"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfilCreateUpdateRequest"
+            example:
+              code: "admin"
+              description: "Administrateur"
+      responses:
+        '201':
+          description: "Succés création du profil"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneratedId"
+        '401':
+          description: "Accés non autorisé"
+        '403':
+          description: "Action non autorisée"
+        '400':
+          description: "Format de payload invalide"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        '409':
+          description: "Erreur fonctionnelle"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        '500':
+          description: "Erreur interne"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /api/v1/profils/{uuid}:
+    get:
+      tags:
+        - Profils
+      description: "Détails d'un profil"
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          description: "Identifiant unique du profil"
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: "Données du profil"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfilResponseDto"
+              example:
+                id: "87336555-f0f6-4864-914d-7b642bd2f0a9"
+                code: "admin"
+                description: "Administrateur"
+        '401':
+          description: "Accés non autorisé"
+        '403':
+          description: "Action non autorisée"
+        '404':
+          description: "Profil non trouvé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "404"
+                kind: "FUNCTIONAL"
+                code: "PROFIL_UNKNOWN"
+                message: "Profil inconnu"
+        '500':
+          description: "Erreur interne"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "500"
+                kind: "TECHNICAL"
+                code: "INTERNAL_ERROR"
+                message: "Erreur interne"
+    delete:
+      tags:
+        - Profils
+      security:
+        - bearerAuth: []
+      description: "Suppression d'un profil"
+      parameters:
+        - name: uuid
+          in: path
+          description: "Identifiant unique du profil"
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: "Suppression avec succés"
+        '401':
+          description: "Accés non autorisé"
+        '403':
+          description: "Action non autorisée"
+        '404':
+          description: "Profil non trouvé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "404"
+                kind: "FUNCTIONAL"
+                code: "PROFIL_UNKNOWN"
+                message: "Profil inconnu"
+        '500':
+          description: "Erreur interne"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "500"
+                kind: "TECHNICAL"
+                code: "INTERNAL_ERROR"
+                message: "Erreur interne"
+    put:
+      tags:
+        - Profils
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          description: "Identifiant unique du profil"
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfilCreateUpdateRequest"
+            example:
+              code: "admin"
+              description: "Administrateur"
+      responses:
+        '200':
+          description: "Mise à jour avec succés du profil"
+        '401':
+          description: "Accés non autorisé"
+        '403':
+          description: "Action non autorisée"
+        '404':
+          description: "Profil non trouvé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "404"
+                kind: "FUNCTIONAL"
+                code: "PROFIL_UNKNOWN"
+                message: "Profil inconnu"
+        '500':
+          description: "Erreur interne"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "500"
+                kind: "TECHNICAL"
+                code: "INTERNAL_ERROR"
+                message: "Erreur interne"
+  /api/v1/clients/{client_uuid}/traitements:
+    get:
+      tags:
+        - Registre_Traitements
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: client_uuid
+          in: path
+          description: "Identifiant unique du client"
+          required: true
+          schema:
+            type: string
+        - name: nom
+          in: query
+          description: "Filtrage par nom"
+          schema:
+            type: string
+        - name: gestionnaire
+          in: query
+          description: "Filtrage par gestionnaire"
+          schema:
+            type: string
+        - name: etablissement
+          in: query
+          description: "Filtrage par établissement"
+          schema:
+            type: string
+        - name: orderBy
+          in: query
+          description: "Tri sur colonne"
+          required: false
+          schema:
+            type: string
+        - name: orderDir
+          in: query
+          description: "Direction de tri (ascendant, descendant)"
+          required: false
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+        - name: pageSize
+          in: query
+          description: "Nombre de résultats par page"
+          required: false
+          schema:
+            type: integer
+        - name: pageIndex
+          in: query
+          description: "Index de la page recherchée"
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: "Liste des traitements"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TraitementResponseListDto"
+        '401':
+          description: "Accés non autorisé"
+        '403':
+          description: "Action non autorisée"
+        '404':
+          description: "Profil non trouvé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "404"
+                kind: "FUNCTIONAL"
+                code: "CLIENT_UNKNOWN"
+                message: "Profil inconnu"
+        '500':
+          description: "Erreur interne"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "500"
+                kind: "TECHNICAL"
+                code: "INTERNAL_ERROR"
+                message: "Erreur interne"
+    post:
+      tags:
+        - Registre_Traitements
+      security:
+        - bearerAuth: []
+      description: "Création d'un registre de traitement"
+      parameters:
+        - name: client_uuid
+          in: path
+          description: "Identifiant unique du client"
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TraitementCreateUpdateRequest"
+      responses:
+        '201':
+          description: "Création en succés"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneratedId"
+        '400':
+          description: "Format de payload invalide"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        '401':
+          description: "Accés non autorisé"
+        '403':
+          description: "Action non autorisée"        
+        '404':
+          description: "Profil non trouvé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "404"
+                kind: "FUNCTIONAL"
+                code: "TRAITEMENT_UNKNOWN"
+                message: "Traitement inconnu"
+        '409':
+          description: "Erreur fonctionnelle"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        '500':
+          description: "Erreur interne"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "500"
+                kind: "TECHNICAL"
+                code: "INTERNAL_ERROR"
+                message: "Erreur interne"
+  /api/v1/clients/{client_uuid}/traitements/{traitement_uuid}:
+    delete:
+      tags:
+        - Registre_Traitements
+      security:
+        - bearerAuth: []
+      description: "Suppression d'un registre de traitement et de ses données associées"
+      parameters:
+        - name: client_uuid
+          in: path
+          description: "Identifiant unique du client"
+          required: true
+          schema:
+            type: string
+        - name: traitement_uuid
+          in: path
+          description: "Identifiant unique du traitement"
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: "Succés suppression registre de traitement"
+        '401':
+          description: "Accés non autorisé"
+        '403':
+          description: "Action non autorisée"
+        '404':
+          description: "Utilisateur non trouvé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "404"
+                kind: "FUNCTIONAL"
+                code: "REGISTRE_TRAITEMENT_UNKNOWN"
+                message: "Registre de traitement inconnu"
+        '500':
+          description: "Erreur interne"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "500"
+                kind: "TECHNICAL"
+                code: "INTERNAL_ERROR"
+                message: "Erreur interne"
+    put:
+      tags:
+        - Registre_Traitements
+      security:
+        - bearerAuth: []
+      description: "Mise à jour d'un registre de traitement"
+      parameters:
+        - name: client_uuid
+          in: path
+          description: "Identifiant unique du client"
+          required: true
+          schema:
+            type: string
+        - name: traitement_uuid
+          in: path
+          description: "Identifiant unique du traitement"
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TraitementCreateUpdateRequest"
+      responses:
+        '200':
+          description: "Succés modification registre de traitement"
+        '400':
+          description: "Format de payload invalide"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "400"
+                kind: "FUNCTIONAL"
+                code: "VALIDATION_FAILED"
+                message: "Echec de la validation"
+                details:
+                  - code: NOT_NULL
+                    field: "nom"
+                    message: "Le champ [nom] est null ou vide"
+        '401':
+          description: "Accés non autorisé"
+        '403':
+          description: "Action non autorisée"
+        '404':
+          description: "Utilisateur non trouvé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "404"
+                kind: "FUNCTIONAL"
+                code: "REGISTRE_TRAITEMENT_UNKNOWN"
+                message: "Registre de traitement inconnu"
+        '500':
+          description: "Erreur interne"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "500"
+                kind: "TECHNICAL"
+                code: "INTERNAL_ERROR"
+                message: "Erreur interne"
+    get:
+      tags:
+        - Registre_Traitements
+      description: "Détails d'un registre de traitement"
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: client_uuid
+          in: path
+          description: "Identifiant unique du client"
+          required: true
+          schema:
+            type: string
+        - name: traitement_uuid
+          in: path
+          description: "Identifiant unique du traitement"
+          required: true
+          schema:
+            type: string
+        - name: nom
+          in: query
+          description: "Filtrage par nom"
+          schema:
+            type: string
+        - name: gestionnaire
+          in: query
+          description: "Filtrage par gestionnaire"
+          schema:
+            type: string
+        - name: etablissement
+          in: query
+          description: "Filtrage par etablissement"
+          schema:
+            type: string
+      responses:
+        '200':
+          description: "Succés"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TraitementDetailDto"
+        '401':
+          description: "Accés non autorisé"
+        '403':
+          description: "Action non autorisée"
+        '404':
+          description: "Registre de traitement non trouvé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "404"
+                kind: "FUNCTIONAL"
+                code: "REGISTRE_TRAITEMENT_UNKNOWN"
+                message: "Registre de traitement inconnu"
+        '500':
+          description: "Erreur interne"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "500"
+                kind: "TECHNICAL"
+                code: "INTERNAL_ERROR"
+                message: "Erreur interne"
+  /api/v1/clients/{client_uuid}/traitements/export:
+    get:
+      tags:
+        - Batchs_Registre_Traitements
+      parameters:
+        - name: traitements
+          in: query
+          description: "Liste des traitements à exporter"
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        '202':
+          description: "Export status"
+          content:
+            application/json:
+              schema:
+                type: object
+                $ref: "#/components/schemas/AsyncExportStatus"
+
+  /api/v1/clients/{client_uuid}/traitements/import:
+    post:
+      tags:
+        - Batchs_Registre_Traitements
+      description: |
+        Import par batch registre de traitements.
+
+        Requête traitée de manièe asynchrone.
+
+        La requête renvoie un identifiant de tâche à utiliser pour récupérer le statut du traitement
+      parameters:
+        - name: client_uuid
+          in: path
+          description: "Identifiant unique du client"
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                xlfile:
+                  type: string
+                  format: binary
+      responses:
+        '202':
+          description: "Requête traitée de manière asynchrone"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneratedId"
+        '401':
+          description: "Accés non autorisé"
+        '403':
+          description: "Action non autorisée"        
+        '500':
+          description: "Erreur interne"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "500"
+                kind: "TECHNICAL"
+                code: "INTERNAL_ERROR"
+                message: "Erreur interne"
+  /api/v1/clients/{client_uuid}/traitements/import/{import_uuid}:
+    get:
+      tags:
+        - Batchs_Registre_Traitements
+      description: "Récupération statut batch de traitement"
+      parameters:
+        - name: client_uuid
+          in: path
+          description: "Identifiant unique du client"
+          required: true
+          schema:
+            type: string
+        - name: import_uuid
+          in: path
+          description: "Identifiant unique du traitement asynchrone"
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: "Statut du traitement"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AsyncTaskStatus"
+        '401':
+          description: "Accés non autorisé"
+        '403':
+          description: "Action non autorisée"
+        '404':
+          description: "Client non trouvé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "404"
+                kind: "FUNCTIONAL"
+                code: "USER_UNKNOWN"
+                message: "Client inconnu"
+        '500':
+          description: "Erreur interne"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                status: "500"
+                kind: "TECHNICAL"
+                code: "INTERNAL_ERROR"
+                message: "Erreur interne"
+
+          
