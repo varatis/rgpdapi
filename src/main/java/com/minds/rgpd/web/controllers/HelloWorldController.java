@@ -18,16 +18,17 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 @Tag(name = "Hello World Controller", description = "Display Hello World")
 public class HelloWorldController {
-  private final HelloWorldService helloWorldService;
-  @Operation(summary = "Display Hello World", description = "Display Hello World.")
-  @ApiResponses(value = {
-          @ApiResponse(responseCode = "200", description = "Return Hello World", content = @Content(schema = @Schema(implementation = String.class))),
-          @ApiResponse(responseCode = "500", description = "Internal server error")
-  })
-  @GetMapping
-  public ResponseEntity<String> getHelloWorld() {
-    String result = helloWorldService.getHelloWorld();
-    return ResponseEntity.ok(result);
-  }
+    private final HelloWorldService helloWorldService;
+
+    @Operation(summary = "Display Hello World", description = "Display Hello World.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Return Hello World", content = @Content(schema = @Schema(implementation = String.class))),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    @GetMapping
+    public ResponseEntity<String> getHelloWorld() {
+        String result = helloWorldService.getHelloWorld();
+        return ResponseEntity.ok(result);
+    }
 
 }

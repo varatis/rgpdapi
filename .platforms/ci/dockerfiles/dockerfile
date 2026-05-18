@@ -1,0 +1,7 @@
+#Build stage
+FROM srv-nexus.domaine.local:18444/outillage/maven:3.9.5-jdk21
+WORKDIR /opt/minds-rgpd-api
+COPY target/*.jar /opt/minds-rgpd-api/app.jar
+
+EXPOSE 8080
+ENTRYPOINT ["java","-jar","/opt/minds-rgpd-api/app.jar"]

@@ -64,8 +64,9 @@
 Scripts à initialiser :
 
 - `src/main/resources/db/migration/`
-  - `V1.0__init_db.sql` : Initialise la base de données avec **Flyway** au démarrage de
+  - `V1.0__Script_de_creation.sql` : Initialise la base de données avec **Flyway** au démarrage de
     l'application, sur environnement ou pour utilisation locale.
+  - `V2.0__Script_de_migration` : Modification de la table traitement
 
 ### Administrer la BDD
 

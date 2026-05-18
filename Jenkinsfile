@@ -10,36 +10,29 @@ import fr.creative.jenkins.service.*
 import fr.creative.jenkins.utils.*
 
 node() {
+properties([
+    parameters([
+        choice(name:'deployTo', choices: ['','valid','demo'], defaultValue: '', description: 'Environnement sur lequel deployer, laisser vide pour ne pas déployer.'),
+        booleanParam(name:'skipBuild', defaultValue: false),
+        booleanParam(name:'skipLicense', defaultValue: false),
+        booleanParam(name:'skipSonarqube', defaultValue: false),
+        booleanParam(name:'skipVulnerabilityCheck', defaultValue: false),
+        booleanParam(name:'skipTrivy', defaultValue: false),
+        booleanParam(name:'skipPackage', defaultValue: false),
+        booleanParam(name:'skipDeploy', defaultValue: false),
+        booleanParam(name:'skipAPISecurity', defaultValue: false),
+        booleanParam(name:'skipTU', defaultValue: false),
+        booleanParam(name:'skipTI', defaultValue: false)
+    ])
+])
     // Nom du Projet Gitlab
-    String projectName = "minds-rgpd-api"
-    // Branche GIT à builder/packager/déployer
-    String projectBranch = params.BRANCH_NAME
-    // Environnement sur lequel on souhaite déployer l'application
-    String deployTo = params.DEPLOY_TO
-    // Version de l'application que l'on souhaite déployer
-    String version = params.PROJECT_VERSION
-    // Skip Build
-    boolean skipBuild = params.SKIP_BUILD
-    // Skip licenses checking
-    boolean skipLicense = params.SKIP_LICENSE
-    // Skip Sonarqube
-    boolean skipSonarqube = params.SKIP_SONARQUBE
+    String projectName
+    // Nom de la branche
+    String projectBranch = env.BRANCH_NAME
+    // Version de la branche
+    String version
     // set sonar critical behaviour
     boolean isSonarqubeCritical = true
-    // Skip Vulnerability checking
-    boolean skipVulnerabilityCheck = params.SKIP_VULNERABILITY_CHECK
-    // Skip Trivy
-    boolean skipTrivy = params.SKIP_TRIVY
-    // Skip Package
-    boolean skipPackage = params.SKIP_PACKAGE
-    // Skip Deploy
-    boolean skipDeploy = params.SKIP_DEPLOY
-    // Skip api security scan
-    boolean skipAPISecurity = params.SKIP_API_SECURITY_SCAN
-    // Skip tests unitaires
-    boolean skipTU = params.SKIP_TU
-    // Skip tests d'intégration
-    boolean skipTI = params.SKIP_TI
 
     // URL Channel Teams
     // TODO
@@ -54,36 +47,21 @@ node() {
 
        // Ne pas deployer s'il s'agit d'une pipeline déclenché par gitlab
         if(GitlabService.instance().isTriggeredByGitlab()){
-            skipDeploy = true
-            skipVulnerabilityCheck = true
-            isSonarqubeCritical = false
-            isMergeRequest = true
+            params.skipDeploy = true
+            params.skipVulnerabilityCheck = true
+            params.isSonarqubeCritical = false
+            params.isMergeRequest = true
 
             projectBranch = "origin/" + env.gitlabSourceBranch
-
             println "projectBranch before checkout ${projectBranch}"
             checkout scmGit(branches: [[name: '${projectBranch}']], extensions: [], userRemoteConfigs: [[url: 'git@srv-gitlab.domaine.local:minds-labs/minds-rgpd/minds_rgpd_api.git']])
         } else {
             checkout scm
         }
 
-        if (version == "") {
-            // Use git commit short hash like the frontend instead of branch name
-            sh("chmod +x ./.platforms/ci/git-version.sh ./.platforms/ci/get-git-version.sh")
-            version = sh(script: "./.platforms/ci/get-git-version.sh", returnStdout: true).trim()
-            println("version  = $version")
-        }
-
-        stage("Approval PROD") {
-            if (deployTo == "prod") {
-                timeout(time: 30, unit: 'MINUTES') {
-                    input(
-                        message: "Confirmer le déploiement en PROD (${params.BRANCH_NAME})",
-                        ok: "Déployer"
-                    )
-                }
-            }
-        }
+        sh("chmod +x ./.platforms/ci/git-version.sh ./.platforms/ci/get-git-version.sh")
+        version = sh(script: "./.platforms/ci/get-git-version.sh", returnStdout: true).trim()
+        println("version  = $version")
 
         stage('Prepare') {
             sh("chmod 777 -R .platforms/ci/")
@@ -93,19 +71,14 @@ node() {
             sh("find . -type f -print0 | xargs -0 dos2unix")
             PROJECT_VERSION=version
             PropertiesUtils.updateValue(".env", "PROJECT_VERSION", version)
-            if (isMergeRequest) {
-                JenkinsService.instance().appendBuildDescription("'${projectName}': Merge Request Branch '${projectBranch}' To 'origin/develop'")
-            } else {
-                JenkinsService.instance().appendBuildDescription("'${projectName}': Deploy Branch '${projectBranch}' To '${deployTo}'")
-            }
         }
 
         stage('Build') {
-            if (!skipBuild) {
+            if (!params.skipBuild) {
                 println "Building project"
                 sh """
-                    SKIP_TU=${skipTU} \
-                    SKIP_TI=${skipTI} \
+                    SKIP_TU=${params.skipTU} \
+                    SKIP_TI=${params.skipTI} \
                     .platforms/ci/build.sh
                 """
                 // Publish HTML reports
@@ -116,14 +89,14 @@ node() {
         }
 
         stage("Licenses") {
-            if (!skipLicense) {
+            if (!params.skipLicense) {
                 println "Check if exist contaminating licenses..."
                 sh "bash ./.platforms/ci/check-licenses.sh"
             }
         }
 
         stage("Vulnerability") {
-            if (!skipVulnerabilityCheck) {
+            if (!params.skipVulnerabilityCheck) {
                 println "Launch vulnerability checking"
                 sh "bash ./.platforms/ci/check-vulnerability.sh"
 
@@ -133,7 +106,7 @@ node() {
         }
 
         stage("Security Tests (Trivy)") {
-            if (!skipTrivy) {
+            if (!params.skipTrivy) {
                 boolean trivyError=false
                 try {
                     // Rapport au format HTML
@@ -154,24 +127,24 @@ node() {
         }
 
         stage("Sonarqube") {
-            if (!skipSonarqube) {
+            if (!params.skipSonarqube) {
                 println "Qualimetry Sonarqube"
                 HttpService.instance().waitForService("https://sonarqube.tools.k8s/")
-                String sonarBranch = "main"
+                String sonarBranch = projectBranch
                 sh "bash ./.platforms/ci/sonar.sh --git-branch ${sonarBranch}"
 
                 // Validation de l'analyse sonar (blocage si bug critique)
                 if (isSonarqubeCritical) {
                     def sonarproject = new Sonar()
-                    println("Analysing minds-rgpd-api")
-                    sonarproject.key = "minds-rgpd-api"
+                    println("Analysing ${projectName}")
+                    sonarproject.key = projectName
                     SonarService.instance().checkProjectStatus(sonarproject, sonarBranch, true)
                 }
             }
         }
 
         stage("Package") {
-            if (!skipPackage) {
+            if (!params.skipPackage) {
                 DockerService.instance().login(DockerRegistry.getDefaultRegistry())
                 println "Creating Docker Images"
                 if (isMergeRequest) {
@@ -183,16 +156,24 @@ node() {
         }
 
         stage("Deploy") {
-            if (!skipDeploy){
+            if (!params.skipDeploy && params.deployTo != ''){
+                if (params.deployTo == "prod") {
+                    timeout(time: 30, unit: 'MINUTES') {
+                        input(
+                            message: "Confirmer le déploiement en PROD (${projectBranch})",
+                            ok: "Déployer"
+                        )
+                    }
+                }
                 withKubeConfig([credentialsId: 'kubeconfig-minds-admin']) {
                     println "Deploy project"
-                    sh "bash ./.platforms/k8s/deploy.sh ${deployTo}"
+                    sh "bash ./.platforms/k8s/deploy.sh ${params.deployTo}"
                 }
             }
         }
 
         stage("API Security Test (Zap)") {
-            if (!skipAPISecurity) {
+            if (!params.skipAPISecurity) {
                 boolean apiSecurityError = false
                 try {
                     // Use the same credentials as frontend ZAP scanning
@@ -207,13 +188,13 @@ node() {
                                     passwordVariable: 'ZAP_PASSWORD')
 
                     ]) {
-                        println "Running API Security Scan for environment: ${deployTo}"
+                        println "Running API Security Scan for environment: ${params.deployTo}"
                         sh """
                             OAUTH_CLIENT_ID='${OAUTH_CLIENT_ID}' \
                             OAUTH_CLIENT_SECRET='${OAUTH_CLIENT_SECRET}' \
                             ZAP_USERNAME='${ZAP_USERNAME}' \
                             ZAP_PASSWORD='${ZAP_PASSWORD}' \
-                            bash .platforms/ci/security-scan.sh ${deployTo}
+                            bash .platforms/ci/security-scan.sh ${params.deployTo}
                         """
 
                     }
@@ -267,10 +248,8 @@ node() {
         }
 
         GitlabService.instance().updatePipelineStatusToSuccess()
-        //MicrosoftTeamsService.instance().send(webhookUrl, "Deploy 'TunnelCourtier' (Branch '${projectBranch}' To '${deployTo}') SUCCESS")
     } catch (err) {
       JenkinsService.instance().raiseTechnicalError(err)
       GitlabService.instance().updatePipelineStatusToFailed()
-      //MicrosoftTeamsService.instance().send(webhookUrl, "Deploy 'TunnelCourtier' (Branch '${projectBranch}' To '${deployTo}') FAILED")
     }
 }

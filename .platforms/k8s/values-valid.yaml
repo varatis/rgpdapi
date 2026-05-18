@@ -1,0 +1,44 @@
+# Values for valid env for minds-rgpd-api.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+back:
+  name: minds-rgpd-api-valid
+  replicaCount: 1
+  database:
+    minds_rgpd_api:
+      host: jdbc:postgresql://postgres/minds_saas_rgpd_valid
+      username: minds_saas_rgpd_valid
+  secret:
+    path: saas_rgpd/valid/k8s
+  security:
+    issuer_uri: https://sso.minds.k8s/auth/realms/creative
+    jwk_set_uri: https://sso.minds.k8s/auth/realms/creative/protocol/openid-connect/certs
+  cors:
+    allowed-origins: "https://valid.minds-rgpd.minds.k8s,https://jaeger-query.mingds.svc.cluster.local"
+  debug:
+    jwt:
+      enabled: true
+  tracing:
+    endpoint: "http://jaeger-collector:4317"
+    sampler: "always_on"
+    samplerArg: "1.0"
+    serviceName: "minds-rgpd-api-valid"
+
+# à vérifier    securityCenter:
+#      host: jdbc:mariadb://kube-bdd-share/minds_rgpd_api_security_center
+  ingress:
+    interne:
+      host: valid.minds-rgpd.minds.k8s
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "768Mi"
+      cpu: "500m"
+volume: # à vérifier
+  subPath: minds-rgpd-api/valid
+
+
+  # à vérifier par rapport à deployment.yaml et configMap minds/rgpd/valid

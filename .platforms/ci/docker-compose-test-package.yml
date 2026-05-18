@@ -1,0 +1,9 @@
+# Use root/example as user/password credentials
+version: '3.4'
+
+services:
+  minds-rgpd-api:
+    image: srv-nexus.domaine.local:18444/projets/followminds/${PROJECT_NAME}:${PROJECT_VERSION}
+    container_name: minds-rgpd-api
+    ports:
+      - "8080:8080"

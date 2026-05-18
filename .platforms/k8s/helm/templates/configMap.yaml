@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.back.name }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.back.name }}
+data:
+  spring.datasource.url: {{ .Values.back.database.minds_rgpd_api.host  }}
+  spring.datasource.username: {{ .Values.back.database.minds_rgpd_api.username }}
+  spring.security.oauth2.resourceserver.jwt.issuer-uri: {{ .Values.back.security.issuer_uri  }}
+  spring.security.oauth2.resourceserver.jwt.jwk-set-uri: {{ .Values.back.security.jwk_set_uri }}
+  application.allowed-origins: {{ index .Values.back.cors "allowed-origins" | quote }}
+  {{- if .Values.back.debug }}
+  {{- if .Values.back.debug.jwt }}
+  debug.jwt.enabled: "{{ .Values.back.debug.jwt.enabled }}"
+  {{- end }}
+  {{- end }}

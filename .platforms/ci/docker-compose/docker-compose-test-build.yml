@@ -1,0 +1,11 @@
+# Use root/example as user/password credentials
+version: '3.4'
+
+services:
+  minds-rgpd-api:
+    image: srv-nexus.domaine.local:18444/outillage/maven:3.9.5-jdk21
+    container_name: minds-rgpd-api
+    working_dir: /opt/minds-rgpd-api
+    volumes:
+      - ${PWD}/target/app.jar:/opt/minds-rgpd-api/app.jar
+    command: "java -jar /opt/minds-rgpd-api/app.jar"

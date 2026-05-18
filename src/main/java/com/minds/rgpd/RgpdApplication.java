@@ -13,7 +13,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 ))
 public class RgpdApplication {
 
-  public static void main(String[] args) {
-    SpringApplication.run(RgpdApplication.class, args);
-  }
+    public static void main(String[] args) {
+        SpringApplication.run(RgpdApplication.class, args);
+    }
 }

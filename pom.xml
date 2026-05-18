@@ -43,8 +43,8 @@
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-core</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-flyway</artifactId>
         </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>
@@ -64,6 +64,11 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>1.6.3</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -254,32 +259,6 @@
                 <configuration>
                     <failOnBlacklist>true</failOnBlacklist>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.owasp</groupId>
-                <artifactId>dependency-check-maven</artifactId>
-                <version>12.2.1</version>
-                <configuration>
-                    <nvdApiKey>${nvd.api.key}</nvdApiKey>
-                    <nvdApiResultsPerPage>1000</nvdApiResultsPerPage>
-                    <nvdApiDelay>5000</nvdApiDelay>
-                    <nvdMaxRetryCount>20</nvdMaxRetryCount>
-                    <failOnError>false</failOnError>
-                    <knownExploitedEnabled>false</knownExploitedEnabled>
-                    <autoUpdate>false</autoUpdate>
-                    <dataDirectory>${project.basedir}/.odc-data</dataDirectory>
-                    <retireJsAnalyzerEnabled>false</retireJsAnalyzerEnabled>
-                    <suppressionFiles>
-                        <suppressionFile>${project.basedir}/project-suppression-cve.xml</suppressionFile>
-                    </suppressionFiles>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
 
