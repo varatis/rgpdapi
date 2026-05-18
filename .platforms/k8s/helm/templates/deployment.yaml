@@ -1,0 +1,125 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.back.name }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.back.name }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.back.name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Values.back.name }}
+    spec:
+      containers:
+        - name: {{ .Values.back.name }}
+          image: "{{ .Values.back.image.name }}:{{ .Values.back.image.tag }}"
+          imagePullPolicy: {{ .Values.back.image.pullPolicy }}
+          resources:
+            requests:
+              memory: {{ .Values.back.resources.requests.memory }}
+              cpu: {{ .Values.back.resources.requests.cpu }}
+            limits:
+              memory: {{ .Values.back.resources.limits.memory }}
+              cpu: {{ .Values.back.resources.limits.cpu }}
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{.Values.back.name}}
+                  key: spring.datasource.url
+            - name: DATABASE_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{.Values.back.name}}
+                  key: spring.datasource.username
+            - name: JWT_ISSUER_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: {{.Values.back.name}}
+                  key: spring.security.oauth2.resourceserver.jwt.issuer-uri
+            - name: JWT_JWK_SET_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: {{.Values.back.name}}
+                  key: spring.security.oauth2.resourceserver.jwt.jwk-set-uri
+            - name: APPLICATION_ALLOWED_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{.Values.back.name}}
+                  key: application.allowed-origins
+            {{- if .Values.back.debug }}
+            {{- if .Values.back.debug.jwt }}
+            - name: DEBUG_JWT_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: {{.Values.back.name}}
+                  key: debug.jwt.enabled
+            {{- end }}
+            {{- end }}
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.back.name }}
+                  key: DB_PASSWORD
+
+            # OpenTelemetry Configuration
+            {{- if .Values.back.debug.tracing }}
+            - name: OTEL_SERVICE_NAME
+              value: "{{ .Values.back.tracing.serviceName | default .Values.back.name }}"
+            - name: OTEL_SERVICE_VERSION
+              value: "{{ .Values.back.image.tag }}"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "{{ .Values.back.tracing.endpoint | default "http://jaeger-collector.outillage.svc.cluster.local:4317" }}"
+            - name: OTEL_TRACES_SAMPLER
+              value: "{{ .Values.back.tracing.sampler | default "always_on" }}"
+            - name: OTEL_TRACES_SAMPLER_ARG
+              value: "{{ .Values.back.tracing.samplerArg | default "1.0" }}"
+            - name: OTEL_LOGS_EXPORTER
+              value: none
+            - name: OTEL_TRACES_EXPORTER
+              value: "{{ .Values.back.tracing.exporter | default "otlp" }}"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "grpc"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.namespace={{ .Release.Namespace }},deployment.environment={{ .Values.environment | default "dev" }}"
+            - name: OTEL_BSP_MAX_EXPORT_BATCH_SIZE
+              value: "512"
+            - name: OTEL_BSP_EXPORT_TIMEOUT
+              value: "30s"
+            - name: OTEL_SDK_DISABLED
+              value: "false"
+            - name: OTEL_JAVA_GLOBAL_AUTOCONFIGURE_ENABLED
+              value: "true"
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.back.service.port }}
+              protocol: TCP
+          {{- if .Values.back.debug.tracing }}
+          startupProbe:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - 'curl -f http://jaeger-collector:14269/api/ready || exit 1'
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 10
+          {{- end }}
+          livenessProbe:
+            initialDelaySeconds: {{ .Values.back.liveness.initialDelaySeconds }}
+            failureThreshold: {{ .Values.back.liveness.failureThreshold }}
+            periodSeconds: {{ .Values.back.liveness.periodSeconds }}
+            httpGet:
+              path: {{ .Values.back.healthCheck }}
+              port: {{ .Values.back.service.port }}
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.back.readiness.initialDelaySeconds}}
+            failureThreshold: {{ .Values.back.readiness.failureThreshold}}
+            periodSeconds: {{ .Values.back.readiness.periodSeconds}}
+            httpGet:
+              path: {{ .Values.back.healthCheck }}
+              port: {{ .Values.back.service.port }}

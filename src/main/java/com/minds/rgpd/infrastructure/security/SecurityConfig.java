@@ -15,36 +15,36 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableMethodSecurity()
 public class SecurityConfig {
 
-  private final JwtAuthConverter jwtAuthConverter;
+    private final JwtAuthConverter jwtAuthConverter;
 
-  public SecurityConfig(JwtAuthConverter jwtAuthConverter) {
-    this.jwtAuthConverter = jwtAuthConverter;
-  }
+    public SecurityConfig(JwtAuthConverter jwtAuthConverter) {
+        this.jwtAuthConverter = jwtAuthConverter;
+    }
 
-  @Bean
-  SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    @Bean
+    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
-    http
-      .csrf(AbstractHttpConfigurer::disable)
-      .cors(Customizer.withDefaults())
-      .authorizeHttpRequests(request -> request
-        .requestMatchers(
-                "/helloworld",
-                "/actuator/**",
-                "/swagger-ui.html",
-                "/swagger-ui/**",
-                "/swagger-resources/**",
-                "/v3/api-docs",
-                "/v3/api-docs/**",
-                "/webjars/**"
-        ).permitAll()
-          .anyRequest().authenticated()
-        )
-        .oauth2ResourceServer(oauth2 -> oauth2
-          .jwt(jwtConfigurer -> jwtConfigurer.jwtAuthenticationConverter(jwtAuthConverter))
-        )
-        .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+        http
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(Customizer.withDefaults())
+                .authorizeHttpRequests(request -> request
+                        .requestMatchers(
+                                "/helloworld",
+                                "/actuator/**",
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/swagger-resources/**",
+                                "/v3/api-docs",
+                                "/v3/api-docs/**",
+                                "/webjars/**"
+                        ).permitAll()
+                        .anyRequest().authenticated()
+                )
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwtConfigurer -> jwtConfigurer.jwtAuthenticationConverter(jwtAuthConverter))
+                )
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
-    return http.build();
-  }
+        return http.build();
+    }
 }

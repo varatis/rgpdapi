@@ -1,0 +1,55 @@
+# Default values for minds-rgpd-api.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+back:
+  name: minds-rgpd-api
+  replicaCount: 1
+  image:
+    srv-nexus:
+      domaine:
+    name: "srv-nexus.domaine.local:18444/projets/minds-rgpd/minds-rgpd-api"
+    tag: "minds-rgpd-api"
+    pullPolicy: Always
+  healthCheck: /actuator/health
+  readiness:
+    initialDelaySeconds: 100
+    failureThreshold: 3
+    periodSeconds: 10
+  liveness:
+    initialDelaySeconds: 60
+    failureThreshold: 3
+    periodSeconds: 10
+  database:
+    minds-rgpd-api:
+      host: xxx
+    securityCenter:
+      host: xxx
+  service:
+    type: ClusterIP
+    port: 8080
+  ingress:
+    interne:
+      enabled: true
+      host: xxx
+    externe:
+      enabled: false
+      host: xxx
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "768Mi"
+      cpu: "500m"
+  security:
+    issuer_uri: xxx
+    jwk_set_uri: xxx
+  tracing:
+    endpoint: "http://jaeger-collector.outillage.svc.cluster.local:4317"
+    sampler: "always_on"
+    samplerArg: "1.0"
+volume:
+  claimName: minds-pv-claim
+
+  subPath: minds-rgpd-api/xxx

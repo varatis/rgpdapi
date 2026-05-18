@@ -1,0 +1,25 @@
+
+back:
+  name: minds-rgpd-api-prod
+  database:
+    minds_rgpd_api:
+      host: jdbc:postgresql://kube-bdd-prod02/minds_rgpd
+      username: minds_rgpd
+  secret:
+    path: minds-rgpd/k8s/config
+  security:
+    issuer_uri: https://sso.groupe-creative.fr/auth/realms/creative
+    jwk_set_uri: https://sso.groupe-creative.fr/auth/realms/creative/protocol/openid-connect/certs
+  cors:
+    allowed-origins: "https://minds-rgpd.intra.groupe-creative.fr"
+  debug:
+    jwt:
+      enabled: false
+  # tracing:
+  #   endpoint: "http://jaeger-collector:4317"
+  #   sampler: "always_on"
+  #   samplerArg: "1.0"
+  #   serviceName: "minds-rgpd-api-prod"
+  ingress:
+    interne:
+      host: minds-rgpd.intra.groupe-creative.fr
