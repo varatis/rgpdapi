@@ -13,6 +13,10 @@ spec:
       labels:
         app.kubernetes.io/name: {{ .Values.back.name }}
     spec:
+      #volumes:
+        #- name: minds-saas-rgpd-api
+          #persistentVolumeClaim: 
+            #claimName: {{ .Values.volume.claimName }}
       containers:
         - name: {{ .Values.back.name }}
           image: "{{ .Values.back.image.name }}:{{ .Values.back.image.tag }}"
@@ -99,6 +103,9 @@ spec:
               containerPort: {{ .Values.back.service.port }}
               protocol: TCP
           {{- if .Values.back.debug.tracing }}
+          #volumeMounts:
+            #- name: minds-saas-rgpd-api
+              #mountPath: /app/data
           startupProbe:
             exec:
               command:

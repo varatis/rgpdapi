@@ -26,7 +26,7 @@ properties([
     ])
 ])
     // Nom du Projet Gitlab
-    String projectName
+    String projectName = "minds-rgpd-api"
     // Nom de la branche
     String projectBranch = env.BRANCH_NAME
     // Version de la branche
@@ -68,7 +68,7 @@ properties([
             sh("if [ -d target/ ]; then sudo chown -R jenkins target/; fi")
             sh("if [ -d target/ ]; then rm -rf target/; fi")
             sh("if [ -f git-version.json ]; then rm git-version.json; fi")
-            sh("find . -type f -print0 | xargs -0 dos2unix")
+            sh("find . -type f -print0 | xargs -0 dos2unix -q")
             PROJECT_VERSION=version
             PropertiesUtils.updateValue(".env", "PROJECT_VERSION", version)
         }
@@ -116,9 +116,8 @@ properties([
                 } finally {
                     // Publication du rapport HTML
                     JenkinsService.instance().publishHtml("./target/.trivy/", "trivy.html", "Trivy Report", true)
-                    archiveArtifacts artifacts: 'trivy/.trivy/trivy.html', excludes: null
+                    archiveArtifacts artifacts: 'target/.trivy/trivy.html', excludes: null
                     if (trivyError) {
-                        qualityWarningStage += " TRIVY |"
                         String url = JenkinsService.instance().getJobUrl() + "/TrivyReport/"
                         JenkinsService.instance().setStageAsUnstable("Trivy - Niveau de sécurité insuffisant > ${url}")
                     }
@@ -138,7 +137,7 @@ properties([
                     def sonarproject = new Sonar()
                     println("Analysing ${projectName}")
                     sonarproject.key = projectName
-                    SonarService.instance().checkProjectStatus(sonarproject, sonarBranch, true)
+                    SonarService.instance().checkProjectStatus(sonarproject, "main", true)
                 }
             }
         }

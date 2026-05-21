@@ -38,6 +38,7 @@ back:
       memory: "768Mi"
       cpu: "500m"
 volume: # à vérifier
+  claimName: minds-pv-claim
   subPath: minds-rgpd-api/valid
 
 

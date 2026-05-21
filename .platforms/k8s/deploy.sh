@@ -31,6 +31,7 @@ fi
 TOOLS_NAME="${PROJECT_NAME}-${DEP_ENV}"
 # Helm parameters
 HELM_IMAGE_EXTRA_OPTS="-v $WORKSPACE:$WORKDIR -e KUBECONFIG=$KUBECONFIG"
+echo "HELM_IMAGE_EXTRA_OPTS ${HELM_IMAGE_EXTRA_OPTS}"
 
 # Deploy Application
 # HELM_COMMAND="helm upgrade --recreate-pods --install --debug --wait --namespace $NAMESPACE $TOOLS_NAME -f $WORKDIR/.platforms/k8s/helm/values-$DEP_ENV.yaml --set back.image.tag=$PROJECT_VERSION ./.platforms/k8s/helm"
