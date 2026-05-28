@@ -1,11 +1,14 @@
 package com.minds.rgpd.business.services;
 
 import com.minds.rgpd.business.dtos.TraitementDTO;
-
-import java.util.List;
+import com.minds.rgpd.business.dtos.TraitementPartielDTO;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface TraitementService {
 
-    List<TraitementDTO> getTraitements();
+    Page<TraitementPartielDTO> getTraitements(Pageable pageable);
+
+    TraitementDTO getOneTraitement(Integer id);
 
 }

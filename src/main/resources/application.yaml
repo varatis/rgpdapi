@@ -1,5 +1,6 @@
 application:
   version: @project.version@
+  fichier.upload.dir: ${UPLOAD_DIR}
 
 # Configuration Actuator
 management:

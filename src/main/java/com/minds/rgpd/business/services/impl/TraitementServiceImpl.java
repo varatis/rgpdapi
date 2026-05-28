@@ -1,16 +1,17 @@
 package com.minds.rgpd.business.services.impl;
 
 import com.minds.rgpd.business.dtos.TraitementDTO;
+import com.minds.rgpd.business.dtos.TraitementPartielDTO;
 import com.minds.rgpd.business.services.TraitementService;
 import com.minds.rgpd.business.utilities.mappers.TraitementMapper;
 import com.minds.rgpd.persistence.entities.Traitement;
 import com.minds.rgpd.persistence.repositories.TraitementRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -22,9 +23,14 @@ public class TraitementServiceImpl implements TraitementService {
     private final TraitementMapper traitementMapper;
 
     @Override
-    public List<TraitementDTO> getTraitements() {
-        List<Traitement> traitementList = traitementRepository.findAll();
+    public Page<TraitementPartielDTO> getTraitements(Pageable pageable) {
+        Page<Traitement> traitementList = traitementRepository.findAll(pageable);
+        return traitementMapper.toTraitementPartielDTOPage(traitementList);
+    }
 
-        return traitementMapper.mapToDTOList(traitementList);
+    @Override
+    public TraitementDTO getOneTraitement(Integer id) {
+        Traitement traitement = traitementRepository.findById(id).orElse(null);
+        return traitementMapper.mapToDTO(traitement);
     }
 }

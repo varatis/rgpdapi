@@ -29,7 +29,7 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(request -> request
                         .requestMatchers(
-                                "/helloworld",
+                                "/**",
                                 "/actuator/**",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",

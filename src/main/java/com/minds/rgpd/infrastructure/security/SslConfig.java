@@ -4,10 +4,7 @@ import jakarta.annotation.PostConstruct;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
+import javax.net.ssl.*;
 import java.security.cert.X509Certificate;
 
 @Configuration
@@ -15,7 +12,7 @@ import java.security.cert.X509Certificate;
 public class SslConfig {
 
     @PostConstruct
-    public void disableSslVerification() {
+    public void disableSslVerification() throws SSLException {
         try {
             // Disable SSL verification
             TrustManager[] trustAllCerts = new TrustManager[]{
@@ -40,7 +37,7 @@ public class SslConfig {
             HttpsURLConnection.setDefaultHostnameVerifier((hostname, session) -> true);
 
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new SSLException(e);
         }
     }
 }

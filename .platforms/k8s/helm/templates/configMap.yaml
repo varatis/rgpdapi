@@ -15,3 +15,4 @@ data:
   debug.jwt.enabled: "{{ .Values.back.debug.jwt.enabled }}"
   {{- end }}
   {{- end }}
+  application.fichier.upload.dir: "/app/upload_directory"

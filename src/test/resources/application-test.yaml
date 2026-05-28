@@ -18,6 +18,9 @@ spring:
           jwk-set-uri: http://sso.minds.k8s/auth/realms/creative/protocol/openid-connect/certs
           
 application:
+  fichier:
+    upload:
+      dir: "src/test/resources/rgpdFile"
   allowed-origins: "*"
 
 management:
