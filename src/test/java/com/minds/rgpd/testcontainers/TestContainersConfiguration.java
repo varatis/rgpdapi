@@ -24,9 +24,9 @@ public class TestContainersConfiguration {
     @ServiceConnection
     PostgreSQLContainer<?> postgresContainer() {
         return new PostgreSQLContainer<>(DockerImageName.parse("postgres:17-alpine"))
-                .withDatabaseName("testdb")
-                .withUsername("testuser")
-                .withPassword("testpass")
+                .withDatabaseName("docker_test")
+                .withUsername("docker_test")
+                .withPassword("docker_test")
                 .withReuse(true); // Reuse container across test runs for better performance
     }
 }

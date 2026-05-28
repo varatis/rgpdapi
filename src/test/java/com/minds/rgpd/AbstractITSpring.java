@@ -18,7 +18,7 @@ import org.springframework.test.context.ActiveProfiles;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = {RgpdApplication.class})
 @Import(TestContainersConfiguration.class)
 @DirtiesContext
-@ActiveProfiles(profiles = {"test"})
+@ActiveProfiles("test")
 public abstract class AbstractITSpring {
 
 }

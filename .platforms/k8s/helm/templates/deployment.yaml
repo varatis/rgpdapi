@@ -68,6 +68,11 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.back.name }}
                   key: DB_PASSWORD
+            - name: UPLOAD_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.back.name }}
+                  key: application.fichier.upload.dir
 
             # OpenTelemetry Configuration
             {{- if .Values.back.debug.tracing }}
