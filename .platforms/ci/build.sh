@@ -32,6 +32,5 @@ docker run --rm \
    sh -c "mvn verify -PIntegrationTests $MVN_OPTIONS"
 
 sudo chown -R jenkins:jenkins target/
-ls -l
 
 # FIXME Why all this complexity ?
