@@ -8,6 +8,7 @@ import fr.creative.jenkins.model.Module
 import fr.creative.jenkins.model.Sonar
 import fr.creative.jenkins.service.*
 import fr.creative.jenkins.utils.*
+import fr.creative.jenkins.config.ConfigUtils
 
 node() {
 properties([
@@ -22,7 +23,8 @@ properties([
         booleanParam(name:'skipDeploy', defaultValue: false),
         booleanParam(name:'skipAPISecurity', defaultValue: false),
         booleanParam(name:'skipTU', defaultValue: false),
-        booleanParam(name:'skipTI', defaultValue: false)
+        booleanParam(name:'skipTI', defaultValue: false),
+        booleanParam(name:'skipSonarQualityCheck', defaultValue: false)
     ])
 ])
     // Nom du Projet Gitlab
@@ -32,7 +34,7 @@ properties([
     // Version de la branche
     String version
     // set sonar critical behaviour
-    boolean isSonarqubeCritical = true
+    boolean isSonarqubeCritical = !params.skipSonarQualityCheck
 
     // URL Channel Teams
     // TODO
@@ -130,10 +132,11 @@ properties([
                 println "Qualimetry Sonarqube"
                 HttpService.instance().waitForService("https://sonarqube.tools.k8s/")
                 String sonarBranch = projectBranch
-                sh "bash ./.platforms/ci/sonar.sh --git-branch ${sonarBranch}"
+                sh "bash ./.platforms/ci/sonar.sh --git-branch ${sonarBranch} ${isSonarqubeCritical}"
 
                 // Validation de l'analyse sonar (blocage si bug critique)
                 if (isSonarqubeCritical) {
+                    sonarToken=ConfigUtils.SONAR_TOKEN
                     def sonarproject = new Sonar()
                     println("Analysing ${projectName}")
                     sonarproject.key = projectName
