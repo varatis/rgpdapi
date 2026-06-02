@@ -26,7 +26,9 @@ build:
 unit-tests:
   stage: test
   script:
-    - echo "Perform unit tests"
+    - echo "Unit tests"
 
 security:
   stage: trivy
+  script:
+    - echo "Trivy"
