@@ -1,6 +1,7 @@
 spec:
   inputs:
-    app_name: 
+    app_name:
+      type: string
       description: "minds-saas-rgpd-api"
     image_name:
       description: "projets/minds-rgpd/minds-saas-rgpd-api"
