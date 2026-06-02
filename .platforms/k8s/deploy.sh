@@ -18,11 +18,11 @@ if [ "$DEP_ENV" = "demo" ]; then
 elif [ "$DEP_ENV" = "valid" ]; then
     echo "Déploiement sur l'environnement de Valid"
     source .platforms/k8s/bootstrap-k8s-minds.sh
-#elif [ "$DEP_ENV" = "int" ]; then
-#    echo "Déploiement sur l'environnement de Develop"
-#    source .platforms/k8s/bootstrap-k8s-minds.sh
+elif [ "$DEP_ENV" = "int" ]; then
+    echo "Déploiement sur l'environnement d'Integration"
+    source .platforms/k8s/bootstrap-k8s-minds.sh
 else
-  echo "Paramètre 1 invalide - Environnement cible possible: int/ valid / demo"
+  echo "Paramètre 1 invalide - Environnement cible possible: int / valid / demo"
   exit 1
 fi
 
