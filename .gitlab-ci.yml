@@ -9,3 +9,8 @@ include:
       host_suffix: "host-suffix-rgpd"
       version: $CALCULATED_VERSION
       namespace: $TARGET_NAMESPACE
+stages:
+  - build
+
+build:
+  image: srv-nexus.domaine.local:18444/outillage/maven:3.9.5-jdk21-dind 
