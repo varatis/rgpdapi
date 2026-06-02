@@ -1,9 +1,14 @@
+variables:
+  PROJECT_NAME: "minds-saas-rgpd-api"
+
 include:
   - component: $CI_SERVER_FQDN/commun/components/framework/spring-boot@72be0466d1fa5ac83e46e58a606bc610ca099251
     inputs:
-      app_name: "minds-saas-rgpd-api"
-      image_name: "projets/minds-rgpd/minds-saas-rgpd-api"
-
+      app_name: "$PROJECT_NAME"
+      image_name: "projets/minds-rgpd/$PROJECT_NAME"
+      host_suffix: "host-suffix-rgpd"
+      version: $CALCULATED_VERSION
+      
 stages:
   - build
   - unit-tests
@@ -12,9 +17,14 @@ stages:
 build:
   stage: build
   image: srv-nexus.domaine.local:18444/outillage/maven:3.9.5-jdk21-dind
+  before_script:
+    - CALCULATED_VERSION="0.0.1-SNAPSHOT"
+  artifacts:
+    reports:
+      dotenv: variables.env
 
 unit-tests:
   stage: test
-  
+
 security:
   stage: trivy
