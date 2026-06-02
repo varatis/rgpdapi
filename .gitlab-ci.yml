@@ -11,6 +11,7 @@ include:
       allow_test_failure: false
       allow_sonar_failure: false
       allow_security_failure: false
+      version: $COMPUTED_VERSION
 
 # Définition des stages (optionnel, déjà défini dans le composant)
 stages:
@@ -21,6 +22,11 @@ stages:
   - deploy
   - doc
   - release
+
+build:
+  before_script:
+    - COMPUTED_VERSION="0.0.1-SNAPSHOT"
+
 
 # Variables spécifiques à ton projet (optionnel)
 variables:
