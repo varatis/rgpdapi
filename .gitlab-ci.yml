@@ -36,9 +36,14 @@ unit-tests:
     - echo "Unit tests"
 
 trivy:
-  stage: quality
+  stage: trivy-scan
   script:
     - echo "Trivy"
+
+sonar:
+  stage: sonar_job
+  script:
+    - echo "Sonar"  
 
 publish:
   stage: publish
@@ -60,7 +65,4 @@ release:
   script:
     - echo "Documentation"    
 
-sonar_job:
-  stage: sonar
-  script:
-    - echo "Sonar"    
+  
