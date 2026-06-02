@@ -9,10 +9,12 @@ include:
       host_suffix: "host-suffix-rgpd"
       version: $CALCULATED_VERSION
       namespace: $TARGET_NAMESPACE
+
 stages:
   - build
   - unit-tests
   - trivy
+  - sonar
   - publish
   - deploy
   - doc
@@ -57,3 +59,8 @@ release:
   stage: doc
   script:
     - echo "Documentation"    
+
+sonar_job:
+  stage: sonar
+  script:
+    - echo "Sonar"    
