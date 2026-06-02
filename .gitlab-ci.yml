@@ -12,7 +12,7 @@ include:
 
 stages:
   - build
-  - unit-tests
+  - test
   - trivy
   - sonar
   - publish
@@ -30,7 +30,7 @@ build:
     reports:
       dotenv: variables.env
 
-unit-tests:
+test:
   stage: test
   script:
     - echo "Unit tests"
