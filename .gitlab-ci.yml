@@ -41,7 +41,7 @@ trivy:
     - echo "Trivy"
 
 sonar:
-  stage: sonar_job
+  stage: sonar
   script:
     - echo "Sonar"  
 
