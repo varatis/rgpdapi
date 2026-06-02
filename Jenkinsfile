@@ -13,7 +13,7 @@ import fr.creative.jenkins.config.ConfigUtils
 node() {
 properties([
     parameters([
-        choice(name:'deployTo', choices: ['','valid','demo'], defaultValue: '', description: 'Environnement sur lequel deployer, laisser vide pour ne pas déployer.'),
+        choice(name:'deployTo', choices: ['','int','valid','demo'], defaultValue: '', description: 'Environnement sur lequel deployer, laisser vide pour ne pas déployer.'),
         booleanParam(name:'skipBuild', defaultValue: false),
         booleanParam(name:'skipLicense', defaultValue: false),
         booleanParam(name:'skipSonarqube', defaultValue: false),
