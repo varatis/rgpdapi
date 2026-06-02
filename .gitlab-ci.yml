@@ -12,7 +12,12 @@ include:
 stages:
   - build
   - unit-tests
-  - security
+  - trivy
+  - publish
+  - deploy
+  - doc
+  - release
+
 
 build:
   stage: build
@@ -28,7 +33,27 @@ unit-tests:
   script:
     - echo "Unit tests"
 
-security:
-  stage: trivy
+trivy:
+  stage: quality
   script:
     - echo "Trivy"
+
+publish:
+  stage: publish
+  script:
+    - echo "Publish"
+
+deploy:
+  stage: deploy
+  script:
+    - echo "Deploy"    
+
+doc:
+  stage: doc
+  script:
+    - echo "Documentation"
+
+release:
+  stage: doc
+  script:
+    - echo "Documentation"    
