@@ -1,16 +1,28 @@
-variables:
-  PROJECT_NAME: "minds-saas-rgpd-api"
-
+# .gitlab-ci.yml
 include:
   - component: $CI_SERVER_FQDN/commun/components/framework/spring-boot@72be0466d1fa5ac83e46e58a606bc610ca099251
     inputs:
-      app_name: "$PROJECT_NAME"
-      image_name: "projets/minds-rgpd/$PROJECT_NAME"
-      host_suffix: "host-suffix-rgpd"
-      version: $CALCULATED_VERSION
-      namespace: $TARGET_NAMESPACE
+      src_folder: "./"
+      app_name: "minds-saas-rgpd-api"
+      image_name: "projets/minds-rgpd/minds-saas-rgpd-api"
+      host_suffix: "proj"
+      namespace: "develop"
+      dev_deploy: false
+      allow_test_failure: false
+      allow_sonar_failure: false
+      allow_security_failure: false
+
+# Définition des stages (optionnel, déjà défini dans le composant)
 stages:
   - build
+  - test
+  - quality
+  - publish
+  - deploy
+  - doc
+  - release
 
-build:
-  image: srv-nexus.domaine.local:18444/outillage/maven:3.9.5-jdk21-dind 
+# Variables spécifiques à ton projet (optionnel)
+variables:
+  # Tu peux définir ici des variables supplémentaires si nécessaire
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
