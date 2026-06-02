@@ -32,6 +32,18 @@ public class TraitementControllerIT extends AbstractITSpring {
     private WebApplicationContext webApplicationContext;
     private MockMvc mockMvc;
 
+    private static List<TraitementPartielDTO> stringToTraitementPartielList(String contentAsString) {
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        List<JsonElement> content = JsonParser.parseString(contentAsString).getAsJsonObject().getAsJsonArray("content").asList();
+        return content.stream().map(jsonElement -> {
+            try {
+                return objectMapper.readValue(jsonElement.toString(), TraitementPartielDTO.class);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
+        }).toList();
+    }
 
     @BeforeEach
     void setup() {
@@ -58,7 +70,7 @@ public class TraitementControllerIT extends AbstractITSpring {
         // GIVEN
 
         // WHEN
-        String traitementsPartielDTOPage = mockMvc.perform(get("/traitements").param("page","0").param("size","10")).andReturn().getResponse().getContentAsString();
+        String traitementsPartielDTOPage = mockMvc.perform(get("/traitements").param("page", "0").param("size", "10")).andReturn().getResponse().getContentAsString();
 
         // THEN
         assertThat(traitementsPartielDTOPage).isNotNull();
@@ -68,18 +80,5 @@ public class TraitementControllerIT extends AbstractITSpring {
             assertThat(traitementPartielDTO.gestionnaire()).isNotNull().isNotBlank();
             assertThat(traitementPartielDTO.finalitePrincipale()).isNotNull().isNotBlank();
         });
-    }
-
-    private static List<TraitementPartielDTO> stringToTraitementPartielList(String contentAsString) {
-        ObjectMapper objectMapper = new ObjectMapper();
-
-        List<JsonElement> content = JsonParser.parseString(contentAsString).getAsJsonObject().getAsJsonArray("content").asList();
-        return content.stream().map(jsonElement -> {
-            try {
-                return objectMapper.readValue(jsonElement.toString(), TraitementPartielDTO.class);
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
-        }).toList();
     }
 }

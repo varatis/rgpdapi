@@ -29,7 +29,7 @@ public class TraitementController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<TraitementDTO> getTraitement(@PathVariable Integer id){
+    public ResponseEntity<TraitementDTO> getTraitement(@PathVariable Integer id) {
         TraitementDTO traitement = traitementService.getOneTraitement(id);
         return ResponseEntity.ok(traitement);
     }

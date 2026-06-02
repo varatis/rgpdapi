@@ -40,11 +40,11 @@ public class EtablissementServiceImplTest {
         etablissement.setNom("CREATIVE");
         etablissement.setClient(client);
 
-        EtablissementDTO etablissementDTO = new EtablissementDTO(
-                1,
-                "CREATIVE",
-                clientDTO
-        );
+        EtablissementDTO etablissementDTO = EtablissementDTO.builder()
+                .id(1)
+                .nom("CREATIVE")
+                .client(clientDTO)
+                .build();
 
         List<Etablissement> etablissementListe = List.of(etablissement);
         List<EtablissementDTO> etablissementDTOListe = List.of(etablissementDTO);

@@ -32,12 +32,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 public class EnvoiFichierIT extends AbstractITSpring {
 
     ObjectMapper mapper = new ObjectMapper();
-
+    @Autowired
+    TraitementRepository traitementRepository;
     @Autowired
     private WebApplicationContext webApplicationContext;
     private MockMvc mockMvc;
-    @Autowired
-    TraitementRepository traitementRepository;
 
     @BeforeEach
     void setup() {

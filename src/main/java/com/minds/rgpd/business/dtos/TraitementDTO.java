@@ -1,11 +1,19 @@
 package com.minds.rgpd.business.dtos;
 
+import jakarta.validation.constraints.NotNull;
+
 import java.time.LocalDate;
+import java.util.List;
 
 public record TraitementDTO(
+
+        @NotNull
         Integer id,
 
+        @NotNull
         String nom,
+
+        List<EtablissementDTO> etablissements,
 
         String gestionnaire,
 
@@ -15,6 +23,7 @@ public record TraitementDTO(
 
         Integer version,
 
+        @NotNull
         LocalDate dateIdentification,
 
         LocalDate dateMiseAJour,
@@ -57,17 +66,19 @@ public record TraitementDTO(
 
         String emplacementPhysique,
 
-        String dispositionsSecuriteDonnees,
+        String dispositionsSecuriteDonneesPhysique,
 
         String emplacementNumerique,
 
+        String dispositionsSecuriteDonneesNumerique,
+
         String hebergement,
 
-        Integer dureeConservation,
+        String dureeConservation,
 
         Boolean archivage,
 
-        Integer dureeArchivage,
+        String dureeArchivage,
 
         String categoriesDestinataires,
 

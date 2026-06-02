@@ -23,5 +23,4 @@ public class Etablissement {
     @ManyToOne
     @JoinColumn(name = "id_client")
     Client client;
-
 }

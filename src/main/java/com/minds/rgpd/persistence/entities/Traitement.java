@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Builder
 @Data
@@ -101,23 +102,26 @@ public class Traitement {
     @Column(name = "emplacement_physique")
     String emplacementPhysique;
 
-    @Column(name = "dispositions_securite_donnees")
-    String dispositionsSecuriteDonnees;
+    @Column(name = "dispositions_securite_donnees_physique")
+    String dispositionsSecuriteDonneesPhysique;
 
     @Column(name = "emplacement_numerique")
     String emplacementNumerique;
+
+    @Column(name = "dispositions_securite_donnees_numerique")
+    String dispositionsSecuriteDonneesNumerique;
 
     @Column(name = "hebergement")
     String hebergement;
 
     @Column(name = "duree_conservation")
-    Integer dureeConservation;
+    String dureeConservation;
 
     @Column(name = "archivage")
     Boolean archivage;
 
     @Column(name = "duree_archivage")
-    Integer dureeArchivage;
+    String dureeArchivage;
 
     @Column(name = "categories_destinataires")
     String categoriesDestinataires;
@@ -133,5 +137,13 @@ public class Traitement {
 
     @Column(name = "commentaires")
     String commentaires;
+
+    @ManyToMany
+    @JoinTable(
+            name = "traitement_etablissement",
+            joinColumns = @JoinColumn(name = "id_traitement"),
+            inverseJoinColumns = @JoinColumn(name = "id_etablissement")
+    )
+    List<Etablissement> etablissements;
 
 }

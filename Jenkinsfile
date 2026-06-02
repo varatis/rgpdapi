@@ -15,16 +15,16 @@ properties([
     parameters([
         choice(name:'deployTo', choices: ['','int','valid','demo'], defaultValue: '', description: 'Environnement sur lequel deployer, laisser vide pour ne pas déployer.'),
         booleanParam(name:'skipBuild', defaultValue: false),
-        booleanParam(name:'skipLicense', defaultValue: false),
-        booleanParam(name:'skipSonarqube', defaultValue: false),
-        booleanParam(name:'skipVulnerabilityCheck', defaultValue: false),
-        booleanParam(name:'skipTrivy', defaultValue: false),
-        booleanParam(name:'skipPackage', defaultValue: false),
-        booleanParam(name:'skipDeploy', defaultValue: false),
-        booleanParam(name:'skipAPISecurity', defaultValue: false),
         booleanParam(name:'skipTU', defaultValue: false),
         booleanParam(name:'skipTI', defaultValue: false),
-        booleanParam(name:'skipSonarQualityCheck', defaultValue: false)
+        booleanParam(name:'skipLicense', defaultValue: false),
+        booleanParam(name:'skipVulnerabilityCheck', defaultValue: false),
+        booleanParam(name:'skipTrivy', defaultValue: false),
+        booleanParam(name:'skipSonarqube', defaultValue: false),
+        booleanParam(name:'skipSonarQualityCheck', defaultValue: false),
+        booleanParam(name:'skipPackage', defaultValue: false),
+        booleanParam(name:'skipDeploy', defaultValue: false),
+        booleanParam(name:'skipAPISecurity', defaultValue: false)
     ])
 ])
     // Nom du Projet Gitlab

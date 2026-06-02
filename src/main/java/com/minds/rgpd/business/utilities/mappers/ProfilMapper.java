@@ -10,8 +10,10 @@ import java.util.List;
 public interface ProfilMapper {
 
     Profil map(ProfilDTO profilDTO);
+
     List<Profil> mapToList(List<ProfilDTO> profilDTO);
 
     ProfilDTO map(Profil profil);
+
     List<ProfilDTO> mapToDTOList(List<Profil> profil);
 }

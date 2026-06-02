@@ -1,15 +1,19 @@
 package com.minds.rgpd.business.services.impl;
 
 import com.minds.rgpd.business.dtos.ClientDTO;
+import com.minds.rgpd.business.dtos.EtablissementDTO;
 import com.minds.rgpd.business.dtos.InfoFichierDTO.InfoFichierDTOBuilder;
 import com.minds.rgpd.business.dtos.TraitementDTO;
 import com.minds.rgpd.business.services.FichierService;
 import com.minds.rgpd.business.utilities.StatusFichierEnum;
 import com.minds.rgpd.business.utilities.mappers.ClientMapper;
+import com.minds.rgpd.business.utilities.mappers.EtablissementMapper;
 import com.minds.rgpd.business.utilities.mappers.RowFileToTraitement;
 import com.minds.rgpd.business.utilities.mappers.TraitementMapper;
+import com.minds.rgpd.persistence.entities.Client;
 import com.minds.rgpd.persistence.entities.Traitement;
 import com.minds.rgpd.persistence.repositories.ClientRepository;
+import com.minds.rgpd.persistence.repositories.EtablissementRepository;
 import com.minds.rgpd.persistence.repositories.TraitementRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,10 +41,12 @@ import java.util.stream.StreamSupport;
 public class FichierServiceImpl implements FichierService {
 
     public static final String REGEX_FILENAME = "^([^_]+)_([^_]+)_Registre RGPD_ed([^.]+)\\.[^.]+\\.[a-z]+$";
-    private final TraitementMapper traitementMapper;
     private final TraitementRepository traitementRepository;
+    private final TraitementMapper traitementMapper;
     private final ClientRepository clientRepository;
     private final ClientMapper clientMapper;
+    private final EtablissementRepository etablissementRepository;
+    private final EtablissementMapper etablissementMapper;
 
     @Override
     public InfoFichierDTOBuilder importFichier(MultipartFile fichier, InfoFichierDTOBuilder infoFichier) throws IOException {
@@ -51,15 +57,19 @@ public class FichierServiceImpl implements FichierService {
         if (!matcher.matches()) {
             throw new IOException("Le fichier n'a pas le nom formaté comme attendu.");
         }
-        String client = matcher.group(1);
+        String nomClient = matcher.group(1);
         String version = matcher.group(3);
 
-        ClientDTO clientDTO = clientMapper.map(clientRepository.findByNom(client));
+        Client client = clientRepository.findByNom(nomClient);
+        ClientDTO clientDTO = clientMapper.map(client);
 
         Sheet sheet = extractSheet(fichier);
         List<TraitementDTO> traitementDTOList = extractData(sheet)
                 .stream()
-                .map(cellules -> RowFileToTraitement.map(cellules, clientDTO , Integer.parseInt(version)))
+                .map(cellules -> {
+                    List<EtablissementDTO> etablissements = retrouverEtablissements(cellules, clientDTO);
+                    return RowFileToTraitement.map(cellules, etablissements, clientDTO, Integer.parseInt(version));
+                })
                 .toList();
         List<Traitement> traitements = traitementMapper.mapToTraitementList(traitementDTOList);
         traitementRepository.saveAll(traitements);
@@ -71,7 +81,7 @@ public class FichierServiceImpl implements FichierService {
         return StreamSupport.stream(iterable.spliterator(), false)
                 .map(row -> {
                     List<String> cellArray = new ArrayList<>();
-                    if (row.getRowNum() >= 6 && !getCellValue(row.getCell(1)).isBlank()) {
+                    if (row.getRowNum() >= 6 && allMandatoryValuePresent(row)) {
                         for (Cell cell : row) {
                             if (cell.getColumnIndex() >= 1 && cell.getColumnIndex() <= 38) {
                                 String cellValue = getCellValue(cell);
@@ -84,6 +94,10 @@ public class FichierServiceImpl implements FichierService {
                 })
                 .filter(Objects::nonNull)
                 .toList();
+    }
+
+    private boolean allMandatoryValuePresent(Row row) {
+        return !getCellValue(row.getCell(1)).isBlank() && !getCellValue(row.getCell(4)).isBlank() && !getCellValue(row.getCell(5)).isBlank();
     }
 
     private Sheet extractSheet(MultipartFile fichier) throws IOException {
@@ -131,5 +145,19 @@ public class FichierServiceImpl implements FichierService {
             case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
             default -> "";
         };
+    }
+
+    private List<EtablissementDTO> retrouverEtablissements(List<String> cellules, ClientDTO client) {
+        String etablissements = cellules.get(1);
+        return etablissements.lines()
+                .filter(line -> !line.isBlank())
+                .map(nom -> {
+                    int count = (int) etablissementRepository.count();
+                    EtablissementDTO etablissement = EtablissementDTO.builder().id(count + 1).nom(nom).client(client).build();
+                    return etablissementRepository.findByNom(nom)
+                            .orElseGet(() -> etablissementRepository.save(etablissementMapper.map(etablissement)));
+                })
+                .map(etablissementMapper::map)
+                .toList();
     }
 }
