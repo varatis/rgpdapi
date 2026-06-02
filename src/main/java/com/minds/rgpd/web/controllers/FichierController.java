@@ -27,13 +27,12 @@ import java.util.Objects;
 @RestController
 @RequestMapping("/importFichierRgpd")
 @RequiredArgsConstructor
-@Tag(name="Fichier Controller", description = "Gère l'import du fichier RGPD")
+@Tag(name = "Fichier Controller", description = "Gère l'import du fichier RGPD")
 public class FichierController {
 
+    private final FichierService fichierService;
     @Value("${application.fichier.upload.dir}")
     private String uploadDir;
-
-    private final FichierService fichierService;
 
     @PostMapping
     public ResponseEntity<InfoFichierDTO> importFichierRgpd(@RequestParam("file") MultipartFile fichier) {
@@ -45,7 +44,7 @@ public class FichierController {
                 .nomFichier(originalFilename)
                 .dateReception(dateReception)
                 .statusFichier(StatusFichierEnum.KO);
-        if(fichier.isEmpty()) {
+        if (fichier.isEmpty()) {
             return ResponseEntity.badRequest().body(infoFichier.build());
         }
         try {

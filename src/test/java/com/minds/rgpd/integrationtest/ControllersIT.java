@@ -34,6 +34,19 @@ public class ControllersIT extends AbstractITSpring {
     private WebApplicationContext webApplicationContext;
     private MockMvc mockMvc;
 
+    private static <T> List<T> stringToList(String contentAsString, Class<T> classe) {
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        List<JsonElement> content = JsonParser.parseString(contentAsString).getAsJsonArray().asList();
+        return content.stream().map(jsonElement -> {
+            try {
+                return objectMapper.readValue(jsonElement.toString(), classe);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
+        }).toList();
+    }
+
     @BeforeEach
     void setup() {
         this.mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
@@ -41,7 +54,7 @@ public class ControllersIT extends AbstractITSpring {
     }
 
     @Test
-    void getClients() throws Exception{
+    void getClients() throws Exception {
         // GIVEN
 
         // WHEN
@@ -54,7 +67,7 @@ public class ControllersIT extends AbstractITSpring {
     }
 
     @Test
-    void getProfils() throws Exception{
+    void getProfils() throws Exception {
         // GIVEN
 
         // WHEN
@@ -67,7 +80,7 @@ public class ControllersIT extends AbstractITSpring {
     }
 
     @Test
-    void getUtilisateurs() throws Exception{
+    void getUtilisateurs() throws Exception {
         // GIVEN
 
         // WHEN
@@ -80,7 +93,7 @@ public class ControllersIT extends AbstractITSpring {
     }
 
     @Test
-    void getEtablissements() throws Exception{
+    void getEtablissements() throws Exception {
         // GIVEN
 
         // WHEN
@@ -90,18 +103,5 @@ public class ControllersIT extends AbstractITSpring {
         assertThat(result).isNotNull().isNotBlank();
         List<EtablissementDTO> etablissementsList = stringToList(result, EtablissementDTO.class);
         assertThat(etablissementsList).isNotNull().isNotEmpty().hasSize(3);
-    }
-
-    private static <T> List<T> stringToList(String contentAsString, Class<T> classe) {
-        ObjectMapper objectMapper = new ObjectMapper();
-
-        List<JsonElement> content = JsonParser.parseString(contentAsString).getAsJsonArray().asList();
-        return content.stream().map(jsonElement -> {
-            try {
-                return objectMapper.readValue(jsonElement.toString(), classe);
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
-        }).toList();
     }
 }

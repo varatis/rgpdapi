@@ -10,9 +10,11 @@ import java.util.List;
 public interface ClientMapper {
 
     Client map(ClientDTO clientDTO);
+
     List<Client> mapToClientList(List<ClientDTO> clientsDTO);
 
     ClientDTO map(Client client);
+
     List<ClientDTO> mapToDTOList(List<Client> clients);
 
 }

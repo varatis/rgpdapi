@@ -27,7 +27,7 @@ public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationTo
 
     @Override
     public AbstractAuthenticationToken convert(@NonNull Jwt jwt) {
-         var authorities = Stream
+        var authorities = Stream
                 .concat(jwtGrantedAuthoritiesConverter.convert(jwt).stream(), extractResourceRoles(jwt).stream())
                 .collect(Collectors.toSet());
         return new JwtAuthenticationToken(jwt, authorities, jwt.getClaim("preferred_username"));

@@ -10,8 +10,10 @@ import java.util.List;
 public interface UtilisateurMapper {
 
     Utilisateur map(UtilisateurDTO utilisateurDTO);
+
     List<Utilisateur> mapToList(List<UtilisateurDTO> utilisateurDTO);
 
     UtilisateurDTO map(Utilisateur utilisateur);
+
     List<UtilisateurDTO> mapToDTOList(List<Utilisateur> utilisateur);
 }

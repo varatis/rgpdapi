@@ -10,8 +10,10 @@ import java.util.List;
 public interface EtablissementMapper {
 
     Etablissement map(EtablissementDTO etablissementDTO);
+
     List<Etablissement> mapToList(List<EtablissementDTO> etablissementDTO);
 
     EtablissementDTO map(Etablissement etablissement);
+
     List<EtablissementDTO> mapToDTOList(List<Etablissement> etablissement);
 }
