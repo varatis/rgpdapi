@@ -8,7 +8,7 @@ include:
       image_name: "projets/minds-rgpd/$PROJECT_NAME"
       host_suffix: "host-suffix-rgpd"
       version: $CALCULATED_VERSION
-      
+      namespace: $TARGET_NAMESPACE
 stages:
   - build
   - unit-tests
