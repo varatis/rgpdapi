@@ -1,0 +1,17 @@
+#Build stage
+FROM srv-nexus.domaine.local:18444/outillage/maven:3.9.5-jdk21 AS builder
+COPY target/*.jar /opt/minds-rgpd-api/app.jar
+
+FROM eclipse-temurin:21.0.11_10-jre-alpine-3.23
+EXPOSE 8080/tcp
+RUN mkdir -p /app/tmp
+RUN mkdir -p /app/data
+RUN addgroup app-grp
+RUN adduser app-usr -G app-grp -D -H
+RUN chown -R app-usr /app/
+RUN chmod 751 /app/tmp
+COPY --from=builder /opt/minds-rgpd-api/app.jar /app/minds-rgpd-api.jar
+RUN chown -R app-usr /app/
+RUN chmod u+x -R /app
+USER app-usr
+CMD ["java","-Djava.security.egd=file:/dev/./urandom","-jar","/app/minds-rgpd-api.jar"]

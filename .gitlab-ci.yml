@@ -1,0 +1,24 @@
+spec:
+  inputs:
+    app_name: 
+      description: "minds-saas-rgpd-api"
+    image_name:
+      description: "projets/minds-rgpd/minds-saas-rgpd-api"
+    dockerfile_path:
+      description: ".platforms/ci/dockerfiles/gitlab-dockerfile"
+include:
+  - component: $CI_SERVER_FQDN/commun/components/framework/spring-boot@72be0466d1fa5ac83e46e58a606bc610ca099251
+    inputs:
+      stage: build
+stages:
+  - build
+  - unit-tests
+  - trivy
+
+build:
+  stage: build
+  image: srv-nexus.domaine.local:18444/outillage/maven:3.9.5-jdk21-dind  
+unit-tests:
+  stage: test
+trivy:
+  stage: trivy
