@@ -7,7 +7,7 @@ back:
   replicaCount: 1
   database:
     minds_rgpd_api:
-      host: jdbc:postgresql://postgres/minds_saas_rgpd_valid
+      host: jdbc:postgresql://kube-bdd-share/minds_saas_rgpd_valid
       username: minds_saas_rgpd_valid
   secret:
     path: saas_rgpd/valid/k8s
