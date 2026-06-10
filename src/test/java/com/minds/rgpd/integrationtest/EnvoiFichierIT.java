@@ -68,6 +68,6 @@ public class EnvoiFichierIT extends AbstractITSpring {
         assertThat(infoFichierDTO.nomFichier()).isEqualTo(filename);
         assertThat(infoFichierDTO.statusFichier()).isEqualTo(StatusFichierEnum.OK);
         List<Traitement> traitementList = traitementRepository.findAll();
-        assertThat(traitementList).isNotNull().isNotEmpty().hasSize(80);
+        assertThat(traitementList).isNotNull().isNotEmpty().hasSize(83);
     }
 }

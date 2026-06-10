@@ -30,6 +30,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.StreamSupport;
@@ -152,8 +153,7 @@ public class FichierServiceImpl implements FichierService {
         return etablissements.lines()
                 .filter(line -> !line.isBlank())
                 .map(nom -> {
-                    int count = (int) etablissementRepository.count();
-                    EtablissementDTO etablissement = EtablissementDTO.builder().id(count + 1).nom(nom).client(client).build();
+                    EtablissementDTO etablissement = EtablissementDTO.builder().id(UUID.randomUUID()).nom(nom).client(client).build();
                     return etablissementRepository.findByNom(nom)
                             .orElseGet(() -> etablissementRepository.save(etablissementMapper.map(etablissement)));
                 })

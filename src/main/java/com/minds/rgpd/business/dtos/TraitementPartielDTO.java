@@ -1,7 +1,10 @@
 package com.minds.rgpd.business.dtos;
 
+import java.util.UUID;
+
 public record TraitementPartielDTO(
-        Integer id,
+        UUID identifiant,
+        Integer idFonctionnel,
         String nom,
         String gestionnaire,
         String finalitePrincipale

@@ -1,14 +1,20 @@
 package com.minds.rgpd.business.dtos;
 
 import jakarta.validation.constraints.NotNull;
+import lombok.Builder;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
+@Builder
 public record TraitementDTO(
 
         @NotNull
-        Integer id,
+        UUID identifiant,
+
+        @NotNull
+        Integer idFonctionnel,
 
         @NotNull
         String nom,

@@ -13,6 +13,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
@@ -32,16 +33,17 @@ public class EtablissementServiceImplTest {
     void getEtablissements() {
 
         // GIVEN
-        Client client = new Client(1, "DUPONT", "ACTIF");
-        ClientDTO clientDTO = new ClientDTO(1, "DUPONT", "ACTIF");
+        UUID uuid = UUID.randomUUID();
+        Client client = new Client(uuid, "DUPONT", "ACTIF");
+        ClientDTO clientDTO = new ClientDTO(uuid, "DUPONT", "ACTIF");
 
         Etablissement etablissement = new Etablissement();
-        etablissement.setId(1);
+        etablissement.setId(uuid);
         etablissement.setNom("CREATIVE");
         etablissement.setClient(client);
 
         EtablissementDTO etablissementDTO = EtablissementDTO.builder()
-                .id(1)
+                .id(uuid)
                 .nom("CREATIVE")
                 .client(clientDTO)
                 .build();
@@ -57,7 +59,7 @@ public class EtablissementServiceImplTest {
 
         // THEN
         assertEquals(1, resultat.size());
-        assertEquals(1, resultat.getFirst().id());
+        assertEquals(uuid, resultat.getFirst().id());
         assertEquals("CREATIVE", resultat.getFirst().nom());
         assertEquals(clientDTO, resultat.getFirst().client());
 

@@ -4,7 +4,7 @@
 
 ALTER TABLE TRAITEMENT
     ADD COLUMN IF NOT EXISTS version INT,
-    ADD COLUMN IF NOT EXISTS date_identification DATE,
+    ADD COLUMN IF NOT EXISTS date_identification DATE NOT NULL,
     ADD COLUMN IF NOT EXISTS date_mise_a_jour DATE,
     ADD COLUMN IF NOT EXISTS historique_modifications VARCHAR (255),
     ADD COLUMN IF NOT EXISTS data_protection_officer VARCHAR (255),

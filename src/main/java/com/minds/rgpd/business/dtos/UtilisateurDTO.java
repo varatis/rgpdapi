@@ -1,7 +1,9 @@
 package com.minds.rgpd.business.dtos;
 
+import java.util.UUID;
+
 public record UtilisateurDTO(
-        Integer id,
+        UUID id,
         String prenom,
         String nom,
         String email,

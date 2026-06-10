@@ -2,8 +2,12 @@ package com.minds.rgpd.persistence.repositories;
 
 import com.minds.rgpd.persistence.entities.Client;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
-public interface ClientRepository extends JpaRepository<Client, Integer> {
+import java.util.UUID;
+
+@Repository
+public interface ClientRepository extends JpaRepository<Client, UUID> {
 
     Client findByNom(String nom);
 }

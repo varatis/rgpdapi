@@ -1,7 +1,12 @@
 package com.minds.rgpd.business.dtos;
 
+import lombok.Builder;
+
+import java.util.UUID;
+
+@Builder
 public record ClientDTO(
-        Integer id,
+        UUID id,
         String nom,
         String statut
 ) {
