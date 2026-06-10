@@ -25,6 +25,8 @@ public interface TraitementMapper {
 
     List<TraitementPartielDTO> mapToPartialDTOList(List<Traitement> traitements);
 
+    TraitementPartielDTO map(Traitement traitement);
+
     List<TraitementDTO> mapToDTOList(List<Traitement> traitements);
 
     Traitement mapToTraitement(TraitementDTO traitementDTO);

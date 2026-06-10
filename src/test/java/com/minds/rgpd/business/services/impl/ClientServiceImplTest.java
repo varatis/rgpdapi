@@ -11,6 +11,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
@@ -31,13 +32,14 @@ class ClientServiceImplTest {
     void getClients() {
 
         // GIVEN
+        UUID uuid = UUID.randomUUID();
         Client client = new Client();
-        client.setId(1);
+        client.setId(uuid);
         client.setNom("Dupont");
         client.setStatut("ACTIF");
 
         ClientDTO clientDTO = new ClientDTO(
-                1,
+                uuid,
                 "Dupont",
                 "ACTIF"
         );
@@ -53,7 +55,7 @@ class ClientServiceImplTest {
 
         // THEN
         assertEquals(1, resultat.size());
-        assertEquals(1, resultat.getFirst().id());
+        assertEquals(uuid, resultat.getFirst().id());
         assertEquals("Dupont", resultat.getFirst().nom());
         assertEquals("ACTIF", resultat.getFirst().statut());
 

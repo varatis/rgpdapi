@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 @Builder
 @Data
@@ -19,7 +20,12 @@ import java.util.List;
 public class Traitement {
 
     @Id
-    Integer id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    UUID identifiant;
+
+    @Column(name="id_fonctionnel")
+    @NotNull
+    Integer idFonctionnel;
 
     @Column(name = "nom")
     @NotNull
@@ -40,6 +46,7 @@ public class Traitement {
     Integer version;
 
     @Column(name = "date_identification")
+    @NotNull
     LocalDate dateIdentification;
 
     @Column(name = "date_mise_a_jour")

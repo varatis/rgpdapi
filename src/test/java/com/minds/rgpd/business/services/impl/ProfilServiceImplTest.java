@@ -11,6 +11,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
@@ -30,13 +31,14 @@ public class ProfilServiceImplTest {
     void getProfils() {
 
         // GIVEN
+        UUID uuid = UUID.randomUUID();
         Profil profil = new Profil();
-        profil.setId(1);
+        profil.setId(uuid);
         profil.setCode("PROFIL_CODE");
         profil.setDescription("DESCRIPTION");
 
         ProfilDTO profilDTO = new ProfilDTO(
-                1,
+                uuid,
                 "PROFIL_CODE",
                 "DESCRIPTION"
         );
@@ -52,7 +54,7 @@ public class ProfilServiceImplTest {
 
         // THEN
         assertEquals(1, resultat.size());
-        assertEquals(1, resultat.getFirst().id());
+        assertEquals(uuid, resultat.getFirst().id());
         assertEquals("PROFIL_CODE", resultat.getFirst().code());
         assertEquals("DESCRIPTION", resultat.getFirst().description());
 

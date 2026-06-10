@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.UUID;
+
 @Builder
 @Data
 @Entity
@@ -15,7 +17,7 @@ import lombok.NoArgsConstructor;
 public class Etablissement {
 
     @Id
-    Integer id;
+    UUID id;
 
     @Column(name = "nom")
     String nom;

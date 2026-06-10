@@ -9,6 +9,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.UUID;
+
 @Builder
 @Data
 @Entity
@@ -18,7 +20,7 @@ import lombok.NoArgsConstructor;
 public class Profil {
 
     @Id
-    Integer id;
+    UUID id;
 
     @Column(name = "code")
     String code;

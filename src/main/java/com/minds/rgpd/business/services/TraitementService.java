@@ -9,6 +9,9 @@ public interface TraitementService {
 
     Page<TraitementPartielDTO> getTraitements(Pageable pageable);
 
-    TraitementDTO getOneTraitement(Integer id);
+    TraitementDTO getOneTraitement(int id);
 
+    TraitementDTO createTraitement(TraitementDTO traitement);
+
+    Integer getNextIdFonctionnel();
 }

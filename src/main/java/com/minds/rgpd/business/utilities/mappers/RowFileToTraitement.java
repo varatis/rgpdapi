@@ -70,7 +70,7 @@ public class RowFileToTraitement {
         String commentaires = cellules.get(37);
 
         return new TraitementDTO(
-                id, nomTraitement, etablissements, gestionnaireMiseEnOeuvre, finalitePrincipale, client, version,
+                null,id, nomTraitement, etablissements, gestionnaireMiseEnOeuvre, finalitePrincipale, client, version,
                 dateIdentificationTraitement, dateMiseAJour, historiqueModifications,
                 dataProtectionOfficer, responsableTraitement, gestionnaireMiseEnOeuvre,
                 sousFinalites, categoriesPersonnesConcernees, donneesIdentification,
