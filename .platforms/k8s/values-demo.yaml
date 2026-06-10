@@ -7,10 +7,10 @@ back:
   replicaCount: 1
   database:
     minds_rgpd_api:
-      host: jdbc:postgresql://kube-bdd-share/minds_rgpd_demo
+      host: jdbc:postgresql://kube-bdd-share/minds_saas_rgpd_demo
       username: minds_saas_rgpd_demo
   secret:
-    path: rgpd/k8s/demo
+    path: saas_rgpd/demo/k8s
   security:
     issuer_uri: https://sso.minds.k8s/auth/realms/creative
     jwk_set_uri: https://sso.minds.k8s/auth/realms/creative/protocol/openid-connect/certs
@@ -24,7 +24,7 @@ back:
     sampler: "always_on"
     samplerArg: "1.0"
     serviceName: "minds-rgpd-api-demo"
-  
+
   # à vérifier    securityCenter:
   #      host: jdbc:mariadb://kube-bdd-share/minds_rgpd_api_security_center
   ingress:
@@ -38,6 +38,7 @@ back:
       memory: "768Mi"
       cpu: "500m"
 volume: # à vérifier
+  claimName: minds-pv-claim
   subPath: minds-rgpd-api/demo
 
 
