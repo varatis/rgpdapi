@@ -159,6 +159,7 @@ properties([
 
         stage("Deploy") {
             if (!params.skipDeploy && params.deployTo != ''){
+                JenkinsService.instance().appendBuildDescription("'${projectName}': Deploy version " + PROJECT_VERSION + " to '${deployTo}'")
                 if (params.deployTo == "prod") {
                     timeout(time: 30, unit: 'MINUTES') {
                         input(
@@ -171,6 +172,8 @@ properties([
                     println "Deploy project"
                     sh "bash ./.platforms/k8s/deploy.sh ${params.deployTo}"
                 }
+            } else {
+                JenkinsService.instance().appendBuildDescription("No Deploy")
             }
         }
 
