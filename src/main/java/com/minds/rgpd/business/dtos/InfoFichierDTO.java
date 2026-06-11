@@ -1,6 +1,5 @@
 package com.minds.rgpd.business.dtos;
 
-import com.minds.rgpd.business.utilities.StatusFichierEnum;
 import lombok.AccessLevel;
 import lombok.Builder;
 
@@ -11,6 +10,6 @@ public record InfoFichierDTO(
         String nomFichier,
         LocalDateTime dateReception,
         LocalDateTime dateFinTraitement,
-        StatusFichierEnum statusFichier
+        String statusFichier
 ) {
 }

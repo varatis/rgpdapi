@@ -5,7 +5,6 @@ import com.minds.rgpd.business.dtos.EtablissementDTO;
 import com.minds.rgpd.business.dtos.InfoFichierDTO.InfoFichierDTOBuilder;
 import com.minds.rgpd.business.dtos.TraitementDTO;
 import com.minds.rgpd.business.services.FichierService;
-import com.minds.rgpd.business.utilities.StatusFichierEnum;
 import com.minds.rgpd.business.utilities.mappers.ClientMapper;
 import com.minds.rgpd.business.utilities.mappers.EtablissementMapper;
 import com.minds.rgpd.business.utilities.mappers.RowFileToTraitement;
@@ -50,31 +49,42 @@ public class FichierServiceImpl implements FichierService {
     private final EtablissementMapper etablissementMapper;
 
     @Override
-    public InfoFichierDTOBuilder importFichier(MultipartFile fichier, InfoFichierDTOBuilder infoFichier) throws IOException {
+    public InfoFichierDTOBuilder importFichier(MultipartFile fichier, InfoFichierDTOBuilder infoFichier) {
 
         Pattern pattern = Pattern.compile(REGEX_FILENAME);
         String originalFilename = fichier.getOriginalFilename();
         Matcher matcher = pattern.matcher(Objects.requireNonNull(originalFilename));
         if (!matcher.matches()) {
-            throw new IOException("Le fichier n'a pas le nom formaté comme attendu.");
+            return infoFichier.statusFichier("Le fichier "+ originalFilename +" n'a pas le nom formaté comme attendu.");
         }
         String nomClient = matcher.group(1);
         String version = matcher.group(3);
 
         Client client = clientRepository.findByNom(nomClient);
+        if (Objects.isNull(client)) {
+            return infoFichier.statusFichier("Client absent de la base de données : " + nomClient);
+        }
         ClientDTO clientDTO = clientMapper.map(client);
 
-        Sheet sheet = extractSheet(fichier);
-        List<TraitementDTO> traitementDTOList = extractData(sheet)
-                .stream()
-                .map(cellules -> {
-                    List<EtablissementDTO> etablissements = retrouverEtablissements(cellules, clientDTO);
-                    return RowFileToTraitement.map(cellules, etablissements, clientDTO, Integer.parseInt(version));
-                })
-                .toList();
-        List<Traitement> traitements = traitementMapper.mapToTraitementList(traitementDTOList);
-        traitementRepository.saveAll(traitements);
-        return infoFichier.dateFinTraitement(LocalDateTime.now()).statusFichier(StatusFichierEnum.OK);
+        try {
+            Sheet sheet = extractSheet(fichier);
+            List<TraitementDTO> traitementDTOList = extractData(sheet)
+                    .stream()
+                    .map(cellules -> {
+                        List<EtablissementDTO> etablissements = retrouverEtablissements(cellules, clientDTO);
+                        return RowFileToTraitement.map(cellules, etablissements, clientDTO, Integer.parseInt(version));
+                    })
+                    .toList();
+            List<Traitement> traitements = traitementMapper.mapToTraitementList(traitementDTOList);
+            if (traitements.isEmpty()) {
+                return infoFichier.statusFichier("Aucune ligne traitable dans le fichier");
+            }
+            traitementRepository.saveAll(traitements);
+            return infoFichier.dateFinTraitement(LocalDateTime.now()).statusFichier("OK");
+        } catch (IOException e) {
+            return infoFichier.statusFichier(e.getMessage());
+        }
+
     }
 
     private List<List<String>> extractData(Sheet sheet) {
