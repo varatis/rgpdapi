@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.minds.rgpd.AbstractITSpring;
 import com.minds.rgpd.business.dtos.InfoFichierDTO;
-import com.minds.rgpd.business.utilities.StatusFichierEnum;
 import com.minds.rgpd.persistence.entities.Traitement;
 import com.minds.rgpd.persistence.repositories.TraitementRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -66,7 +65,7 @@ public class EnvoiFichierIT extends AbstractITSpring {
         assertThat(infoFichierDTOString).isNotNull();
         InfoFichierDTO infoFichierDTO = mapper.readValue(infoFichierDTOString, InfoFichierDTO.class);
         assertThat(infoFichierDTO.nomFichier()).isEqualTo(filename);
-        assertThat(infoFichierDTO.statusFichier()).isEqualTo(StatusFichierEnum.OK);
+        assertThat(infoFichierDTO.statusFichier()).isEqualTo("OK");
         List<Traitement> traitementList = traitementRepository.findAll();
         assertThat(traitementList).isNotNull().isNotEmpty().hasSize(83);
     }

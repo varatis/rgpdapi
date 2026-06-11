@@ -5,6 +5,8 @@ import com.minds.rgpd.business.dtos.TraitementPartielDTO;
 import com.minds.rgpd.business.services.TraitementService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.hibernate.ObjectNotFoundException;
 import org.hibernate.exception.DataException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+@Slf4j
 @RestController
 @RequestMapping("/traitements")
 @RequiredArgsConstructor
@@ -39,6 +42,9 @@ public class TraitementController {
             return ResponseEntity.status(HttpStatus.CREATED).body(traitementService.createTraitement(traitement));
         } catch (DataException e) {
            return ResponseEntity.status(HttpStatus.CONFLICT).body(traitement);
+        } catch (ObjectNotFoundException e) {
+            log.error(e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(traitement);
         }
     }
 

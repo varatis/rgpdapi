@@ -5,10 +5,13 @@ import com.minds.rgpd.business.dtos.TraitementPartielDTO;
 import com.minds.rgpd.business.services.TraitementService;
 import com.minds.rgpd.business.utilities.mappers.ClientMapper;
 import com.minds.rgpd.business.utilities.mappers.TraitementMapper;
+import com.minds.rgpd.persistence.entities.Client;
 import com.minds.rgpd.persistence.entities.Traitement;
+import com.minds.rgpd.persistence.repositories.ClientRepository;
 import com.minds.rgpd.persistence.repositories.TraitementRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.ObjectNotFoundException;
 import org.hibernate.exception.DataException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,6 +28,7 @@ import java.util.Optional;
 public class TraitementServiceImpl implements TraitementService {
 
     private final TraitementRepository traitementRepository;
+    private final ClientRepository clientRepository;
     private final TraitementMapper traitementMapper;
     private final ClientMapper clientMapper;
 
@@ -43,7 +47,10 @@ public class TraitementServiceImpl implements TraitementService {
     @Override
     public TraitementDTO createTraitement(TraitementDTO traitementDTO){
         Optional<Traitement> byIdFonctionnelAndNomAndClient = traitementRepository.findByIdFonctionnelAndNomAndClient(traitementDTO.idFonctionnel(), traitementDTO.nom(), clientMapper.map(traitementDTO.client()));
-        if (byIdFonctionnelAndNomAndClient.isEmpty()) {
+        Optional<Client> client = clientRepository.findById(traitementDTO.client().id());
+        if (client.isEmpty()) {
+            throw new ObjectNotFoundException("Client inconnu en base de données",traitementDTO.client());
+        } else if (byIdFonctionnelAndNomAndClient.isEmpty()) {
             return traitementMapper.mapToDTO(traitementRepository.save(traitementMapper.mapToTraitement(traitementDTO)));
         } else {
             throw new DataException("Traitement déjà présent en base pour cet Id Fonctionnel, nom et client", new SQLException("Data Already in DB"));

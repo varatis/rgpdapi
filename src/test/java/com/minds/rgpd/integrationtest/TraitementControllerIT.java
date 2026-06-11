@@ -112,6 +112,28 @@ public class TraitementControllerIT extends AbstractITSpring {
     }
 
     @Test
+    void createTraitementNoClient() throws Exception {
+        // GIVEN
+        TraitementDTO traitementDTO = TraitementDTO.builder()
+                .idFonctionnel(1)
+                .nom("Traitement Test")
+                .dateIdentification(LocalDate.now())
+                .client(ClientDTO.builder().id(UUID.fromString("aaaaaaaa-fea0-46ac-894d-ca39cbf00359")).build())
+                .build();
+        ObjectMapper objetMapper = new ObjectMapper();
+        objetMapper.registerModule(new JavaTimeModule());
+        String traitementDtoString = objetMapper.writeValueAsString(traitementDTO);
+
+        // WHEN
+        MvcResult mvcResult = mockMvc.perform(post("/traitements").content(traitementDtoString).contentType(MediaType.APPLICATION_JSON)).andReturn();
+
+        // THEN
+        assertThat(mvcResult).isNotNull();
+        assertThat(mvcResult.getResponse()).isNotNull();
+        assertThat(mvcResult.getResponse().getStatus()).isEqualTo(400);
+    }
+
+    @Test
     void getNextIdTraitement() throws Exception {
         // GIVEN
 

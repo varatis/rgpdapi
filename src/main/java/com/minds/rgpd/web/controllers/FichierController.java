@@ -3,7 +3,6 @@ package com.minds.rgpd.web.controllers;
 import com.minds.rgpd.business.dtos.InfoFichierDTO;
 import com.minds.rgpd.business.dtos.InfoFichierDTO.InfoFichierDTOBuilder;
 import com.minds.rgpd.business.services.FichierService;
-import com.minds.rgpd.business.utilities.StatusFichierEnum;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,7 +42,7 @@ public class FichierController {
                 .builder()
                 .nomFichier(originalFilename)
                 .dateReception(dateReception)
-                .statusFichier(StatusFichierEnum.KO);
+                .statusFichier("KO");
         if (fichier.isEmpty()) {
             return ResponseEntity.badRequest().body(infoFichier.build());
         }
@@ -58,7 +57,7 @@ public class FichierController {
             infoFichier = fichierService.importFichier(fichier, infoFichier);
 
         } catch (IOException e) {
-            return ResponseEntity.status(500).body(infoFichier.build());
+            return ResponseEntity.status(500).body(infoFichier.statusFichier(e.getMessage()).build());
         }
 
         return ResponseEntity.ok(infoFichier.build());
