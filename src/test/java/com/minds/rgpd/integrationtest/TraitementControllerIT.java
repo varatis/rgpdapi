@@ -130,7 +130,7 @@ public class TraitementControllerIT extends AbstractITSpring {
         // THEN
         assertThat(mvcResult).isNotNull();
         assertThat(mvcResult.getResponse()).isNotNull();
-        assertThat(mvcResult.getResponse().getStatus()).isEqualTo(400);
+        assertThat(mvcResult.getResponse().getStatus()).isEqualTo(404);
     }
 
     @Test
