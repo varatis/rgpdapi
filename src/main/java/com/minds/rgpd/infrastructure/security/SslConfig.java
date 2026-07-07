@@ -7,8 +7,9 @@ import org.springframework.context.annotation.Profile;
 import javax.net.ssl.*;
 import java.security.cert.X509Certificate;
 
-@Configuration
-@Profile("dev") // Only for development
+// DISABLED for Keycloak JWT validation - SSL verification must be enabled
+// @Configuration
+// @Profile("dev")
 public class SslConfig {
 
     @PostConstruct
