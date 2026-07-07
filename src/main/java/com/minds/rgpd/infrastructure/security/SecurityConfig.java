@@ -20,6 +20,7 @@ import java.security.cert.X509Certificate;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity()
+@Profile("!test")
 public class SecurityConfig {
 
     private final JwtAuthConverter jwtAuthConverter;
