@@ -1,5 +1,6 @@
 package com.minds.rgpd;
 
+import com.minds.rgpd.infrastructure.security.TestSecurityConfig;
 import com.minds.rgpd.testcontainers.TestContainersConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -16,7 +17,7 @@ import org.springframework.test.context.ActiveProfiles;
  * - Eliminates need for manual docker-compose setup
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = {RgpdApplication.class})
-@Import(TestContainersConfiguration.class)
+@Import({TestContainersConfiguration.class, TestSecurityConfig.class})
 @DirtiesContext
 @ActiveProfiles("test")
 public abstract class AbstractITSpring {
