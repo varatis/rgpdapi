@@ -29,6 +29,8 @@ spec:
               memory: {{ .Values.back.resources.limits.memory }}
               cpu: {{ .Values.back.resources.limits.cpu }}
           env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "{{ .Values.back.environment | default \"dev\" }}"
             - name: DATABASE_URL
               valueFrom:
                 configMapKeyRef:

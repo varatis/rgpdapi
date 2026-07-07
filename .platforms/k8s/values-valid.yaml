@@ -5,6 +5,7 @@
 back:
   name: minds-rgpd-api-valid
   replicaCount: 1
+  environment: valid
   database:
     minds_rgpd_api:
       host: jdbc:postgresql://kube-bdd-share/minds_saas_rgpd_valid

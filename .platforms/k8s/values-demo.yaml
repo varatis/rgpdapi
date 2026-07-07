@@ -5,6 +5,7 @@
 back:
   name: minds-rgpd-api-demo
   replicaCount: 1
+  environment: demo
   database:
     minds_rgpd_api:
       host: jdbc:postgresql://kube-bdd-share/minds_saas_rgpd_demo

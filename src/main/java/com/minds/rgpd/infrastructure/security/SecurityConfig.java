@@ -30,7 +30,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    @Profile("dev")
+    @Profile({"dev", "int", "demo", "valid"})
     public JwtDecoder jwtDecoder() throws Exception {
         // Create SSL context that trusts all certificates for development
         TrustManager[] trustAllCerts = new TrustManager[]{

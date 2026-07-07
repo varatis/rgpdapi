@@ -5,6 +5,7 @@
 back:
   name: minds-rgpd-api-int
   replicaCount: 1
+  environment: int
   database:
     minds_rgpd_api:
       host: jdbc:postgresql://postgres/minds_saas_rgpd_int
