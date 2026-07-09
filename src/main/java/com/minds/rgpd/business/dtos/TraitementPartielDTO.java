@@ -6,7 +6,7 @@ public record TraitementPartielDTO(
         UUID identifiant,
         Integer idFonctionnel,
         String nom,
-        String gestionnaire,
+        String gestionnaireMiseEnOeuvre,
         String finalitePrincipale
 ) {
 }

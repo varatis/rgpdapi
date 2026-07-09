@@ -19,6 +19,7 @@ public class RowFileToTraitement {
 
     public static TraitementDTO map(List<String> cellules, List<EtablissementDTO> etablissements, ClientDTO client, Integer version) {
         Integer id = (int) Double.parseDouble(cellules.get(0));
+        String donneesConcernees = cellules.get(2);
         String nomTraitement = cellules.get(3);
         LocalDate dateIdentificationTraitement = null;
         if (!cellules.get(4).isBlank()) {
@@ -70,7 +71,7 @@ public class RowFileToTraitement {
         String commentaires = cellules.get(37);
 
         return new TraitementDTO(
-                null,id, nomTraitement, etablissements, gestionnaireMiseEnOeuvre, finalitePrincipale, client, version,
+                null,id, nomTraitement, donneesConcernees, etablissements, finalitePrincipale, client, version,
                 dateIdentificationTraitement, dateMiseAJour, historiqueModifications,
                 dataProtectionOfficer, responsableTraitement, gestionnaireMiseEnOeuvre,
                 sousFinalites, categoriesPersonnesConcernees, donneesIdentification,

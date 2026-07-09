@@ -84,7 +84,7 @@ public class TraitementControllerIT extends AbstractITSpring {
         partielDTOS.forEach(traitementPartielDTO -> {
             assertThat(traitementPartielDTO.idFonctionnel()).isNotNull();
             assertThat(traitementPartielDTO.nom()).isNotNull().isNotBlank();
-            assertThat(traitementPartielDTO.gestionnaire()).isNotNull().isNotBlank();
+            assertThat(traitementPartielDTO.gestionnaireMiseEnOeuvre()).isNotNull().isNotBlank();
             assertThat(traitementPartielDTO.finalitePrincipale()).isNotNull().isNotBlank();
         });
     }

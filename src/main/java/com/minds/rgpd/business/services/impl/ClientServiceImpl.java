@@ -1,6 +1,7 @@
 package com.minds.rgpd.business.services.impl;
 
 import com.minds.rgpd.business.dtos.ClientDTO;
+import com.minds.rgpd.business.exceptions.ResourceNotFoundException;
 import com.minds.rgpd.business.services.ClientService;
 import com.minds.rgpd.business.utilities.mappers.ClientMapper;
 import com.minds.rgpd.persistence.entities.Client;
@@ -26,5 +27,12 @@ public class ClientServiceImpl implements ClientService {
     public List<ClientDTO> getClients() {
         List<Client> clients = clientRepository.findAll();
         return clientMapper.mapToDTOList(clients);
+    }
+
+    @Override
+    public ClientDTO getClientByNom(String nom) {
+        Client client = clientRepository.findByNom(nom)
+                .orElseThrow(() -> new ResourceNotFoundException("Client", "nom", nom));
+        return clientMapper.map(client);
     }
 }

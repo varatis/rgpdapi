@@ -9,4 +9,6 @@ import java.util.List;
 public interface ClientService {
 
     List<ClientDTO> getClients();
+
+    ClientDTO getClientByNom(String nom);
 }

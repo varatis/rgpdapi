@@ -9,11 +9,13 @@ import java.util.UUID;
 
 public interface TraitementService {
 
-    Page<TraitementPartielDTO> getTraitements(Pageable pageable);
+    Page<TraitementPartielDTO> getTraitements(Pageable pageable, String clientName);
 
     TraitementDTO getOneTraitement(int id);
 
     TraitementDTO createTraitement(TraitementDTO traitement);
+
+    TraitementDTO updateTraitement(int idFonctionnel, TraitementDTO traitement);
 
     Integer getNextIdFonctionnel();
 

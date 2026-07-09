@@ -31,8 +31,8 @@ public class Traitement {
     @NotNull
     String nom;
 
-    @Column(name = "gestionnaire")
-    String gestionnaire;
+    @Column(name = "donnees_concernees")
+    String donneesConcernees;
 
     @Column(name = "finalite_principale")
     String finalitePrincipale;

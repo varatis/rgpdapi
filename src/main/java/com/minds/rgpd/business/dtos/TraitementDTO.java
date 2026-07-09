@@ -19,9 +19,9 @@ public record TraitementDTO(
         @NotNull
         String nom,
 
-        List<EtablissementDTO> etablissements,
+        String donneesConcernees,
 
-        String gestionnaire,
+        List<EtablissementDTO> etablissements,
 
         String finalitePrincipale,
 
