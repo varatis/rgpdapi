@@ -4,6 +4,8 @@ import com.minds.rgpd.business.dtos.TraitementDTO;
 import com.minds.rgpd.business.dtos.TraitementPartielDTO;
 import com.minds.rgpd.persistence.entities.Traitement;
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 
@@ -29,8 +31,15 @@ public interface TraitementMapper {
 
     List<TraitementDTO> mapToDTOList(List<Traitement> traitements);
 
+    @Mapping(target = "etablissements", ignore = true)
     Traitement mapToTraitement(TraitementDTO traitementDTO);
 
     List<Traitement> mapToTraitementList(List<TraitementDTO> traitementsDTO);
+
+    @Mapping(target = "identifiant", ignore = true)
+    @Mapping(target = "idFonctionnel", ignore = true)
+    @Mapping(target = "client", ignore = true)
+    @Mapping(target = "etablissements", ignore = true)
+    void updateTraitementFromDto(TraitementDTO traitementDTO, @MappingTarget Traitement traitement);
 
 }

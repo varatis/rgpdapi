@@ -23,8 +23,10 @@ public class TraitementController {
     private final TraitementService traitementService;
 
     @GetMapping
-    public ResponseEntity<Page<TraitementPartielDTO>> getTraitements(@PageableDefault() Pageable pageable) {
-        Page<TraitementPartielDTO> traitements = traitementService.getTraitements(pageable);
+    public ResponseEntity<Page<TraitementPartielDTO>> getTraitements(
+            @PageableDefault() Pageable pageable,
+            @RequestParam(required = false) String clientNom) {
+        Page<TraitementPartielDTO> traitements = traitementService.getTraitements(pageable, clientNom);
         return ResponseEntity.ok(traitements);
     }
 
@@ -38,6 +40,11 @@ public class TraitementController {
     public ResponseEntity<TraitementDTO> postTraitement(@RequestBody TraitementDTO traitement) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(traitementService.createTraitement(traitement));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<TraitementDTO> putTraitement(@PathVariable String id, @RequestBody TraitementDTO traitement) {
+        return ResponseEntity.ok(traitementService.updateTraitement(Integer.parseInt(id), traitement));
     }
 
     @GetMapping("/nextId")

@@ -52,7 +52,7 @@ public class FichierServiceImpl implements FichierService {
     private static final int CELL_INDEX_NOM = 1;
     private static final int CELL_INDEX_ETABLISSEMENT = 1;
     private static final int CELL_INDEX_FINALITE = 4;
-    private static final int CELL_INDEX_GESTIONNAIRE = 5;
+    private static final int CELL_INDEX_GESTIONNAIRE_MISE_EN_OEUVRE = 5;
     // Extensions de fichiers supportées
     private static final String EXTENSION_XLSX = "xlsx";
     private static final String EXTENSION_XLS = "xls";
@@ -244,7 +244,7 @@ public class FichierServiceImpl implements FichierService {
     private boolean allMandatoryValuesPresent(Row row) {
         return !getCellValue(row.getCell(CELL_INDEX_NOM)).isBlank()
                 && !getCellValue(row.getCell(CELL_INDEX_FINALITE)).isBlank()
-                && !getCellValue(row.getCell(CELL_INDEX_GESTIONNAIRE)).isBlank();
+                && !getCellValue(row.getCell(CELL_INDEX_GESTIONNAIRE_MISE_EN_OEUVRE)).isBlank();
     }
     /**
      * Utilisation des Guard Patterns (Java 21)
@@ -363,7 +363,7 @@ public class FichierServiceImpl implements FichierService {
         List<Traitement> existing = traitementRepository.findByAllBusinessFields(
                 traitement.getNom(),
                 traitement.getClient(),
-                traitement.getGestionnaire(),
+                traitement.getGestionnaireMiseEnOeuvre(),
                 traitement.getFinalitePrincipale(),
                 traitement.getDateIdentification()
         );
