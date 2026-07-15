@@ -27,8 +27,6 @@ else
 fi
 
 
-printenv | sort -n
-
 # Default namespace & kubeconfig
 TOOLS_NAME="${PROJECT_NAME}-${DEP_ENV}"
 # Helm parameters
