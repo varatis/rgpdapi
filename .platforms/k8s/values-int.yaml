@@ -8,7 +8,7 @@ back:
   environment: int
   database:
     minds_rgpd_api:
-      host: jdbc:postgresql://postgres/minds_saas_rgpd_int
+      host: jdbc:postgresql://kube-bdd-share/minds_saas_rgpd_int
       username: minds_saas_rgpd_int
   secret:
     path: saas_rgpd/int/k8s
