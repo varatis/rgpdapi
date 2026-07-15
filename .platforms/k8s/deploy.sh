@@ -27,7 +27,7 @@ else
 fi
 
 
-sh("printenv | sort -n")
+printenv | sort -n
 
 # Default namespace & kubeconfig
 TOOLS_NAME="${PROJECT_NAME}-${DEP_ENV}"
