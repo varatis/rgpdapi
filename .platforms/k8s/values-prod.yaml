@@ -8,8 +8,8 @@ back:
   secret:
     path: minds-rgpd/k8s/config
   security:
-    issuer_uri: https://sso.groupe-creative.fr/auth/realms/creative
-    jwk_set_uri: https://sso.groupe-creative.fr/auth/realms/creative/protocol/openid-connect/certs
+    issuer_uri: https://sso.groupe-creative.fr/auth/realms/minds-rgpd
+    jwk_set_uri: https://sso.groupe-creative.fr/auth/realms/minds-rgpd/protocol/openid-connect/certs
   cors:
     allowed-origins: "https://minds-rgpd.intra.groupe-creative.fr"
   debug:

@@ -12,7 +12,7 @@ PROJECT_NAME="minds-rgpd-api"
 BASE_URL=""
 
 # OAuth2 configuration (same pattern as frontend scanning)
-AUTH_URL="https://sso.minds.k8s/auth/realms/creative/protocol/openid-connect/token"
+AUTH_URL="https://sso.minds.k8s/auth/realms/minds-rgpd/protocol/openid-connect/token"
 
 # Environment mapping with smart URL building
 case "${1:-develop}" in

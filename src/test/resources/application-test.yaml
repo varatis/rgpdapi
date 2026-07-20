@@ -14,8 +14,8 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://sso.minds.k8s/auth/realms/creative
-          jwk-set-uri: http://sso.minds.k8s/auth/realms/creative/protocol/openid-connect/certs
+          issuer-uri: http://sso.minds.k8s/auth/realms/minds-rgpd
+          jwk-set-uri: http://sso.minds.k8s/auth/realms/minds-rgpd/protocol/openid-connect/certs
           
 application:
   fichier:

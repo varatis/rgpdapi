@@ -13,8 +13,8 @@ back:
   secret:
     path: saas_rgpd/int/k8s
   security:
-    issuer_uri: https://sso.minds.k8s/auth/realms/creative
-    jwk_set_uri: https://sso.minds.k8s/auth/realms/creative/protocol/openid-connect/certs
+    issuer_uri: https://sso.minds.k8s/auth/realms/minds-rgpd
+    jwk_set_uri: https://sso.minds.k8s/auth/realms/minds-rgpd/protocol/openid-connect/certs
   cors:
     allowed-origins: "https://int.minds-rgpd.minds.k8s,https://jaeger-query.mingds.svc.cluster.local"
   debug:

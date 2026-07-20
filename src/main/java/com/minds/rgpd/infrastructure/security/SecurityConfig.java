@@ -56,7 +56,7 @@ public class SecurityConfig {
 
         RestTemplate restTemplate = new RestTemplate();
 
-        return NimbusJwtDecoder.withJwkSetUri("https://sso.minds.k8s/auth/realms/creative/protocol/openid-connect/certs")
+        return NimbusJwtDecoder.withJwkSetUri("https://sso.minds.k8s/auth/realms/minds-rgpd/protocol/openid-connect/certs")
                 .restOperations(restTemplate)
                 .build();
     }

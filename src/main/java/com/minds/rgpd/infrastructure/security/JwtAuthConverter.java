@@ -39,6 +39,16 @@ public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationTo
         logger.debug("issuer =  {}", jwt.getIssuer());
         logger.debug("claims = {}", jwt.getClaims());
 
+        // Extract client groups
+        if (jwt.getClaim("client_groups") != null) {
+            Collection<String> clientGroups = jwt.getClaim("client_groups");
+            logger.debug("clientGroups = {}", clientGroups);
+            return clientGroups.stream()
+                    .map(group -> new SimpleGrantedAuthority("ROLE_" + group))
+                    .collect(Collectors.toSet());
+        }
+
+        // Fallback to realm roles if no client groups
         if (jwt.getClaim("realm_access") == null) {
             return Set.of();
         }

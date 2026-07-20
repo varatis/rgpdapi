@@ -12,8 +12,8 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: https://sso.minds.k8s/auth/realms/creative
-          jwk-set-uri: https://sso.minds.k8s/auth/realms/creative/protocol/openid-connect/certs
+          issuer-uri: https://sso.minds.k8s/auth/realms/minds-rgpd
+          jwk-set-uri: https://sso.minds.k8s/auth/realms/minds-rgpd/protocol/openid-connect/certs
 application:
   allowed-origins: "http://localhost:4200"
   fichier.upload.dir: "."
