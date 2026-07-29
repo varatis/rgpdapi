@@ -143,4 +143,11 @@ public class TraitementServiceImpl implements TraitementService {
 
         return count;
     }
+
+    @Override
+    @Transactional
+    public void deleteTraitementById(UUID id) {
+        Traitement traitement = traitementRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Traitement", "UUID", id));
+        traitementRepository.delete(traitement);
+    }
 }
