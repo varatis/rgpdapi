@@ -6,11 +6,6 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-@OpenAPIDefinition(info = @Info(
-        title = "${spring.application.name}",
-        version = "${application.version}",
-        description = "${spring.application.description}"
-))
 public class RgpdApplication {
 
     public static void main(String[] args) {

@@ -20,4 +20,6 @@ public interface TraitementService {
     Integer getNextIdFonctionnel();
 
     Integer deleteDuplicateTraitements();
+
+    void deleteTraitementById(UUID id);
 }
