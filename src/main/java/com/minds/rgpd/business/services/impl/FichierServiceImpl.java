@@ -1,4 +1,27 @@
 package com.minds.rgpd.business.services.impl;
+import java.io.IOException;
+import java.io.InputStream;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.StreamSupport;
+
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.DateUtil;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.minds.rgpd.business.dtos.ClientDTO;
 import com.minds.rgpd.business.dtos.EtablissementDTO;
 import com.minds.rgpd.business.dtos.InfoFichierDTO.InfoFichierDTOBuilder;
@@ -13,21 +36,9 @@ import com.minds.rgpd.persistence.entities.Traitement;
 import com.minds.rgpd.persistence.repositories.ClientRepository;
 import com.minds.rgpd.persistence.repositories.EtablissementRepository;
 import com.minds.rgpd.persistence.repositories.TraitementRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
-import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
-import java.io.IOException;
-import java.io.InputStream;
-import java.time.LocalDateTime;
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.StreamSupport;
 
 @Service
 @RequiredArgsConstructor
@@ -84,7 +95,7 @@ public class FichierServiceImpl implements FichierService {
 
         String nomClient = matcher.group("client");
         String version = matcher.group("version");
-        log.debug("Client extrait du nom de fichier : {}, version : {}", nomClient, version);
+        log.info("Client extrait du nom de fichier : {}, version : {}", nomClient, version);
 
         return clientRepository.findByNom(nomClient)
                 .map(client -> processImport(fichier, client, version, infoFichier))
