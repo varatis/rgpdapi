@@ -2,6 +2,7 @@ package com.minds.rgpd.business.services.impl;
 
 import com.minds.rgpd.business.dtos.EtablissementDTO;
 import com.minds.rgpd.business.dtos.TraitementDTO;
+import com.minds.rgpd.business.dtos.TraitementFilterCriteria;
 import com.minds.rgpd.business.dtos.TraitementPartielDTO;
 import com.minds.rgpd.business.exceptions.DuplicateResourceException;
 import com.minds.rgpd.business.exceptions.ResourceNotFoundException;
@@ -13,10 +14,12 @@ import com.minds.rgpd.persistence.entities.Traitement;
 import com.minds.rgpd.persistence.repositories.ClientRepository;
 import com.minds.rgpd.persistence.repositories.EtablissementRepository;
 import com.minds.rgpd.persistence.repositories.TraitementRepository;
+import com.minds.rgpd.persistence.specifications.TraitementSpecifications;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,11 +41,20 @@ public class TraitementServiceImpl implements TraitementService {
     private final TraitementMapper traitementMapper;
 
     @Override
-    public Page<TraitementPartielDTO> getTraitements(Pageable pageable, String clientName) {
+    public Page<TraitementPartielDTO> getTraitements(Pageable pageable, String clientName, TraitementFilterCriteria criteria) {
         if (clientName == null || clientName.isBlank()) {
             return Page.empty(pageable);
         }
-        Page<Traitement> traitementList = traitementRepository.findByClientName(clientName, pageable);
+
+        TraitementFilterCriteria safe = criteria != null ? criteria : TraitementFilterCriteria.empty();
+        Specification<Traitement> spec = TraitementSpecifications.search(
+                clientName,
+                safe.nom(),
+                safe.gestionnaireMiseEnOeuvre(),
+                safe.finalitePrincipale()
+        );
+
+        Page<Traitement> traitementList = traitementRepository.findAll(spec, pageable);
         return traitementMapper.toTraitementPartielDTOPage(traitementList);
     }
 

@@ -1,20 +1,24 @@
 package com.minds.rgpd.web.controllers;
 
 import com.minds.rgpd.business.dtos.TraitementDTO;
+import com.minds.rgpd.business.dtos.TraitementFilterCriteria;
 import com.minds.rgpd.business.dtos.TraitementPartielDTO;
 import com.minds.rgpd.business.exceptions.ResourceNotFoundException;
 import com.minds.rgpd.business.services.TraitementService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.service.GenericResponseService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
@@ -22,6 +26,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/traitements")
 @RequiredArgsConstructor
+@Validated
 @Tag(name = "Traitement Controller", description = "Gère les entités Traitements")
 public class TraitementController {
 
@@ -29,9 +34,13 @@ public class TraitementController {
 
     @GetMapping
     public ResponseEntity<Page<TraitementPartielDTO>> getTraitements(
-            @PageableDefault() Pageable pageable,
-            @RequestParam(required = false) String clientNom) {
-        Page<TraitementPartielDTO> traitements = traitementService.getTraitements(pageable, clientNom);
+            @PageableDefault(size = 20, sort = "nom", direction = Sort.Direction.ASC) Pageable pageable,
+            @RequestParam(required = false) @Size(max = 255) String clientNom,
+            @RequestParam(required = false) @Size(max = 255) String nom,
+            @RequestParam(required = false) @Size(max = 255) String gestionnaireMiseEnOeuvre,
+            @RequestParam(required = false) @Size(max = 255) String finalitePrincipale) {
+        TraitementFilterCriteria criteria = new TraitementFilterCriteria(nom, gestionnaireMiseEnOeuvre, finalitePrincipale);
+        Page<TraitementPartielDTO> traitements = traitementService.getTraitements(pageable, clientNom, criteria);
         return ResponseEntity.ok(traitements);
     }
 
