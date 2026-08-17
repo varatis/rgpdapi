@@ -1,0 +1,139 @@
+package com.minds.rgpd.business.Imports;
+
+import com.minds.rgpd.persistence.entities.Client;
+import com.minds.rgpd.persistence.entities.Etablissement;
+import com.minds.rgpd.persistence.entities.Traitement;
+import com.minds.rgpd.persistence.repositories.EtablissementRepository;
+import com.minds.rgpd.persistence.repositories.TraitementRepository;
+
+import lombok.RequiredArgsConstructor;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import org.springframework.stereotype.Component;
+
+@Component
+@RequiredArgsConstructor
+public final class ImportSpecifications {
+    private final TraitementRepository traitementRepository;
+    private final EtablissementRepository etablissementRepository;
+
+    public ImportSpecification<Traitement> traitement(Client client, String version)
+    {
+        // Cache local à l'import : les établissements ne sont plus enregistrés au fil des
+        // lignes, donc une recherche en base ne verrait pas celui créé quelques lignes plus
+        // haut. Sans ce cache, deux lignes citant le même nouvel établissement en créeraient
+        // deux exemplaires.
+        Map<String, Etablissement> etablissementsDuFichier = new HashMap<>();
+
+        return new ImportSpecification<Traitement>(
+            "Registre de traitement",
+            false,
+            6,
+            List.of(
+                    "Nom du traitement",
+                    "Gestionnaire de la mise en œuvre du traitement",
+                    "Finalité principale"
+            ),
+            row -> {
+                Traitement.TraitementBuilder traitementBuilder = Traitement.builder();
+                traitementBuilder.idFonctionnel(row.getInt("ID"));
+                traitementBuilder.donneesConcernees(row.getString("Données concernées"));
+                traitementBuilder.nom(row.getString("Nom du traitement"));
+                traitementBuilder.dateIdentification(row.getDate("Date d'identification du traitement"));
+                traitementBuilder.dateMiseAJour(row.getDate("Date de mise à jour"));
+                traitementBuilder.historiqueModifications(row.getString("Historique des modifications"));
+                traitementBuilder.dataProtectionOfficer(row.getString("Data Protection Officer"));
+                traitementBuilder.responsableTraitement(row.getString("Responsable de traitement"));
+                traitementBuilder.gestionnaireMiseEnOeuvre(row.getString("Gestionnaire de la mise en œuvre du traitement"));
+                traitementBuilder.finalitePrincipale(row.getString("Finalité principale"));
+                traitementBuilder.sousFinalites(row.getString("Sous-finalités"));
+                traitementBuilder.categoriesPersonnesConcernees(row.getString("Catégories de personnes concernées par le traitement"));
+                traitementBuilder.donneesIdentification(row.getString("Données d'identification"));
+                traitementBuilder.donneesConnexion(row.getString("Données de connexion"));
+                traitementBuilder.donneesLocalisation(row.getString("Données de localisation"));
+                traitementBuilder.donneesComportementViePerso(row.getString("Données sur le comportement et la vie personnelle"));
+                traitementBuilder.donneesEconomiquesFinancieres(row.getString("Données économiques et financières"));
+                traitementBuilder.donneesProfessionnelles(row.getString("Données professionnelles"));
+                traitementBuilder.categoriesParticulieresDonnees(row.getString("Catégories particulières de données (NIR, santé par exemple)"));
+                traitementBuilder.sensibilite(row.getString("Sensibilité"));
+                traitementBuilder.etudeImpact(row.getString("Etude d'impact (PIA)"));
+                traitementBuilder.canauxCollecteDonnees(row.getString("Canaux de collecte des données"));
+                traitementBuilder.licieteTraitement(row.getString("Licéité du traitement"));
+                traitementBuilder.recoursTraitementAutomatises(row.getBoolean("Recours au traitements automatisés (y compris profilage) ? (Oui / Non)"));
+                traitementBuilder.emplacementPhysique(row.getString("Emplacement physique du traitement"));
+                traitementBuilder.dispositionsSecuriteDonneesPhysique(row.getString("Dispositions existantes pour assurer la sécurité des données", 0));
+                traitementBuilder.emplacementNumerique(row.getString("Emplacement numérique du traitement"));
+                traitementBuilder.dispositionsSecuriteDonneesNumerique(row.getString("Dispositions existantes pour assurer la sécurité des données",1));
+                traitementBuilder.hebergement(row.getString("Hébergement"));
+                traitementBuilder.dureeConservation(row.getString("Durée de conservation"));
+                traitementBuilder.archivage(row.getBoolean("Archivage ? (Oui / Non)"));
+                traitementBuilder.dureeArchivage(row.getString("Durée d'archivage"));
+                traitementBuilder.categoriesDestinataires(row.getString("Catégories de destinataires"));
+                traitementBuilder.raisonsTransfertDestinataires(row.getString("Raisons du transfert vers les catégories de destinataires"));
+                traitementBuilder.transfertsHorsUE(row.getBoolean("Transferts hors UE (Oui / Non)"));
+                traitementBuilder.paysDestinataires(row.getString("Pays destinataires"));
+                traitementBuilder.commentaires(row.getString("Commentaires"));
+                
+                String rawEtablissementNames = row.getString("Etablissement(s)");
+                var etablissements = findOrCreateEtablissements(
+                        rawEtablissementNames, client, etablissementsDuFichier);
+                traitementBuilder.etablissements(etablissements);
+                traitementBuilder.client(client);
+                traitementBuilder.version(parseVersion(version));
+                
+                
+                return traitementBuilder.build();
+            },
+            traitement -> !traitementRepository.findByAllBusinessFields(
+                    traitement.getNom(),
+                    traitement.getClient(),
+                    traitement.getGestionnaireMiseEnOeuvre(),
+                    traitement.getFinalitePrincipale(),
+                    traitement.getDateIdentification()
+                ).isEmpty(),
+            traitementRepository
+        );
+    }
+
+    private List<Etablissement> findOrCreateEtablissements(String etablissementsRaw, Client client, Map<String, Etablissement> cache)
+    {
+        if (etablissementsRaw == null || etablissementsRaw.isBlank()) {
+            return List.of();
+        }
+        return etablissementsRaw.lines()
+            .filter(line -> !line.isBlank())
+            .map(String::trim)  // Nettoyage des espaces
+            .distinct()         // Évite les doublons dans le même fichier
+            .map(nom -> cache.computeIfAbsent(nom, n -> findOrCreateEtablissement(n, client)))
+            .toList();
+    }
+    /**
+     * Extraction de la logique pour un seul établissement
+     */
+    private Etablissement findOrCreateEtablissement(String nom, Client client) {
+        return etablissementRepository.findByNom(nom)
+            .orElseGet(() -> createEtablissement(nom, client));
+    }
+    /**
+     * Séparation création/sauvegarde
+     */
+    private Etablissement createEtablissement(String nom, Client client) {
+        Etablissement newEtablissement = Etablissement.builder()
+            .id(UUID.randomUUID())
+            .nom(nom)
+            .client(client)
+            .build();
+        return newEtablissement;
+    }
+    private int parseVersion(String version) {
+        try {
+            return Integer.parseInt(version);
+        } catch (NumberFormatException e) {
+            return 1;
+        }
+    }
+}
