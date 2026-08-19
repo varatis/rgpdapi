@@ -115,10 +115,9 @@ public class FichierServiceImpl implements FichierService {
                 log.warn("Import du fichier {} en erreur : transaction annulée, aucune donnée persistée", fileName);
                 TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             }
-            String ok = "OK";
             return infoFichier
                     .dateFinTraitement(LocalDateTime.now())
-                    .statusFichier(ok);
+                    .statusFichier(String.join("\n", messages));
 
         } catch (IOException e) {
             log.error("Erreur lors de la lecture du fichier : {}", e.getMessage(), e);
@@ -151,11 +150,12 @@ public class FichierServiceImpl implements FichierService {
             int saved = persist(specification, result.imported());
             log.info("{} : {} ligne(s) lue(s), {} sauvegardée(s)",
                     specification.sheetName(), result.imported().size(), saved);
+            return new ImportReport("OK", true);
         }
 
         return new ImportReport(
                 "%s : %s".formatted(specification.sheetName(), result.getResultMessage()),
-                result.isSuccessful());
+                false);
     }
 
     private <T> int persist(ImportSpecification<T> spec, List<T> items) {
