@@ -48,6 +48,10 @@ public class FichierServiceImpl implements FichierService {
     // Extensions de fichiers supportées
     private static final String EXTENSION_XLSX = "xlsx";
     private static final String EXTENSION_XLS = "xls";
+    private static final List<String> PRECONISATION_SHEET_NAMES = List.of(
+            "Suivi des préconisations",
+            "Préconisations"
+    );
     private final ClientRepository clientRepository;
     private final ClientMapper clientMapper;
     private final ExcelImportService importer;
@@ -101,7 +105,12 @@ public class FichierServiceImpl implements FichierService {
         try(InputStream inputStream = fichier.getInputStream();
             Workbook workbook = createWorkbook(fileName, inputStream)) {
             
-            List<ImportSpecification<?>> specifications = List.of(importSpecifications.traitement(client, version));
+            List<ImportSpecification<?>> specifications = new ArrayList<>();
+            specifications.add(importSpecifications.traitement(client, version));
+            String preconisationSheet = findPreconisationSheet(workbook);
+            if (preconisationSheet != null) {
+                specifications.add(importSpecifications.preconisation(client, preconisationSheet));
+            }
             List<String> messages = new ArrayList<>();
             boolean hasErrors = false;
             for (ImportSpecification<?> specification : specifications) {
@@ -185,9 +194,15 @@ public class FichierServiceImpl implements FichierService {
             );
         };
     }
-    /**
-     * Extraction de l'extension de fichier dans une méthode utilitaire
-     */
+    private String findPreconisationSheet(Workbook workbook) {
+        for (String sheetName : PRECONISATION_SHEET_NAMES) {
+            if (workbook.getSheet(sheetName) != null) {
+                return sheetName;
+            }
+        }
+        return null;
+    }
+
     private String getFileExtension(String fileName) {
         int lastDotIndex = fileName.lastIndexOf('.');
         if (lastDotIndex == -1 || lastDotIndex == fileName.length() - 1) {

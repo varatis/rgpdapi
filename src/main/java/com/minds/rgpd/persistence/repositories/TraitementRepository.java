@@ -2,8 +2,6 @@ package com.minds.rgpd.persistence.repositories;
 
 import com.minds.rgpd.persistence.entities.Client;
 import com.minds.rgpd.persistence.entities.Traitement;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -19,6 +17,10 @@ import java.util.UUID;
 public interface TraitementRepository extends JpaRepository<Traitement, UUID>, JpaSpecificationExecutor<Traitement> {
 
     Traitement findByIdFonctionnel(int id);
+
+    List<Traitement> findByIdFonctionnelAndClient(Integer idFonctionnel, Client client);
+
+    List<Traitement> findByNomAndClient(String nom, Client client);
 
     @Query("SELECT MAX(idFonctionnel) FROM Traitement")
     Optional<Integer> findMaxIdFonctionnel();

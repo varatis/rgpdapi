@@ -1,4 +1,4 @@
-TRUNCATE TABLE traitement_etablissement, utilisateur_etablissement, profil, client, utilisateur, etablissement, traitement CASCADE;
+TRUNCATE TABLE preconisation, traitement_etablissement, utilisateur_etablissement, profil, client, utilisateur, etablissement, traitement CASCADE;
 -- ============================================
 -- Données factices
 -- ============================================
@@ -45,3 +45,18 @@ INSERT INTO traitement_etablissement (id_traitement, id_etablissement)
 VALUES ('31b8d234-2346-4761-89fb-92d24f49bb96', '590687e6-f6e9-4668-aae0-a0f0e32982ff'), -- Gestion salariés ↔ Siège Paris
        ('acc27fd1-58ea-4333-b300-b4a32bef6a63', 'bf10040d-c95f-42bb-8298-514fe45d84c1'), -- Suivi ventes ↔ Agence Lyon
        ('5aed6dd1-d164-41f7-a786-f1be625333ae', 'cb5b0cd7-8551-4808-b3a2-fc5e745b25d2'); -- Conformité RGPD ↔ Siège Marseille
+
+-- PRECONISATIONS
+INSERT INTO preconisation (identifiant, id_client, id_traitement, libelle, explication, risque_encours, contraintes, cout, priorite, complexite, commentaire, etat_avancement)
+VALUES ('aaaaaaaa-1111-4111-8111-111111111111', '0e4bf889-fea0-46ac-894d-ca39cbf00359', '31b8d234-2346-4761-89fb-92d24f49bb96',
+        'Créer une adresse mail DPO', 'Mettre en place une adresse générique DPO',
+        'Ne pas permettre facilement à une personne d’exercer ses droits',
+        'Créer une BAL générique', 'Aucun', '1 : Très urgent', '1 : Très simple', NULL, 'En cours'),
+       ('aaaaaaaa-2222-4222-8222-222222222222', '0e4bf889-fea0-46ac-894d-ca39cbf00359', '31b8d234-2346-4761-89fb-92d24f49bb96',
+        'Fermer les bureaux', 'Fermer les bureaux dès absence',
+        'Accès à des données personnelles non autorisées',
+        'Sensibilisation', 'Temps humain', '1 : Très urgent', '1 : Très simple', NULL, 'À faire'),
+       ('aaaaaaaa-3333-4333-8333-333333333333', '82e99259-1bbd-4c1a-b013-7602e27168f3', '5aed6dd1-d164-41f7-a786-f1be625333ae',
+        'Changer de Broyeur', 'Remplacer le broyeur qui n’est pas un broyeur croisé',
+        'Reconstitution d’un document',
+        'Aucune', 'Environ 70 euros', '4 : Peu urgent', '1 : Très simple', NULL, 'Réalisée');
