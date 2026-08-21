@@ -8,6 +8,10 @@ import lombok.NoArgsConstructor;
 
 import java.util.UUID;
 
+/**
+ * Établissement (site, service) d'un client ; un traitement du registre peut
+ * concerner un ou plusieurs établissements.
+ */
 @Builder
 @Data
 @Entity
@@ -16,12 +20,21 @@ import java.util.UUID;
 @AllArgsConstructor
 public class Etablissement {
 
+    /**
+     * Identifiant technique de l'établissement (UUID généré lors de l'import ou de la création).
+     */
     @Id
     UUID id;
 
+    /**
+     * Nom de l'établissement, tel qu'indiqué dans la colonne « Etablissement(s) » du registre.
+     */
     @Column(name = "nom")
     String nom;
 
+    /**
+     * Client propriétaire de l'établissement (suppression en cascade).
+     */
     @ManyToOne
     @JoinColumn(name = "id_client")
     Client client;

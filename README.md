@@ -68,6 +68,13 @@ Scripts à initialiser :
     l'application, sur environnement ou pour utilisation locale.
   - `V2.0__Script_de_migration` : Modification de la table traitement
 
+### Comprendre le modèle de données
+
+- `docs/mapping-bdd-registre.md` : correspondance **registre Excel (`FR_Définitions`) ↔ BDD ↔ entités**,
+  définitions métier de chaque champ et incohérences identifiées.
+- Ces définitions sont aussi visibles **dans pgAdmin** (propriété « Comment » de chaque table/colonne),
+  via la migration `V7.0__Ajout_commentaires_metiers.sql`, et dans **Swagger** (annotations `@Schema` des DTO).
+
 ### Administrer la BDD
 
 * En utilisant le **docker-compose.yml**, vous lancerez l'interface d'administration PgAdmin.

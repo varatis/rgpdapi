@@ -11,6 +11,10 @@ import lombok.NoArgsConstructor;
 
 import java.util.UUID;
 
+/**
+ * Profil fonctionnel d'un utilisateur, déterminant ses droits dans l'application
+ * (ex. : ADMIN, USER, DPO).
+ */
 @Builder
 @Data
 @Entity
@@ -19,12 +23,21 @@ import java.util.UUID;
 @AllArgsConstructor
 public class Profil {
 
+    /**
+     * Identifiant technique du profil (UUID).
+     */
     @Id
     UUID id;
 
+    /**
+     * Code unique du profil (ex. : ADMIN, USER, DPO).
+     */
     @Column(name = "code")
     String code;
 
+    /**
+     * Description du profil et de son périmètre de droits.
+     */
     @Column(name = "description")
     String description;
 }
