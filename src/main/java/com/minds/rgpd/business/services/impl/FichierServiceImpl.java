@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.minds.rgpd.business.Imports.DefinitionsRegistreImportService;
 import com.minds.rgpd.business.Imports.ExcelImportService;
 import com.minds.rgpd.business.Imports.ImportResult;
 import com.minds.rgpd.business.Imports.ImportSpecification;
@@ -26,6 +27,7 @@ import com.minds.rgpd.business.services.FichierService;
 import com.minds.rgpd.business.utilities.mappers.ClientMapper;
 import com.minds.rgpd.persistence.entities.Client;
 import com.minds.rgpd.persistence.repositories.ClientRepository;
+import com.minds.rgpd.persistence.repositories.DefinitionChampRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +54,8 @@ public class FichierServiceImpl implements FichierService {
     private final ClientMapper clientMapper;
     private final ExcelImportService importer;
     private final ImportSpecifications importSpecifications;
+    private final DefinitionsRegistreImportService definitionsImporter;
+    private final DefinitionChampRepository definitionChampRepository;
 
     // @Transactional explicite pour les méthodes d'écriture
     @Override
@@ -103,6 +107,7 @@ public class FichierServiceImpl implements FichierService {
             
             List<ImportSpecification<?>> specifications = List.of(importSpecifications.traitement(client, version));
             List<String> messages = new ArrayList<>();
+            importDefinitionsMetier(workbook, client, version, messages);
             boolean hasErrors = false;
             for (ImportSpecification<?> specification : specifications) {
                 ImportReport report = runImport(workbook, specification);
@@ -126,6 +131,35 @@ public class FichierServiceImpl implements FichierService {
             log.error("Fichier invalide : {}", e.getMessage());
             return infoFichier.statusFichier(e.getMessage());
         }
+    }
+
+    /**
+     * Extrait les définitions métier de l'onglet « FR_Définitions » et les persiste dans
+     * la table definition_champ (remplacement complet pour le client et l'édition).
+     * <p>
+     * S'exécute dans la transaction globale de l'import : en cas d'erreur sur le registre,
+     * les définitions sont annulées avec le reste (tout ou rien). Un onglet absent ou vide
+     * n'est pas bloquant : un avertissement est ajouté au rapport et l'import continue.
+     */
+    private void importDefinitionsMetier(Workbook workbook, Client client, String version, List<String> messages) {
+        DefinitionsRegistreImportService.ResultatExtraction extraction =
+                definitionsImporter.extraire(workbook, client, version);
+
+        if (!extraction.ongletPresent()) {
+            messages.add("Onglet '%s' absent : définitions métier non importées"
+                    .formatted(DefinitionsRegistreImportService.SHEET_NAME));
+            return;
+        }
+        if (extraction.definitions().isEmpty()) {
+            messages.add("Onglet '%s' : aucune définition trouvée"
+                    .formatted(DefinitionsRegistreImportService.SHEET_NAME));
+            return;
+        }
+
+        definitionChampRepository.deleteByClientIdAndEdition(client.getId(), version);
+        definitionChampRepository.saveAll(extraction.definitions());
+        log.info("{} définition(s) métier importée(s) pour le client {} (édition {})",
+                extraction.definitions().size(), client.getNom(), version);
     }
 
     /** Résultat d'une feuille : message pour le rapport + statut (aucune erreur ?). */

@@ -1,113 +1,135 @@
 # Mapping BDD — Registre des activités de traitement
 
-Ce document centralise la correspondance entre le fichier registre Excel, le modèle de
-données (BDD / entités JPA) et les définitions métier associées.
+Ce document décrit comment les définitions métier du registre (onglet **FR_Définitions**)
+sont reliées au modèle de données, **sans duplication des valeurs dans le code**.
 
-- **Source des définitions** : `src/test/resources/rgpdFile/La breteche_CREATIVE_Registre RGPD_ed3.25.xlsx`,
-  onglet **FR_Définitions** (définitions) et onglet **Registre de traitement** ligne 6 (en-têtes de colonnes).
-- **Report dans le code** :
-  - migration Flyway `V7.0__Ajout_commentaires_metiers.sql` : commentaires PostgreSQL
-    (`COMMENT ON TABLE / COLUMN`), visibles dans pgAdmin / DBeaver ;
-  - Javadoc des entités `com.minds.rgpd.persistence.entities` ;
-  - annotations `@Schema` des DTO `com.minds.rgpd.business.dtos` (Swagger / OpenAPI).
+## Principe : les définitions vivent dans le fichier, pas dans le code
 
-## Provenance des définitions
+```
+ Fichier registre Excel                    Application Spring Boot                  BDD PostgreSQL
+ ┌───────────────────────────┐    POST    ┌───────────────────────────────┐        ┌──────────────────────┐
+ │ FR_Définitions            │  /import   │ DefinitionsRegistreImportSvc  │        │ definition_champ     │
+ │  B: libellé du champ      │  Fichier ─>│  (parse colonnes B/C)         │ save / │  (libelle, definition│
+ │  C: définition métier     │  Rgpd      │ CorrespondanceChampRegistre   │ delete │   table_cible,       │
+ │                           │            │  (libellé -> table/colonne)   │ ------>│   colonne_cible, ...)│
+ │ Registre de traitement    │            │ ImportSpecifications          │        │ traitement           │
+ │  (données)                │            │  (données des traitements)    │ ------->│  (40 colonnes)       │
+ └───────────────────────────┘            └───────────────────────────────┘        └──────────────────────┘
+```
 
-| Marqueur | Signification |
+- **À l'import** (`POST /importFichierRgpd`), les définitions de l'onglet `FR_Définitions`
+  sont extraites et persistées dans la table **`definition_champ`** (remplacement complet
+  par couple client + édition, dans la même transaction que l'import du registre : tout ou rien).
+- **À la lecture**, elles sont exposées par `GET /definitions-champs?clientNom=…&edition=…`
+  (édition optionnelle) et requêtables en SQL.
+- **À l'export** (évolution future), le contenu de `definition_champ` permettra de
+  régénérer l'onglet `FR_Définitions` du fichier (l'ordre de l'onglet est conservé via
+  la colonne `ordre`).
+- Les définitions ne figurent **nulle part en dur** : ni dans les migrations Flyway
+  (`V7.0` ne crée que la structure), ni dans les entités/DTO.
+
+## Parsing de l'onglet FR_Définitions
+
+| Règle | Effet |
 |---|---|
-| **[REGISTRE]** | Définition reprise de l'onglet `FR_Définitions`, éventuellement épurée des mentions propres à Excel (ex. raccourci clavier) ou complétée du libellé exact de la colonne source. |
-| **[PROPOSÉE]** | Définition **absente de `FR_Définitions`**, rédigée d'après l'usage constaté dans le registre et le contexte RGPD. **À faire valider par le métier.** |
+| Colonne B remplie + colonne C remplie | Définition de champ → ligne `definition_champ` |
+| Colonne B remplie + colonne C vide | En-tête de section (ex. « Identification du traitement ») → mémorisée sur les champs qui suivent |
+| Colonne B vide | Ignorée (listes de référence en colonne C : données sensibles, licéité Art. 6, PIA obligatoire — lignes 43 à 76) |
+| Libellé inconnu de la correspondance | Importé quand même, avec `table_cible`/`colonne_cible` nulles (écart visible en base) |
 
-## Table de correspondance — table `traitement`
+## Correspondance libellé FR_Définitions → modèle de données
 
-Colonnes dans l'ordre du registre (onglet *Registre de traitement*, ligne 6).
-Le mapping Excel → colonne est implémenté dans `ImportSpecifications.traitement(...)`.
+Implémentée dans `CorrespondanceChampRegistre` (connaissance **technique** — la seule
+chose codée en dur). Libellés tels qu'écrits dans l'onglet, édition 3.25.
 
-| # | Colonne du registre (en-tête) | Colonne BDD | Champ entité | Source déf. | Remarque |
-|---|---|---|---|---|---|
-| 1 | ID | `id_fonctionnel` | `idFonctionnel` | [REGISTRE] | Clé métier. La clé primaire technique `identifiant` (UUID) n'existe pas dans le registre. |
-| 2 | Etablissement(s) | — (liaison `traitement_etablissement`) | `etablissements` | [REGISTRE] | Relation N-N, pas une colonne de `traitement`. |
-| 3 | Données concernées | `donnees_concernees` | `donneesConcernees` | [PROPOSÉE] | Absente de `FR_Définitions`. Redondance possible avec `categories_personnes_concernees` (voir I3). |
-| 4 | Nom du traitement | `nom` | `nom` | [REGISTRE] | |
-| 5 | Date d'identification du traitement | `date_identification` | `dateIdentification` | [REGISTRE] | |
-| 6 | Date de mise à jour | `date_mise_a_jour` | `dateMiseAJour` | [REGISTRE] | Définition épurée de la mention Excel « raccourci clavier CTRL ; ». |
-| 7 | Historique des modifications | `historique_modifications` | `historiqueModifications` | [REGISTRE] | Libellé légèrement différent dans `FR_Définitions` : « Historique **de** modifications ». |
-| 8 | Data Protection Officer | `data_protection_officer` | `dataProtectionOfficer` | [REGISTRE] | |
-| 9 | Responsable de traitement | `responsable_traitement` | `responsableTraitement` | [REGISTRE] | |
-| 10 | Gestionnaire de la mise en œuvre du traitement | `gestionnaire_mise_en_oeuvre` | `gestionnaireMiseEnOeuvre` | [REGISTRE] | Libellé différent dans `FR_Définitions` : « Représentant de l'entité responsable de la mise en œuvre du traitement » (voir I4). |
-| 11 | Finalité principale | `finalite_principale` | `finalitePrincipale` | [REGISTRE] | |
-| 12 | Sous-finalités | `sous_finalites` | `sousFinalites` | [REGISTRE] | |
-| 13 | Catégories de personnes concernées par le traitement | `categories_personnes_concernees` | `categoriesPersonnesConcernees` | [REGISTRE] | |
-| 14 | Données d'identification | `donnees_identification` | `donneesIdentification` | [REGISTRE] | |
-| 15 | Données de connexion | `donnees_connexion` | `donneesConnexion` | [REGISTRE] | |
-| 16 | Données de localisation | `donnees_localisation` | `donneesLocalisation` | [REGISTRE] | |
-| 17 | Données sur le comportement et la vie personnelle | `donnees_comportement_vie_perso` | `donneesComportementViePerso` | [REGISTRE] | |
-| 18 | Données économiques et financières | `donnees_economiques_financieres` | `donneesEconomiquesFinancieres` | [REGISTRE] | |
-| 19 | Données professionnelles | `donnees_professionnelles` | `donneesProfessionnelles` | [REGISTRE] | |
-| 20 | Catégories particulières de données (NIR, santé par exemple) | `categories_particulieres_donnees` | `categoriesParticulieresDonnees` | [REGISTRE] | Définition complétée du « NIR » présent dans le libellé de la colonne. |
-| 21 | Sensibilité | `sensibilite` | `sensibilite` | [PROPOSÉE] | Absente de `FR_Définitions`. Valeurs = liste « Liste des données sensibles » de `FR_Définitions` (lignes 43-54). |
-| 22 | Etude d'impact (PIA) | `etude_impact` | `etudeImpact` | [PROPOSÉE] | Absente de `FR_Définitions`. Valeurs = liste « PIA obligatoire dans les cas suivants » de `FR_Définitions` (lignes 66-76). |
-| 23 | Canaux de collecte des données | `canaux_collecte_donnees` | `canauxCollecteDonnees` | [REGISTRE] | |
-| 24 | Licéité du traitement | `liceite_traitement` | `licieteTraitement` | [REGISTRE] | Valeurs = liste « Licéité du traitement (Article 6) » de `FR_Définitions` (lignes 57-63). Coquille Java : `licieteTraitement` (voir I5). |
-| 25 | Recours au traitements automatisés (y compris profilage) ? (Oui / Non) | `recours_traitements_automatises` | `recoursTraitementAutomatises` | [REGISTRE] | |
-| 26 | Emplacement physique du traitement | `emplacement_physique` | `emplacementPhysique` | [PROPOSÉE] | Absente de `FR_Définitions`. |
-| 27 | Dispositions existantes pour assurer la sécurité des données (1ʳᵉ occurrence) | `dispositions_securite_donnees_physique` | `dispositionsSecuriteDonneesPhysique` | [REGISTRE] | Colonne dupliquée dans le registre : la 1ʳᵉ concerne le physique (suffixe ajouté en V4.0). |
-| 28 | Emplacement numérique du traitement | `emplacement_numerique` | `emplacementNumerique` | [PROPOSÉE] | Absente de `FR_Définitions`. |
-| 29 | Dispositions existantes pour assurer la sécurité des données (2ᵉ occurrence) | `dispositions_securite_donnees_numerique` | `dispositionsSecuriteDonneesNumerique` | [REGISTRE] | Même définition, déclinée sur le périmètre numérique. |
-| 30 | Hébergement | `hebergement` | `hebergement` | [PROPOSÉE] | Absente de `FR_Définitions`. |
-| 31 | Durée de conservation | `duree_conservation` | `dureeConservation` | [REGISTRE] | Libellé différent dans `FR_Définitions` : « Durée d'archivage courant » (voir I6). |
-| 32 | Archivage ? (Oui / Non) | `archivage` | `archivage` | [PROPOSÉE] | Absente de `FR_Définitions`. |
-| 33 | Durée d'archivage | `duree_archivage` | `dureeArchivage` | [REGISTRE] | Libellé différent dans `FR_Définitions` : « Durée d'archivage définitif » (voir I6). |
-| 34 | Catégories de destinataires | `categories_destinataires` | `categoriesDestinataires` | [REGISTRE] | |
-| 35 | Raisons du transfert vers les catégories de destinataires | `raisons_transfert_destinataires` | `raisonsTransfertDestinataires` | [REGISTRE] | |
-| 36 | Transferts hors UE (Oui / Non) | `transferts_hors_ue` | `transfertsHorsUE` | [REGISTRE] | |
-| 37 | Pays destinataires | `pays_destinataires` | `paysDestinataires` | [REGISTRE] | |
-| 38 | Commentaires | `commentaires` | `commentaires` | [PROPOSÉE] | Absente de `FR_Définitions`. |
-
-### Colonnes techniques (hors registre)
-
-| Colonne BDD | Champ entité | Source déf. | Définition |
+| Libellé FR_Définitions (section) | Table cible | Colonne cible | Remarque |
 |---|---|---|---|
-| `identifiant` | `identifiant` | [PROPOSÉE] | Identifiant technique unique du traitement (UUID généré par l'application). |
-| `id_client` | `client` | [PROPOSÉE] | Client (organisme) propriétaire du traitement ; cloisonnement multi-clients. |
-| `version` | `version` | [PROPOSÉE] | Édition du fichier registre source (extraite du nom de fichier). Voir I7. |
+| ID (Identification) | `traitement` | `id_fonctionnel` | Clé métier ; la PK technique `identifiant` (UUID) n'existe pas dans le registre. |
+| Etablissement(s) (Identification) | `traitement_etablissement` | — (nulle) | Porte sur la relation N-N, pas une colonne de `traitement`. |
+| Nom du traitement (Identification) | `traitement` | `nom` | En-tête registre identique. |
+| Date d'identification du traitement (Identification) | `traitement` | `date_identification` | |
+| Date de mise à jour (Identification) | `traitement` | `date_mise_a_jour` | |
+| Historique de modifications (Identification) | `traitement` | `historique_modifications` | En-tête registre : « Historique **des** modifications » (I4). |
+| Data Protection Officer (Identification) | `traitement` | `data_protection_officer` | |
+| Responsable de traitement (Identification) | `traitement` | `responsable_traitement` | |
+| Représentant de l'entité responsable de la mise en œuvre du traitement (Identification) | `traitement` | `gestionnaire_mise_en_oeuvre` | En-tête registre + BDD : « Gestionnaire de la mise… » (I4). |
+| Responsable(s) conjoint(s) du traitement (Identification) | — nulle | — nulle | **Sans correspondance** (I1) : importée, cibles nulles. |
+| Finalité principale (Identification) | `traitement` | `finalite_principale` | |
+| Sous-finalités (Identification) | `traitement` | `sous_finalites` | |
+| Catégories de personnes concernées par le traitement (Données personnelles) | `traitement` | `categories_personnes_concernees` | Voir I3 (redondance avec `donnees_concernees`). |
+| Données d'identification (Données personnelles) | `traitement` | `donnees_identification` | |
+| Données de connexion (Données personnelles) | `traitement` | `donnees_connexion` | |
+| Données de localisation (Données personnelles) | `traitement` | `donnees_localisation` | |
+| Données sur le comportement et la vie personnelle (Données personnelles) | `traitement` | `donnees_comportement_vie_perso` | |
+| Données économiques et financières (Données personnelles) | `traitement` | `donnees_economiques_financieres` | |
+| Données professionnelles (Données personnelles) | `traitement` | `donnees_professionnelles` | |
+| Catégories particulières de données (Données personnelles) | `traitement` | `categories_particulieres_donnees` | En-tête registre complété : « …(NIR, santé par exemple) ». |
+| Canaux de collecte des données (Description) | `traitement` | `canaux_collecte_donnees` | |
+| Licéité du traitement (Description) | `traitement` | `liceite_traitement` | Coquille Java `licieteTraitement` (I5). |
+| Recours au traitement automatisé (y compris profilage) (Description) | `traitement` | `recours_traitements_automatises` | |
+| Applications support du traitement (Description) | — nulle | — nulle | **Sans correspondance** (I2) : importée, cibles nulles. |
+| Dispositions existantes pour assurer la sécurité des données (Description) | `traitement` | `dispositions_securite_donnees_physique` **+** `dispositions_securite_donnees_numerique` | 1 définition → 2 lignes (colonne dupliquée dans le registre, renommée/scindée en V4.0). |
+| Durée d'archivage courant (Description) | `traitement` | `duree_conservation` | En-tête registre : « Durée **de conservation** » (I6). |
+| Durée d'archivage définitif (Description) | `traitement` | `duree_archivage` | En-tête registre : « Durée **d'archivage** » (I6). |
+| Catégories de destinataires (Description) | `traitement` | `categories_destinataires` | |
+| Raisons du transfert vers les catégories de destinataires (Description) | `traitement` | `raisons_transfert_destinataires` | |
+| Transferts hors UE (Description) | `traitement` | `transferts_hors_ue` | |
+| Pays destinataires (Description) | `traitement` | `pays_destinataires` | |
 
-## Tables support (hors registre — toutes [PROPOSÉE])
+## Colonnes du registre sans définition dans FR_Définitions
 
-| Table | Rôle |
-|---|---|
-| `client` | Organisme client de la plateforme (tenant) ; toutes les données métier y sont rattachées. |
-| `etablissement` | Établissement (site, service) d'un client ; alimenté par la colonne « Etablissement(s) » du registre. |
-| `traitement_etablissement` | Liaison N-N traitement ↔ établissements concernés. |
-| `profil` | Profil fonctionnel d'un utilisateur (ADMIN, USER, DPO…). |
-| `utilisateur` | Utilisateur de l'application, rattaché à un client et un profil. |
-| `utilisateur_etablissement` | Affectation des utilisateurs aux établissements de leur client. |
+Ces colonnes existent dans l'onglet *Registre de traitement* (et en BDD) mais n'ont
+**pas** de définition dans `FR_Définitions` ed3.25 : rien n'est donc importé pour elles
+dans `definition_champ` — constat remonté au métier (compléter l'onglet si souhaité) :
 
-## Définitions `FR_Définitions` sans correspondance dans le modèle
+- `Données concernées` → `donnees_concernees` (colonne ajoutée en V6.0)
+- `Sensibilité` → `sensibilite`
+- `Etude d'impact (PIA)` → `etude_impact`
+- `Emplacement physique du traitement` → `emplacement_physique`
+- `Emplacement numérique du traitement` → `emplacement_numerique`
+- `Hébergement` → `hebergement`
+- `Durée de conservation` (voir I6) → `duree_conservation`
+- `Archivage ? (Oui / Non)` → `archivage`
+- `Durée d'archivage` (voir I6) → `duree_archivage`
+- `Commentaires` → `commentaires`
 
-| Définition (`FR_Définitions`) | Statut |
-|---|---|
-| « Responsable(s) conjoint(s) du traitement » | Aucune colonne (registre et BDD). Voir I1. |
-| « Applications support du traitement » | Aucune colonne (registre et BDD). Voir I2. |
+Note : « Durée de conservation » et « Durée d'archivage » bénéficient tout de même d'une
+définition, via la correspondance avec « Durée d'archivage courant/définitif » (I6).
 
 ## Incohérences remontées
 
 | # | Objet | Constat | Proposition |
 |---|---|---|---|
-| **I1** | « Responsable(s) conjoint(s) du traitement » | Défini dans `FR_Définitions` (responsabilité conjointe, Art. 26 RGPD) mais **ni colonne du registre, ni colonne BDD**. | À trancher par le métier : ajouter la colonne au registre et `responsables_conjoints` au modèle, ou retirer la définition de l'onglet. |
-| **I2** | « Applications support du traitement » | Défini dans `FR_Définitions` mais **ni colonne du registre, ni colonne BDD**. Les valeurs attendues (applications/logiciels) semblent partiellement portées par la colonne « Hébergement » (ex. « Microsoft », « Berger Levrault »). | À trancher : créer `applications_support` ou clarifier le périmètre de « Hébergement ». |
-| **I3** | `donnees_concernees` vs `categories_personnes_concernees` | Deux colonnes du registre décrivent les personnes concernées : « Données concernées » (liste libre, ex. « Demandeurs », « Familles et proches des demandeurs ») et « Catégories de personnes concernées » (liste plus normalisée). Absente de `FR_Définitions`. | Clarifier la différence d'usage (saisie brute vs catégories) dans le registre. |
-| **I4** | `gestionnaire_mise_en_oeuvre` | `FR_Définitions` libelle le champ « Représentant de l'entité responsable de la mise en œuvre du traitement », le registre « Gestionnaire de la mise en œuvre du traitement ». Même définition métier. | Aligner les libellés dans le fichier registre. |
-| **I5** | `licieteTraitement` | Coquille dans le nom du champ Java (`liciete` au lieu de `liceite`) ; la colonne BDD `liceite_traitement` est correcte. Renommer touche tout le code (API incluse si le JSON suit le nom Java). | Renommage Java possible dans un ticket dédié. |
-| **I6** | Durées de conservation / archivage | `FR_Définitions` décrit « Durée d'archivage courant » et « Durée d'archivage définitif » ; le registre (et la BDD) portent « Durée de conservation », « Archivage ? » et « Durée d'archivage ». Correspondance retenue : conservation ↔ archivage courant, archivage ↔ archivage définitif. De plus la colonne « Durée d'archivage » contient des valeurs non temporelles (ex. « Editeur ») : **problème de qualité de données** dans le registre. | Valider la correspondance retenue ; corriger les données du registre. |
-| **I7** | `version` | Le numéro d'édition du fichier (ex. « 3.25 » dans `..._Registre RGPD_ed3.25.xlsx`) est stocké en `INT` : `ImportSpecifications.parseVersion()` rejette « 3.25 » (**non entier**) et retombe silencieusement sur `1`. L'information d'édition réelle est perdue. | Stocker l'édition en `VARCHAR`/`DECIMAL`, ou ne garder que la partie entière, selon le besoin métier. |
-| **I8** | `FR_Définitions` ne couvre pas tout le registre | 10 colonnes du registre n'ont pas de définition dans l'onglet (`Données concernées`, `Sensibilité`, `Etude d'impact`, emplacements, hébergement, durée de conservation, archivage, commentaires…). Des définitions **[PROPOSÉE]** ont été rédigées dans ce document et la migration V7.0. | Faire valider les définitions proposées par le métier, puis éventuellement compléter l'onglet `FR_Définitions`. |
+| **I1** | « Responsable(s) conjoint(s) du traitement » | Défini dans `FR_Définitions` (responsabilité conjointe, Art. 26 RGPD) mais **ni colonne du registre, ni colonne BDD**. Importé avec cibles nulles. | À trancher par le métier : ajouter la colonne au registre et au modèle, ou retirer la définition de l'onglet. |
+| **I2** | « Applications support du traitement » | Défini dans `FR_Définitions` mais **sans colonne**. Les valeurs attendues (applications/logiciels) semblent partiellement portées par « Hébergement » (ex. « Microsoft », « Berger Levrault »). | À trancher : créer la colonne, ou clarifier le périmètre de « Hébergement ». |
+| **I3** | `donnees_concernees` vs `categories_personnes_concernees` | Deux colonnes du registre décrivent les personnes concernées (liste libre vs catégories) ; aucune définition dans `FR_Définitions`. | Clarifier la différence d'usage dans le registre / compléter l'onglet. |
+| **I4** | Écarts de libellés | `FR_Définitions` vs registre : « Représentant de l'entité… » vs « Gestionnaire de la mise en œuvre… » ; « Historique de » vs « Historique des » modifications. Correspondances assumées dans `CorrespondanceChampRegistre`. | Aligner les libellés dans le fichier. |
+| **I5** | `licieteTraitement` | Coquille Java (`liciete` au lieu de `liceite`) ; la colonne BDD `liceite_traitement` est correcte. | Renommage Java dans un ticket dédié (impact API/JSON). |
+| **I6** | Conservation / archivage | `FR_Définitions` décrit « archivage courant/définitif » ; registre+BDD portent « Durée de conservation » / « Archivage ? » / « Durée d'archivage ». Correspondance retenue : conservation ↔ courant, archivage ↔ définitif. La colonne « Durée d'archivage » contient des valeurs non temporelles (ex. « Editeur ») : **problème de qualité de données**. | Valider la correspondance ; corriger les données du registre. |
+| **I7** | Édition du fichier | Le nom `…_Registre RGPD_ed3.25.xlsx` n'est pas stocké en entier : la regex de `FichierServiceImpl` (`[^.]+`) tronque l'édition au premier point → « 3 ». Cette valeur tronquée alimente `traitement.version` (INT) et `definition_champ.edition` (VARCHAR). L'édition complète « 3.25 » est perdue. | Ajuster la regex pour capturer l'édition complète (ex. `(?<edition>[\d.]+)` avant les extensions) et la stocker telle quelle (VARCHAR). Ticket dédié. |
+| **I8** | Couverture de `FR_Définitions` | 10 colonnes du registre n'ont pas de définition dans l'onglet (liste ci-dessus). | Compléter l'onglet `FR_Définitions` : les définitions seront importées automatiquement au prochain import. |
 
-## Maintenir la documentation à jour
+## Requêtes utiles
 
-Toute évolution du modèle ou d'une définition doit être répercutée aux **4 endroits** :
+```sql
+-- Toutes les définitions d'un client, dans l'ordre de l'onglet
+SELECT ordre, section, libelle, definition, table_cible, colonne_cible
+FROM definition_champ d JOIN client c ON c.id = d.id_client
+WHERE c.nom = 'La breteche'
+ORDER BY d.ordre;
 
-1. migration Flyway (`COMMENT ON …`) — source de vérité BDD ;
-2. Javadoc de l'entité concernée ;
-3. `@Schema` du DTO correspondant ;
-4. ce document (table de correspondance + provenance).
+-- Définitions sans correspondance BDD (évolution du modèle à arbitrer)
+SELECT libelle, definition FROM definition_champ WHERE colonne_cible IS NULL;
+
+-- Colonnes de la table traitement (structure)
+SELECT column_name FROM information_schema.columns WHERE table_name = 'traitement' ORDER BY ordinal_position;
+```
+
+## Maintenir la correspondance à jour
+
+- **Une définition change dans le fichier** → rien à coder : elle sera réimportée.
+- **Un nouveau champ** apparaît dans `FR_Définitions` → l'ajouter dans
+  `CorrespondanceChampRegistre` si une colonne BDD lui correspond (sinon il sera
+  importé avec cibles nulles, ce qui signale l'écart).
+- **Une colonne est ajoutée/renommée** dans le modèle → mettre à jour la migration
+  Flyway **et** `CorrespondanceChampRegistre`.

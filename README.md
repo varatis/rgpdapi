@@ -70,10 +70,12 @@ Scripts à initialiser :
 
 ### Comprendre le modèle de données
 
-- `docs/mapping-bdd-registre.md` : correspondance **registre Excel (`FR_Définitions`) ↔ BDD ↔ entités**,
-  définitions métier de chaque champ et incohérences identifiées.
-- Ces définitions sont aussi visibles **dans pgAdmin** (propriété « Comment » de chaque table/colonne),
-  via la migration `V7.0__Ajout_commentaires_metiers.sql`, et dans **Swagger** (annotations `@Schema` des DTO).
+- `docs/mapping-bdd-registre.md` : correspondance **registre Excel (`FR_Définitions`) ↔ BDD**,
+  règles d'import et incohérences identifiées.
+- Les définitions métier des champs du registre sont **extraites de l'onglet `FR_Définitions`
+  à chaque import du fichier** et stockées en base (table `definition_champ`) — aucune valeur
+  n'est codée en dur. Elles sont consultables via `GET /definitions-champs?clientNom=…` et
+  directement en SQL, ce qui permettra aussi de régénérer l'onglet lors d'un export.
 
 ### Administrer la BDD
 
