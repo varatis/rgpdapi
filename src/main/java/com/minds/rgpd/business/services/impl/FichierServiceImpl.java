@@ -119,7 +119,7 @@ public class FichierServiceImpl implements FichierService {
                 hasErrors = hasErrors || !report.successful();
             }
 
-            // On annule la transaction dès qu'une erreur est présente.
+            // Rollback uniquement si une feuille obligatoire n'a produit aucune ligne.
             if (hasErrors) {
                 log.warn("Import du fichier {} en erreur : transaction annulée, aucune donnée persistée", fileName);
                 TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
@@ -148,23 +148,28 @@ public class FichierServiceImpl implements FichierService {
         ImportResult<T> result = importer.importSheet(workbook, specification);
 
         if (!specification.allowEmpty() && result.imported().isEmpty()) {
+            String details = result.errors().isEmpty()
+                    ? "aucune ligne traitable"
+                    : result.getResultMessage();
             return new ImportReport(
-                    "%s : aucune ligne traitable".formatted(specification.sheetName()),
+                    "%s : %s".formatted(specification.sheetName(), details),
                     false);
         }
 
-        // On ne persiste qu'une feuille intègre. Si elle contient des erreurs, on ne
-        // l'enregistre pas et l'appelant annulera la transaction globale (voir processImport).
+        // On persiste les lignes valides même si d'autres lignes de la feuille sont incomplètes.
+        // Un rollback global n'a lieu que si une feuille obligatoire n'a aucune ligne importable.
+        int saved = persist(specification, result.imported());
+        log.info("{} : {} ligne(s) lue(s), {} sauvegardée(s), {} erreur(s)",
+                specification.sheetName(), result.imported().size(), saved, result.errors().size());
+
         if (result.isSuccessful()) {
-            int saved = persist(specification, result.imported());
-            log.info("{} : {} ligne(s) lue(s), {} sauvegardée(s)",
-                    specification.sheetName(), result.imported().size(), saved);
             return new ImportReport("OK", true);
         }
 
         return new ImportReport(
-                "%s : %s".formatted(specification.sheetName(), result.getResultMessage()),
-                false);
+                "%s : %s (%d ligne(s) importée(s))".formatted(
+                        specification.sheetName(), result.getResultMessage(), saved),
+                true);
     }
 
     private <T> int persist(ImportSpecification<T> spec, List<T> items) {
