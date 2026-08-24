@@ -27,6 +27,9 @@ import com.minds.rgpd.business.dtos.EtablissementDTO;
 import com.minds.rgpd.business.dtos.InfoFichierDTO.InfoFichierDTOBuilder;
 import com.minds.rgpd.business.dtos.TraitementDTO;
 import com.minds.rgpd.business.services.FichierService;
+import com.minds.rgpd.business.utilities.DefinitionResolver;
+import com.minds.rgpd.business.utilities.DureeResolver;
+import com.minds.rgpd.business.utilities.ResponsableTraitementResolver;
 import com.minds.rgpd.business.utilities.mappers.ClientMapper;
 import com.minds.rgpd.business.utilities.mappers.EtablissementMapper;
 import com.minds.rgpd.business.utilities.mappers.RowFileToTraitement;
@@ -73,6 +76,9 @@ public class FichierServiceImpl implements FichierService {
     private final ClientMapper clientMapper;
     private final EtablissementRepository etablissementRepository;
     private final EtablissementMapper etablissementMapper;
+    private final DefinitionResolver definitionResolver;
+    private final DureeResolver dureeResolver;
+    private final ResponsableTraitementResolver responsableTraitementResolver;
 
     // @Transactional explicite pour les méthodes d'écriture
     @Override
@@ -121,7 +127,7 @@ public class FichierServiceImpl implements FichierService {
                 log.warn("Aucune ligne traitable dans le fichier");
                 return infoFichier.statusFichier("Aucune ligne traitable dans le fichier");
             }
-            ImportResult result = saveTraitements(traitementDTOList);
+            ImportResult result = saveTraitements(traitementDTOList, client);
             log.info("Import terminé : {} traitement(s) sauvegardé(s), {} ignoré(s)",
                     result.savedCount(), result.skippedCount());
             return infoFichier
@@ -349,12 +355,15 @@ public class FichierServiceImpl implements FichierService {
     /**
      * Méthode dédiée pour la sauvegarde avec déduplication
      */
-    private ImportResult saveTraitements(List<TraitementDTO> traitementDTOList) {
+    private ImportResult saveTraitements(List<TraitementDTO> traitementDTOList, Client client) {
         List<Traitement> traitements = traitementMapper.mapToTraitementList(traitementDTOList);
         List<Traitement> traitementsToSave = new ArrayList<>();
         int skippedCount = 0;
         for (Traitement traitement : traitements) {
             if (isNewTraitement(traitement)) {
+                definitionResolver.resolveDefinitions(traitement, client);
+                dureeResolver.resolveDurees(traitement, client);
+                responsableTraitementResolver.resolveResponsableTraitement(traitement, client);
                 traitementsToSave.add(traitement);
             } else {
                 skippedCount++;
@@ -375,7 +384,7 @@ public class FichierServiceImpl implements FichierService {
                 traitement.getNom(),
                 traitement.getClient(),
                 traitement.getGestionnaireMiseEnOeuvre(),
-                traitement.getFinalitePrincipale(),
+                Objects.isNull(traitement.getFinalitePrincipale()) ? null : traitement.getFinalitePrincipale().getValeur(),
                 traitement.getDateIdentification()
         );
 

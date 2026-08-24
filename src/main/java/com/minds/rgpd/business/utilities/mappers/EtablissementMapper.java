@@ -6,7 +6,7 @@ import org.mapstruct.Mapper;
 
 import java.util.List;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", uses = ClientRefMapper.class)
 public interface EtablissementMapper {
 
     Etablissement map(EtablissementDTO etablissementDTO);

@@ -38,11 +38,11 @@ class ClientServiceImplTest {
         client.setNom("Dupont");
         client.setStatut("ACTIF");
 
-        ClientDTO clientDTO = new ClientDTO(
-                uuid,
-                "Dupont",
-                "ACTIF"
-        );
+        ClientDTO clientDTO = ClientDTO.builder()
+                .id(uuid)
+                .nom("Dupont")
+                .statut("ACTIF")
+                .build();
 
         List<Client> clientListe = List.of(client);
         List<ClientDTO> clientDTOListe = List.of(clientDTO);

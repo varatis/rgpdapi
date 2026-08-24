@@ -28,10 +28,12 @@ public interface TraitementRepository extends JpaRepository<Traitement, UUID>, J
     // Optional lance NonUniqueResultException si > 1 résultat.
     @Query("""
             SELECT t FROM Traitement t 
+            LEFT JOIN t.finalitePrincipale finalite
             WHERE t.nom = :nom 
               AND t.client = :client 
               AND t.gestionnaireMiseEnOeuvre = :gestionnaireMiseEnOeuvre
-              AND t.finalitePrincipale = :finalitePrincipale
+              AND (finalite.valeur = :finalitePrincipale
+                   OR (finalite IS NULL AND :finalitePrincipale IS NULL))
               AND t.dateIdentification = :dateIdentification
             """)
     List<Traitement> findByAllBusinessFields(

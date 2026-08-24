@@ -7,6 +7,9 @@ import com.minds.rgpd.business.dtos.TraitementPartielDTO;
 import com.minds.rgpd.business.exceptions.DuplicateResourceException;
 import com.minds.rgpd.business.exceptions.ResourceNotFoundException;
 import com.minds.rgpd.business.services.TraitementService;
+import com.minds.rgpd.business.utilities.DefinitionResolver;
+import com.minds.rgpd.business.utilities.DureeResolver;
+import com.minds.rgpd.business.utilities.ResponsableTraitementResolver;
 import com.minds.rgpd.business.utilities.mappers.TraitementMapper;
 import com.minds.rgpd.persistence.entities.Client;
 import com.minds.rgpd.persistence.entities.Etablissement;
@@ -25,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -39,6 +43,9 @@ public class TraitementServiceImpl implements TraitementService {
     private final ClientRepository clientRepository;
     private final EtablissementRepository etablissementRepository;
     private final TraitementMapper traitementMapper;
+    private final DefinitionResolver definitionResolver;
+    private final DureeResolver dureeResolver;
+    private final ResponsableTraitementResolver responsableTraitementResolver;
 
     @Override
     public Page<TraitementPartielDTO> getTraitements(Pageable pageable, String clientName, TraitementFilterCriteria criteria) {
@@ -77,7 +84,7 @@ public class TraitementServiceImpl implements TraitementService {
                 traitementDTO.nom(),
                 client,
                 traitementDTO.gestionnaireMiseEnOeuvre(),
-                traitementDTO.finalitePrincipale(),
+                Objects.isNull(traitementDTO.finalitePrincipale()) ? null : traitementDTO.finalitePrincipale().valeur(),
                 traitementDTO.dateIdentification()
         );
 
@@ -88,6 +95,9 @@ public class TraitementServiceImpl implements TraitementService {
         List<Etablissement> etablissements = resolveEtablissements(traitementDTO.etablissements(), client);
 
         Traitement traitement = traitementMapper.mapToTraitement(traitementDTO);
+        definitionResolver.resolveDefinitions(traitement, client);
+        dureeResolver.resolveDurees(traitement, client);
+        responsableTraitementResolver.resolveResponsableTraitement(traitement, client);
         traitement.setEtablissements(etablissements);
 
         return traitementMapper.mapToDTO(traitementRepository.save(traitement));
@@ -107,6 +117,16 @@ public class TraitementServiceImpl implements TraitementService {
         List<Etablissement> etablissements = resolveEtablissements(traitementDTO.etablissements(), client);
 
         traitementMapper.updateTraitementFromDto(traitementDTO, traitement);
+
+        // Les références vers le référentiel sont résolues sur un traitement
+        // transitoire : les rattacher au traitement managé avant résolution
+        // ferait échouer le premier flush déclenché par les résolveurs.
+        Traitement referentiels = traitementMapper.mapToTraitement(traitementDTO);
+        definitionResolver.resolveDefinitions(referentiels, client);
+        dureeResolver.resolveDurees(referentiels, client);
+        responsableTraitementResolver.resolveResponsableTraitement(referentiels, client);
+        traitementMapper.copierReferentiels(referentiels, traitement);
+
         traitement.setEtablissements(etablissements);
 
         return traitementMapper.mapToDTO(traitementRepository.save(traitement));
