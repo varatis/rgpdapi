@@ -43,6 +43,12 @@ public class ExcelImportService {
             ExcelRow row =
                     new ExcelRow(poiRow, columnIndexes);
 
+            // Ligne de formules / pied de tableau : aucun champ métier renseigné.
+            // On l'ignore sans faire échouer l'import (ex. ligne 87 du registre La Bretèche).
+            if (areAllRequiredColumnsEmpty(row, specification.columns())) {
+                continue;
+            }
+
             List<String> validationErrors =
                     validateRequiredColumns(
                             row,
@@ -119,6 +125,13 @@ public class ExcelImportService {
         }
 
         return result;
+    }
+
+    private boolean areAllRequiredColumnsEmpty(ExcelRow row, List<String> requiredColumnNames) {
+        if (requiredColumnNames == null || requiredColumnNames.isEmpty()) {
+            return false;
+        }
+        return requiredColumnNames.stream().allMatch(row::isEmpty);
     }
 
     private List<String> validateRequiredColumns(

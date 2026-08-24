@@ -129,6 +129,23 @@ public class ExcelRow {
         return value == null || value.isBlank();
     }
 
+    public boolean hasColumn(String columnName) {
+        return columnIndexes.containsKey(columnName);
+    }
+
+    /**
+     * Retourne la première valeur non vide parmi les en-têtes candidats.
+     * Utile pour les colonnes optionnelles (état d'avancement, identifiant traitement…).
+     */
+    public String getOptionalString(String... columnNames) {
+        for (String columnName : columnNames) {
+            if (hasColumn(columnName) && !isEmpty(columnName)) {
+                return getString(columnName);
+            }
+        }
+        return null;
+    }
+
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private LocalDate parseLatestDate(String value) {

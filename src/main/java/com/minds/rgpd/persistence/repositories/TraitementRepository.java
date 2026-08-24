@@ -20,6 +20,10 @@ public interface TraitementRepository extends JpaRepository<Traitement, UUID>, J
 
     Traitement findByIdFonctionnel(int id);
 
+    List<Traitement> findByIdFonctionnelAndClient(Integer idFonctionnel, Client client);
+
+    List<Traitement> findByNomAndClient(String nom, Client client);
+
     @Query("SELECT MAX(idFonctionnel) FROM Traitement")
     Optional<Integer> findMaxIdFonctionnel();
 

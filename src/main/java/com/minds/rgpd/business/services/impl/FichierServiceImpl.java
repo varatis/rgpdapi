@@ -48,6 +48,10 @@ public class FichierServiceImpl implements FichierService {
     // Extensions de fichiers supportées
     private static final String EXTENSION_XLSX = "xlsx";
     private static final String EXTENSION_XLS = "xls";
+    private static final List<String> PRECONISATION_SHEET_NAMES = List.of(
+            "Suivi des préconisations",
+            "Préconisations"
+    );
     private final ClientRepository clientRepository;
     private final ClientMapper clientMapper;
     private final ExcelImportService importer;
@@ -100,8 +104,14 @@ public class FichierServiceImpl implements FichierService {
         );
         try(InputStream inputStream = fichier.getInputStream();
             Workbook workbook = createWorkbook(fileName, inputStream)) {
-            
-            List<ImportSpecification<?>> specifications = List.of(importSpecifications.traitement(client, version));
+
+            List<ImportSpecification<?>> specifications = new ArrayList<>();
+            specifications.add(importSpecifications.traitement(client, version));
+            String preconisationSheet = findPreconisationSheet(workbook);
+            if (preconisationSheet != null) {
+                specifications.add(importSpecifications.preconisation(client, preconisationSheet));
+            }
+
             List<String> messages = new ArrayList<>();
             boolean hasErrors = false;
             for (ImportSpecification<?> specification : specifications) {
@@ -110,7 +120,7 @@ public class FichierServiceImpl implements FichierService {
                 hasErrors = hasErrors || !report.successful();
             }
 
-            // On annule la transaction dès qu'une erreur est présente.
+            // Rollback uniquement si une feuille obligatoire n'a produit aucune ligne.
             if (hasErrors) {
                 log.warn("Import du fichier {} en erreur : transaction annulée, aucune donnée persistée", fileName);
                 TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
@@ -139,23 +149,28 @@ public class FichierServiceImpl implements FichierService {
         ImportResult<T> result = importer.importSheet(workbook, specification);
 
         if (!specification.allowEmpty() && result.imported().isEmpty()) {
+            String details = result.errors().isEmpty()
+                    ? "aucune ligne traitable"
+                    : result.getResultMessage();
             return new ImportReport(
-                    "%s : aucune ligne traitable".formatted(specification.sheetName()),
+                    "%s : %s".formatted(specification.sheetName(), details),
                     false);
         }
 
-        // On ne persiste qu'une feuille intègre. Si elle contient des erreurs, on ne
-        // l'enregistre pas et l'appelant annulera la transaction globale (voir processImport).
+        // On persiste les lignes valides même si d'autres lignes de la feuille sont incomplètes.
+        // Un rollback global n'a lieu que si une feuille obligatoire n'a aucune ligne importable.
+        int saved = persist(specification, result.imported());
+        log.info("{} : {} ligne(s) lue(s), {} sauvegardée(s), {} erreur(s)",
+                specification.sheetName(), result.imported().size(), saved, result.errors().size());
+
         if (result.isSuccessful()) {
-            int saved = persist(specification, result.imported());
-            log.info("{} : {} ligne(s) lue(s), {} sauvegardée(s)",
-                    specification.sheetName(), result.imported().size(), saved);
             return new ImportReport("OK", true);
         }
 
         return new ImportReport(
-                "%s : %s".formatted(specification.sheetName(), result.getResultMessage()),
-                false);
+                "%s : %s (%d ligne(s) importée(s))".formatted(
+                        specification.sheetName(), result.getResultMessage(), saved),
+                true);
     }
 
     private <T> int persist(ImportSpecification<T> spec, List<T> items) {
@@ -185,9 +200,16 @@ public class FichierServiceImpl implements FichierService {
             );
         };
     }
-    /**
-     * Extraction de l'extension de fichier dans une méthode utilitaire
-     */
+
+    private String findPreconisationSheet(Workbook workbook) {
+        for (String sheetName : PRECONISATION_SHEET_NAMES) {
+            if (workbook.getSheet(sheetName) != null) {
+                return sheetName;
+            }
+        }
+        return null;
+    }
+
     private String getFileExtension(String fileName) {
         int lastDotIndex = fileName.lastIndexOf('.');
         if (lastDotIndex == -1 || lastDotIndex == fileName.length() - 1) {

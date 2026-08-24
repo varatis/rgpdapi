@@ -2,8 +2,10 @@ package com.minds.rgpd.business.Imports;
 
 import com.minds.rgpd.persistence.entities.Client;
 import com.minds.rgpd.persistence.entities.Etablissement;
+import com.minds.rgpd.persistence.entities.Preconisation;
 import com.minds.rgpd.persistence.entities.Traitement;
 import com.minds.rgpd.persistence.repositories.EtablissementRepository;
+import com.minds.rgpd.persistence.repositories.PreconisationRepository;
 import com.minds.rgpd.persistence.repositories.TraitementRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -20,6 +22,7 @@ import org.springframework.stereotype.Component;
 public final class ImportSpecifications {
     private final TraitementRepository traitementRepository;
     private final EtablissementRepository etablissementRepository;
+    private final PreconisationRepository preconisationRepository;
 
     public ImportSpecification<Traitement> traitement(Client client, String version)
     {
@@ -135,5 +138,72 @@ public final class ImportSpecifications {
         } catch (NumberFormatException e) {
             return 1;
         }
+    }
+
+    public ImportSpecification<Preconisation> preconisation(Client client, String sheetName) {
+        return new ImportSpecification<>(
+                sheetName,
+                true,
+                1,
+                List.of("Préconisation"),
+                row -> {
+                    Preconisation.PreconisationBuilder builder = Preconisation.builder();
+                    builder.libelle(row.getString("Préconisation"));
+                    builder.explication(row.getOptionalString("Explication"));
+                    builder.risqueEncours(row.getOptionalString("Risque encouru"));
+                    builder.contraintes(row.getOptionalString("Contraintes"));
+                    builder.cout(row.getOptionalString("Cout", "Coût"));
+                    builder.priorite(row.getOptionalString("Priorité"));
+                    builder.complexite(row.getOptionalString("Complexité"));
+                    builder.commentaire(row.getOptionalString("Commentaire"));
+                    builder.etatAvancement(row.getOptionalString(
+                            "État d'avancement",
+                            "Etat d'avancement",
+                            "Avancement",
+                            "Statut"
+                    ));
+                    builder.client(client);
+                    builder.traitement(resolveTraitement(row, client));
+                    return builder.build();
+                },
+                preconisation -> !preconisationRepository.findDuplicates(
+                        preconisation.getClient(),
+                        preconisation.getLibelle(),
+                        preconisation.getTraitement()
+                ).isEmpty(),
+                preconisationRepository
+        );
+    }
+
+    private Traitement resolveTraitement(ExcelRow row, Client client) {
+        Integer idFonctionnel = readOptionalInt(row, "ID", "ID traitement", "Id traitement");
+        if (idFonctionnel != null) {
+            return traitementRepository.findByIdFonctionnelAndClient(idFonctionnel, client)
+                    .stream()
+                    .findFirst()
+                    .orElse(null);
+        }
+        String nomTraitement = row.getOptionalString("Nom du traitement");
+        if (nomTraitement == null) {
+            return null;
+        }
+        return traitementRepository.findByNomAndClient(nomTraitement, client)
+                .stream()
+                .findFirst()
+                .orElse(null);
+    }
+
+    private Integer readOptionalInt(ExcelRow row, String... columnNames) {
+        for (String columnName : columnNames) {
+            if (!row.hasColumn(columnName) || row.isEmpty(columnName)) {
+                continue;
+            }
+            try {
+                return row.getInt(columnName);
+            } catch (ExcelParsingException e) {
+                return null;
+            }
+        }
+        return null;
     }
 }
