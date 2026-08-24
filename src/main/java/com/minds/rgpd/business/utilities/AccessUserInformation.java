@@ -2,12 +2,12 @@ package com.minds.rgpd.business.utilities;
 
 import com.minds.rgpd.persistence.entities.CurrentUser;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.Map;
 
 @Component
 public final class AccessUserInformation {
@@ -23,9 +23,12 @@ public final class AccessUserInformation {
             String nom = jwt.getClaimAsString("name");
             String email = jwt.getClaimAsString("email");
 
-            Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
+            // Les rôles sont lus depuis les autorités déjà résolues par JwtAuthConverter
+            // (resource_access.<client>.roles), plutôt que de re-parser la claim ici.
+            List<String> roles = authentication.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .toList();
 
-            List<String> roles = (List<String>) realmAccess.get("roles");
             return new CurrentUser(identifiant, nom, email, roles);
         }
         return null;

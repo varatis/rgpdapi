@@ -18,7 +18,6 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Traitement {
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     UUID identifiant;
@@ -34,8 +33,9 @@ public class Traitement {
     @Column(name = "donnees_concernees")
     String donneesConcernees;
 
-    @Column(name = "finalite_principale")
-    String finalitePrincipale;
+    @ManyToOne
+    @JoinColumn(name = "finalite_principale_id")
+    FinalitePrincipale finalitePrincipale;
 
     @ManyToOne
     @JoinColumn(name = "id_client")
@@ -52,14 +52,18 @@ public class Traitement {
     @Column(name = "date_mise_a_jour")
     LocalDate dateMiseAJour;
 
+    @OneToMany(mappedBy = "traitement", cascade = CascadeType.ALL)
+    List<HistorisationTraitement> historiqueTraitement;
+
     @Column(name = "historique_modifications")
     String historiqueModifications;
 
     @Column(name = "data_protection_officer")
     String dataProtectionOfficer;
 
-    @Column(name = "responsable_traitement")
-    String responsableTraitement;
+    @ManyToOne
+    @JoinColumn(name = "responsable_traitement_id")
+    ResponsableTraitement responsableTraitement;
 
     @Column(name = "gestionnaire_mise_en_oeuvre")
     String gestionnaireMiseEnOeuvre;
@@ -91,17 +95,20 @@ public class Traitement {
     @Column(name = "categories_particulieres_donnees")
     String categoriesParticulieresDonnees;
 
-    @Column(name = "sensibilite")
-    String sensibilite;
+    @ManyToOne
+    @JoinColumn(name = "sensibilite_id")
+    Sensibilite sensibilite;
 
-    @Column(name = "etude_impact")
-    String etudeImpact;
+    @ManyToOne
+    @JoinColumn(name = "etude_impact_id")
+    EtudeImpact etudeImpact;
 
     @Column(name = "canaux_collecte_donnees")
     String canauxCollecteDonnees;
 
-    @Column(name = "liceite_traitement")
-    String licieteTraitement;
+    @ManyToOne
+    @JoinColumn(name = "liceite_traitement_id")
+    LiceiteTraitement licieteTraitement;
 
     @Column(name = "recours_traitements_automatises")
     Boolean recoursTraitementAutomatises;
@@ -121,14 +128,16 @@ public class Traitement {
     @Column(name = "hebergement")
     String hebergement;
 
-    @Column(name = "duree_conservation")
-    String dureeConservation;
+    @ManyToOne
+    @JoinColumn(name = "duree_conservation_id")
+    Duree dureeConservation;
 
     @Column(name = "archivage")
     Boolean archivage;
 
-    @Column(name = "duree_archivage")
-    String dureeArchivage;
+    @ManyToOne
+    @JoinColumn(name = "duree_archivage_id")
+    Duree dureeArchivage;
 
     @Column(name = "categories_destinataires")
     String categoriesDestinataires;

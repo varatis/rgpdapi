@@ -34,8 +34,16 @@ public class EtablissementServiceImplTest {
 
         // GIVEN
         UUID uuid = UUID.randomUUID();
-        Client client = new Client(uuid, "DUPONT", "ACTIF");
-        ClientDTO clientDTO = new ClientDTO(uuid, "DUPONT", "ACTIF");
+        Client client = Client.builder()
+                .id(uuid)
+                .nom("DUPONT")
+                .statut("ACTIF")
+                .build();
+        ClientDTO clientDTO = ClientDTO.builder()
+                .id(uuid)
+                .nom("DUPONT")
+                .statut("ACTIF")
+                .build();
 
         Etablissement etablissement = new Etablissement();
         etablissement.setId(uuid);

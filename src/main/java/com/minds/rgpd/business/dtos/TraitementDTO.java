@@ -23,7 +23,7 @@ public record TraitementDTO(
 
         List<EtablissementDTO> etablissements,
 
-        String finalitePrincipale,
+        DefinitionDTO finalitePrincipale,
 
         ClientDTO client,
 
@@ -38,7 +38,7 @@ public record TraitementDTO(
 
         String dataProtectionOfficer,
 
-        String responsableTraitement,
+        ResponsableTraitementDTO responsableTraitement,
 
         String gestionnaireMiseEnOeuvre,
 
@@ -60,13 +60,13 @@ public record TraitementDTO(
 
         String categoriesParticulieresDonnees,
 
-        String sensibilite,
+        DefinitionDTO sensibilite,
 
-        String etudeImpact,
+        DefinitionDTO etudeImpact,
 
         String canauxCollecteDonnees,
 
-        String licieteTraitement,
+        DefinitionDTO licieteTraitement,
 
         Boolean recoursTraitementAutomatises,
 
@@ -80,11 +80,11 @@ public record TraitementDTO(
 
         String hebergement,
 
-        String dureeConservation,
+        DureeDTO dureeConservation,
 
         Boolean archivage,
 
-        String dureeArchivage,
+        DureeDTO dureeArchivage,
 
         String categoriesDestinataires,
 
