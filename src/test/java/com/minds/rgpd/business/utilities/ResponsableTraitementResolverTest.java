@@ -108,4 +108,37 @@ class ResponsableTraitementResolverTest {
         assertNull(traitement.getResponsableTraitement());
         assertEquals(0, responsableTraitementRepository.count());
     }
+
+    // Entree par la valeur brute : chemin emprunte par l'import Excel, ou la
+    // colonne ne fournit qu'une chaine et non un responsable deja construit.
+
+    @Test
+    void creeLeResponsableDepuisUneValeurBrute() {
+        ResponsableTraitement responsable = responsableTraitementResolver
+                .resolveResponsableTraitement("  Direction des systemes d'information  ", client);
+
+        assertNotNull(responsable.getId());
+        assertEquals("Direction des systemes d'information", responsable.getValeur());
+        assertNull(responsable.getInformationsComplementaires());
+        assertEquals(client.getId(), responsable.getClient().getId());
+        assertEquals(1, responsableTraitementRepository.count());
+    }
+
+    @Test
+    void reutiliseLeResponsableExistantPourUneValeurBrute() {
+        // Deux lignes du meme import citant le meme responsable
+        ResponsableTraitement premier = responsableTraitementResolver
+                .resolveResponsableTraitement("Direction des systemes d'information", client);
+        ResponsableTraitement second = responsableTraitementResolver
+                .resolveResponsableTraitement("Direction des systemes d'information", client);
+
+        assertEquals(premier.getId(), second.getId());
+        assertEquals(1, responsableTraitementRepository.count());
+    }
+
+    @Test
+    void laisseLaReferenceNullePourUneValeurBruteVide() {
+        assertNull(responsableTraitementResolver.resolveResponsableTraitement("   ", client));
+        assertEquals(0, responsableTraitementRepository.count());
+    }
 }

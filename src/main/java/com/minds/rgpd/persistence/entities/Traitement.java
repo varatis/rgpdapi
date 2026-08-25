@@ -154,7 +154,7 @@ public class Traitement {
     @Column(name = "commentaires")
     String commentaires;
 
-    @ManyToMany
+    @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinTable(
             name = "traitement_etablissement",
             joinColumns = @JoinColumn(name = "id_traitement"),

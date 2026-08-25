@@ -36,27 +36,43 @@ public class DefinitionResolver {
      * persistees equivalentes, en les creant au besoin.
      */
     public void resolveDefinitions(Traitement traitement, Client client) {
-        traitement.setFinalitePrincipale(resolve(traitement.getFinalitePrincipale(), client,
-                FinalitePrincipale.TYPE, FinalitePrincipale::new, FinalitePrincipale.class));
-        traitement.setSensibilite(resolve(traitement.getSensibilite(), client,
-                Sensibilite.TYPE, Sensibilite::new, Sensibilite.class));
-        traitement.setEtudeImpact(resolve(traitement.getEtudeImpact(), client,
-                EtudeImpact.TYPE, EtudeImpact::new, EtudeImpact.class));
-        traitement.setLicieteTraitement(resolve(traitement.getLicieteTraitement(), client,
-                LiceiteTraitement.TYPE, LiceiteTraitement::new, LiceiteTraitement.class));
+        traitement.setFinalitePrincipale(resolveFinalitePrincipale(valeurDe(traitement.getFinalitePrincipale()), client));
+        traitement.setSensibilite(resolveSensibilite(valeurDe(traitement.getSensibilite()), client));
+        traitement.setEtudeImpact(resolveEtudeImpact(valeurDe(traitement.getEtudeImpact()), client));
+        traitement.setLicieteTraitement(resolveLiceiteTraitement(valeurDe(traitement.getLicieteTraitement()), client));
+    }
+
+    /** Definition de type {@link FinalitePrincipale} portant cette valeur, creee si besoin. */
+    public FinalitePrincipale resolveFinalitePrincipale(String valeur, Client client) {
+        return resolve(valeur, client, FinalitePrincipale.TYPE, FinalitePrincipale::new, FinalitePrincipale.class);
+    }
+
+    /** Definition de type {@link Sensibilite} portant cette valeur, creee si besoin. */
+    public Sensibilite resolveSensibilite(String valeur, Client client) {
+        return resolve(valeur, client, Sensibilite.TYPE, Sensibilite::new, Sensibilite.class);
+    }
+
+    /** Definition de type {@link EtudeImpact} portant cette valeur, creee si besoin. */
+    public EtudeImpact resolveEtudeImpact(String valeur, Client client) {
+        return resolve(valeur, client, EtudeImpact.TYPE, EtudeImpact::new, EtudeImpact.class);
+    }
+
+    /** Definition de type {@link LiceiteTraitement} portant cette valeur, creee si besoin. */
+    public LiceiteTraitement resolveLiceiteTraitement(String valeur, Client client) {
+        return resolve(valeur, client, LiceiteTraitement.TYPE, LiceiteTraitement::new, LiceiteTraitement.class);
     }
 
     private <T extends Definition> T resolve(
-            Definition source,
+            String valeurBrute,
             Client client,
             String type,
             Supplier<T> factory,
             Class<T> concreteType
     ) {
-        if (Objects.isNull(source) || StringUtils.isBlank(source.getValeur())) {
+        if (StringUtils.isBlank(valeurBrute)) {
             return null;
         }
-        String valeur = source.getValeur().strip();
+        String valeur = valeurBrute.strip();
 
         return definitionRepository.findByClientAndTypeAndValeur(client, type, valeur)
                 .map(concreteType::cast)
@@ -67,5 +83,9 @@ public class DefinitionResolver {
                     definition.setClient(client);
                     return definitionRepository.save(definition);
                 });
+    }
+
+    private static String valeurDe(Definition definition) {
+        return Objects.isNull(definition) ? null : definition.getValeur();
     }
 }
