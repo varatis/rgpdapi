@@ -106,4 +106,43 @@ class DefinitionResolverTest {
         assertNull(traitement.getSensibilite());
         assertEquals(0, definitionRepository.count());
     }
+
+    // Entree par la valeur brute : chemin emprunte par l'import Excel, ou la
+    // colonne ne fournit qu'une chaine et non une definition deja construite.
+
+    @Test
+    void creeLaDefinitionDepuisUneValeurBrute() {
+        FinalitePrincipale finalite = definitionResolver.resolveFinalitePrincipale("  Gestion de la paie  ", client);
+
+        assertNotNull(finalite.getId());
+        assertEquals("Gestion de la paie", finalite.getValeur());
+        assertEquals(FinalitePrincipale.TYPE, finalite.getType());
+        assertEquals(client.getId(), finalite.getClient().getId());
+        assertEquals(1, definitionRepository.count());
+    }
+
+    @Test
+    void reutiliseLaDefinitionExistantePourUneValeurBrute() {
+        // Deux lignes du meme import citant la meme finalite
+        FinalitePrincipale premiere = definitionResolver.resolveFinalitePrincipale("Gestion de la paie", client);
+        FinalitePrincipale seconde = definitionResolver.resolveFinalitePrincipale("Gestion de la paie", client);
+
+        assertEquals(premiere.getId(), seconde.getId());
+        assertEquals(1, definitionRepository.count());
+    }
+
+    @Test
+    void neConfondPasDeuxTypesPortantLaMemeValeurBrute() {
+        definitionResolver.resolveFinalitePrincipale("Interne", client);
+        definitionResolver.resolveSensibilite("Interne", client);
+
+        assertEquals(2, definitionRepository.count());
+    }
+
+    @Test
+    void laisseLaReferenceNullePourUneValeurBruteVide() {
+        assertNull(definitionResolver.resolveFinalitePrincipale("   ", client));
+        assertNull(definitionResolver.resolveSensibilite(null, client));
+        assertEquals(0, definitionRepository.count());
+    }
 }

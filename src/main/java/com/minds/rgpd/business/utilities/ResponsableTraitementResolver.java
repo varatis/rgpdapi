@@ -16,8 +16,7 @@ import java.util.Objects;
  * <p>
  * Meme principe que {@link DefinitionResolver} et {@link DureeResolver} : un
  * responsable deja enregistre pour le client (meme valeur) est reutilise, sinon
- * il est cree. Les informations complementaires ne figurent pas dans le fichier
- * importe et restent nulles jusqu'a leur saisie via l'API.
+ * il est cree.
  */
 @Slf4j
 @Component
@@ -31,21 +30,29 @@ public class ResponsableTraitementResolver {
      * equivalente, en la creant au besoin.
      */
     public void resolveResponsableTraitement(Traitement traitement, Client client) {
-        traitement.setResponsableTraitement(resolve(traitement.getResponsableTraitement(), client));
+        ResponsableTraitement source = traitement.getResponsableTraitement();
+        traitement.setResponsableTraitement(Objects.isNull(source)
+                ? null
+                : resolve(source.getValeur(), source.getInformationsComplementaires(), client));
     }
 
-    private ResponsableTraitement resolve(ResponsableTraitement source, Client client) {
-        if (Objects.isNull(source) || StringUtils.isBlank(source.getValeur())) {
+    /** Responsable de traitement portant cette valeur, cree si besoin. */
+    public ResponsableTraitement resolveResponsableTraitement(String valeur, Client client) {
+        return resolve(valeur, null, client);
+    }
+
+    private ResponsableTraitement resolve(String valeurBrute, String informationsComplementaires, Client client) {
+        if (StringUtils.isBlank(valeurBrute)) {
             return null;
         }
-        String valeur = source.getValeur().strip();
+        String valeur = valeurBrute.strip();
 
         return responsableTraitementRepository.findByClientAndValeur(client, valeur)
                 .orElseGet(() -> {
                     log.debug("Creation du responsable de traitement '{}' pour le client {}", valeur, client.getId());
                     return responsableTraitementRepository.save(ResponsableTraitement.builder()
                             .valeur(valeur)
-                            .informationsComplementaires(source.getInformationsComplementaires())
+                            .informationsComplementaires(informationsComplementaires)
                             .client(client)
                             .build());
                 });

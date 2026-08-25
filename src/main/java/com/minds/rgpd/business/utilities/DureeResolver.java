@@ -32,15 +32,25 @@ public class DureeResolver {
      * persistees equivalentes, en les creant au besoin.
      */
     public void resolveDurees(Traitement traitement, Client client) {
-        traitement.setDureeConservation(resolve(traitement.getDureeConservation(), client, Duree.CONSERVATION));
-        traitement.setDureeArchivage(resolve(traitement.getDureeArchivage(), client, Duree.ARCHIVAGE));
+        traitement.setDureeConservation(resolveDureeConservation(valeurDe(traitement.getDureeConservation()), client));
+        traitement.setDureeArchivage(resolveDureeArchivage(valeurDe(traitement.getDureeArchivage()), client));
     }
 
-    private Duree resolve(Duree source, Client client, boolean estArchivage) {
-        if (Objects.isNull(source) || StringUtils.isBlank(source.getValeur())) {
+    /** Duree de conservation portant cette valeur, creee si besoin. */
+    public Duree resolveDureeConservation(String valeur, Client client) {
+        return resolve(valeur, client, Duree.CONSERVATION);
+    }
+
+    /** Duree d'archivage portant cette valeur, creee si besoin. */
+    public Duree resolveDureeArchivage(String valeur, Client client) {
+        return resolve(valeur, client, Duree.ARCHIVAGE);
+    }
+
+    private Duree resolve(String valeurBrute, Client client, boolean estArchivage) {
+        if (StringUtils.isBlank(valeurBrute)) {
             return null;
         }
-        String valeur = source.getValeur().strip();
+        String valeur = valeurBrute.strip();
 
         return dureeRepository.findByClientAndEstArchivageAndValeur(client, estArchivage, valeur)
                 .orElseGet(() -> {
@@ -52,5 +62,9 @@ public class DureeResolver {
                             .client(client)
                             .build());
                 });
+    }
+
+    private static String valeurDe(Duree duree) {
+        return Objects.isNull(duree) ? null : duree.getValeur();
     }
 }

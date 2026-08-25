@@ -108,4 +108,45 @@ class DureeResolverTest {
         assertNull(traitement.getDureeArchivage());
         assertEquals(0, dureeRepository.count());
     }
+
+    // Entree par la valeur brute : chemin emprunte par l'import Excel, ou la
+    // colonne ne fournit qu'une chaine et non une duree deja construite.
+
+    @Test
+    void creeLaDureeDepuisUneValeurBrute() {
+        Duree conservation = dureeResolver.resolveDureeConservation("  5 ans  ", client);
+        Duree archivage = dureeResolver.resolveDureeArchivage("10 ans", client);
+
+        assertNotNull(conservation.getId());
+        assertEquals("5 ans", conservation.getValeur());
+        assertFalse(conservation.isEstArchivage());
+        assertEquals(client.getId(), conservation.getClient().getId());
+        assertTrue(archivage.isEstArchivage());
+        assertEquals(2, dureeRepository.count());
+    }
+
+    @Test
+    void reutiliseLaDureeExistantePourUneValeurBrute() {
+        // Deux lignes du meme import citant la meme duree
+        Duree premiere = dureeResolver.resolveDureeConservation("5 ans", client);
+        Duree seconde = dureeResolver.resolveDureeConservation("5 ans", client);
+
+        assertEquals(premiere.getId(), seconde.getId());
+        assertEquals(1, dureeRepository.count());
+    }
+
+    @Test
+    void neConfondPasConservationEtArchivagePourLaMemeValeurBrute() {
+        dureeResolver.resolveDureeConservation("5 ans", client);
+        dureeResolver.resolveDureeArchivage("5 ans", client);
+
+        assertEquals(2, dureeRepository.count());
+    }
+
+    @Test
+    void laisseLaReferenceNullePourUneValeurBruteVide() {
+        assertNull(dureeResolver.resolveDureeConservation("   ", client));
+        assertNull(dureeResolver.resolveDureeArchivage(null, client));
+        assertEquals(0, dureeRepository.count());
+    }
 }
