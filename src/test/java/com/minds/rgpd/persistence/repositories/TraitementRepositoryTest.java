@@ -5,6 +5,7 @@ import com.minds.rgpd.business.utilities.DefinitionResolver;
 import com.minds.rgpd.persistence.entities.Client;
 import com.minds.rgpd.persistence.entities.FinalitePrincipale;
 import com.minds.rgpd.persistence.entities.Traitement;
+import com.minds.rgpd.persistence.specifications.TraitementSpecifications;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -97,5 +98,17 @@ class TraitementRepositoryTest {
                 "Paie", client, "RH", "Autre finalite", DATE);
 
         assertTrue(trouves.isEmpty());
+    }
+
+    @Test
+    void searchFiltreParFinalitePrincipale() {
+        save("Paie", "RH", "Gestion de la paie", 5);
+        save("Recrutement", "RH", "Gestion des candidatures", 6);
+
+        var spec = TraitementSpecifications.search("Dupont", null, null, "paie");
+        List<Traitement> trouves = traitementRepository.findAll(spec);
+
+        assertEquals(1, trouves.size());
+        assertEquals("Paie", trouves.get(0).getNom());
     }
 }

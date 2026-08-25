@@ -17,6 +17,7 @@ public class TraitementSpecifications {
     private static final String FIELD_NOM = "nom";
     private static final String FIELD_GESTIONNAIRE_MISE_EN_OEUVRE = "gestionnaireMiseEnOeuvre";
     private static final String FIELD_FINALITE_PRINCIPALE = "finalitePrincipale";
+    private static final String FIELD_VALEUR = "valeur";
 
     /**
      * Combine tous les critères optionnels en une seule Specification.
@@ -72,7 +73,7 @@ public class TraitementSpecifications {
             return Specification.unrestricted();
         }
         return (root, query, cb) ->
-                cb.like(cb.lower(root.get(FIELD_FINALITE_PRINCIPALE)), likePattern(finalite), LIKE_ESCAPE_CHAR);
+                cb.like(cb.lower(root.get(FIELD_FINALITE_PRINCIPALE).get(FIELD_VALEUR)), likePattern(finalite), LIKE_ESCAPE_CHAR);
     }
 
     /**
