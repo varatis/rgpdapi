@@ -13,4 +13,10 @@ public interface PreconisationService {
     Page<PreconisationPartielDTO> getPreconisations(Pageable pageable, String clientNom, PreconisationFilterCriteria criteria);
 
     PreconisationDTO getOnePreconisation(UUID id);
+
+    PreconisationDTO createPreconisation(PreconisationDTO preconisationDTO);
+
+    PreconisationDTO updatePreconisation(UUID id, PreconisationDTO preconisationDTO);
+
+    void deletePreconisationById(UUID id);
 }
