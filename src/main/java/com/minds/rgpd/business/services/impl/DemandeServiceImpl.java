@@ -1,6 +1,7 @@
 package com.minds.rgpd.business.services.impl;
 
 import com.minds.rgpd.business.dtos.DemandeDTO;
+import com.minds.rgpd.business.enums.DemandeStatut;
 import com.minds.rgpd.business.exceptions.ResourceNotFoundException;
 import com.minds.rgpd.business.services.DemandeService;
 import com.minds.rgpd.business.utilities.mappers.DemandeMapper;
@@ -63,5 +64,19 @@ public class DemandeServiceImpl implements DemandeService {
                 demandeRepository.save(demande);
 
         return demandeMapper.map(savedDemande);
+    }
+
+    @Transactional
+    @Override
+    public DemandeDTO traiterDemande(UUID id){
+        Demande demande = demandeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(
+                "Demande",
+                "id",
+                id));
+        demande.setStatut(DemandeStatut.TRAITEE);
+        Demande savedDemande = demandeRepository.save(demande);
+        return demandeMapper.map(savedDemande);
+
+
     }
 }
