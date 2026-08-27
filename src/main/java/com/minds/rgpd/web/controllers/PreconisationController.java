@@ -20,6 +20,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import com.minds.rgpd.business.exceptions.ResourceNotFoundException;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.UUID;
 
@@ -28,12 +35,13 @@ import java.util.UUID;
 @RequestMapping("/preconisations")
 @RequiredArgsConstructor
 @Validated
-@Tag(name = "Préconisation Controller", description = "Consultation du suivi des préconisations associées aux traitements")
+@Tag(name = "Préconisation Controller", description = "Gestion et suivi des préconisations associées aux traitements")
 public class PreconisationController {
 
     private final PreconisationService preconisationService;
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @Operation(summary = "Liste paginée des préconisations d'un client")
     public ResponseEntity<Page<PreconisationPartielDTO>> getPreconisations(
             @PageableDefault(size = 20, sort = "libelle", direction = Sort.Direction.ASC) Pageable pageable,
@@ -47,8 +55,37 @@ public class PreconisationController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @Operation(summary = "Détail d'une préconisation, y compris son état d'avancement")
     public ResponseEntity<PreconisationDTO> getPreconisation(@PathVariable UUID id) {
         return ResponseEntity.ok(preconisationService.getOnePreconisation(id));
+    }
+
+    @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Crée une préconisation")
+    public ResponseEntity<PreconisationDTO> postPreconisation(@RequestBody PreconisationDTO preconisation) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(preconisationService.createPreconisation(preconisation));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Modifie une préconisation en l'identifiant avec son UUID")
+    public ResponseEntity<PreconisationDTO> putPreconisation(@PathVariable UUID id, @RequestBody PreconisationDTO preconisation) {
+        return ResponseEntity.ok(preconisationService.updatePreconisation(id, preconisation));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Supprime une préconisation en l'identifiant avec son UUID")
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        try {
+            preconisationService.deletePreconisationById(id);
+            return ResponseEntity.noContent().build();
+        }
+        catch (ResourceNotFoundException ex) {
+            return ResponseEntity.notFound().build();
+        }
     }
 }
