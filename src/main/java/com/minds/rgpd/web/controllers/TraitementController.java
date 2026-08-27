@@ -1,5 +1,6 @@
 package com.minds.rgpd.web.controllers;
 
+import com.minds.rgpd.business.dtos.HistorisationDTO;
 import com.minds.rgpd.business.dtos.TraitementDTO;
 import com.minds.rgpd.business.dtos.TraitementFilterCriteria;
 import com.minds.rgpd.business.dtos.TraitementPartielDTO;
@@ -20,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -59,6 +61,12 @@ public class TraitementController {
     @PutMapping("/{id}")
     public ResponseEntity<TraitementDTO> putTraitement(@PathVariable String id, @RequestBody TraitementDTO traitement) {
         return ResponseEntity.ok(traitementService.updateTraitement(Integer.parseInt(id), traitement));
+    }
+
+    @GetMapping("/{id}/historique")
+    @Operation(summary = "RG1 - Historique des modifications d'un traitement (date + motif), du plus récent au plus ancien")
+    public ResponseEntity<List<HistorisationDTO>> getHistoriqueTraitement(@PathVariable String id) {
+        return ResponseEntity.ok(traitementService.getHistoriqueTraitement(Integer.parseInt(id)));
     }
 
     @GetMapping("/nextId")

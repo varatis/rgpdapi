@@ -36,6 +36,13 @@ public record TraitementDTO(
 
         String historiqueModifications,
 
+        /**
+         * RG1 / CA4 : motif de la modification, renseigné par l'utilisateur à la
+         * mise à jour ; alimente la table historisation_traitement. Non exploité
+         * à la création ni restitué en lecture.
+         */
+        String motifModification,
+
         String dataProtectionOfficer,
 
         ResponsableTraitementDTO responsableTraitement,

@@ -81,6 +81,7 @@ public class RowFileToTraitement {
         return new TraitementDTO(
                 null,id, nomTraitement, donneesConcernees, etablissements, finalitePrincipale, client, version,
                 dateIdentificationTraitement, dateMiseAJour, historiqueModifications,
+                null, // motifModification : renseigné uniquement à la modification via l'IHM (RG1/CA4)
                 dataProtectionOfficer, responsableTraitement, gestionnaireMiseEnOeuvre,
                 sousFinalites, categoriesPersonnesConcernees, donneesIdentification,
                 donneesConnexion, donneesLocalisation, donneesComportementEtViePersonnelle,

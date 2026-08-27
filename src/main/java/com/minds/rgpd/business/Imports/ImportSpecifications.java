@@ -8,7 +8,6 @@ import com.minds.rgpd.persistence.entities.Etablissement;
 import com.minds.rgpd.persistence.entities.Preconisation;
 import com.minds.rgpd.persistence.entities.Traitement;
 import com.minds.rgpd.persistence.repositories.EtablissementRepository;
-import com.minds.rgpd.persistence.repositories.PreconisationRepository;
 import com.minds.rgpd.persistence.repositories.TraitementRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -16,7 +15,6 @@ import lombok.RequiredArgsConstructor;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.stereotype.Component;
@@ -26,7 +24,6 @@ import org.springframework.stereotype.Component;
 public final class ImportSpecifications {
     private final TraitementRepository traitementRepository;
     private final EtablissementRepository etablissementRepository;
-    private final PreconisationRepository preconisationRepository;
     private final DefinitionResolver definitionResolver;
     private final DureeResolver dureeResolver;
     private final ResponsableTraitementResolver responsableTraitementResolver;
@@ -106,15 +103,7 @@ public final class ImportSpecifications {
 
 
                 return traitementBuilder.build();
-            },
-            traitement -> !traitementRepository.findByAllBusinessFields(
-                traitement.getNom(),
-                traitement.getClient(),
-                traitement.getGestionnaireMiseEnOeuvre(),
-                Objects.isNull(traitement.getFinalitePrincipale()) ? null : traitement.getFinalitePrincipale().getValeur(),
-                traitement.getDateIdentification()
-                ).isEmpty(),
-            traitementRepository
+            }
         );
     }
 
@@ -181,13 +170,7 @@ public final class ImportSpecifications {
                     builder.client(client);
                     builder.traitement(resolveTraitement(row, client));
                     return builder.build();
-                },
-                preconisation -> !preconisationRepository.findDuplicates(
-                        preconisation.getClient(),
-                        preconisation.getLibelle(),
-                        preconisation.getTraitement()
-                ).isEmpty(),
-                preconisationRepository
+                }
         );
     }
 

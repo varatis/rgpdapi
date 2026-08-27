@@ -45,3 +45,7 @@ INSERT INTO traitement_etablissement (id_traitement, id_etablissement)
 VALUES ('31b8d234-2346-4761-89fb-92d24f49bb96', '590687e6-f6e9-4668-aae0-a0f0e32982ff'), -- Gestion salariés ↔ Siège Paris
        ('acc27fd1-58ea-4333-b300-b4a32bef6a63', 'bf10040d-c95f-42bb-8298-514fe45d84c1'), -- Suivi ventes ↔ Agence Lyon
        ('5aed6dd1-d164-41f7-a786-f1be625333ae', 'cb5b0cd7-8551-4808-b3a2-fc5e745b25d2'); -- Conformité RGPD ↔ Siège Marseille
+
+-- PRECONISATIONS (sert à vérifier le remplacement à l'import : RG2)
+INSERT INTO preconisation (identifiant, id_client, id_traitement, libelle, etat_avancement)
+VALUES ('11111111-1111-1111-1111-111111111111', '0e4bf889-fea0-46ac-894d-ca39cbf00359', '31b8d234-2346-4761-89fb-92d24f49bb96', 'Préconisation à remplacer', 'À faire');

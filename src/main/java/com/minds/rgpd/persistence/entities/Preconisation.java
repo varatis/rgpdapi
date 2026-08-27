@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
 import java.util.UUID;
 
 @Builder
@@ -57,4 +58,11 @@ public class Preconisation {
 
     @Column(name = "etat_avancement")
     String etatAvancement;
+
+    /**
+     * RG1 : toute modification de la préconisation est historisée dans
+     * historisation_preconisation, à l'image de historisation_traitement.
+     */
+    @OneToMany(mappedBy = "preconisation", cascade = CascadeType.ALL)
+    List<HistorisationPreconisation> historiquePreconisation;
 }

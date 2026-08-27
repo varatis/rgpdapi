@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -57,4 +58,27 @@ public interface TraitementRepository extends JpaRepository<Traitement, UUID>, J
             )
             """)
     List<Traitement> findDuplicateTraitements();
+
+    /**
+     * RG2 : l'import remplace l'état précédent du registre — suppression
+     * en masse des traitements du client. Les historisations et les
+     * préconisations liées sont purgées par les cascades en base.
+     */
+    @Modifying
+    @Query("DELETE FROM Traitement t WHERE t.client = :client")
+    int deleteByClient(@Param("client") Client client);
+
+    /**
+     * RG2 : la table de jointure traitement ↔ établissement n'est pas purgée
+     * par la suppression en masse des traitements, elle est vidée au préalable
+     * pour le client concerné.
+     */
+    @Modifying
+    @Query(value = """
+            DELETE FROM traitement_etablissement te
+            WHERE te.id_traitement IN (
+                SELECT t.identifiant FROM traitement t WHERE t.id_client = :clientId
+            )
+            """, nativeQuery = true)
+    int deleteLiensEtablissementsByClient(@Param("clientId") UUID clientId);
 }
