@@ -7,7 +7,6 @@ import com.minds.rgpd.business.services.ClientService;
 import com.minds.rgpd.business.services.EtablissementService;
 import com.minds.rgpd.business.services.FichierService;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -72,13 +71,13 @@ public class FichierController {
         return ResponseEntity.ok(infoFichier.build());
     }
 
-
-    @GetMapping("/export")
+    @GetMapping("/export/{clientId}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Resource> exportExcel(@RequestParam(required = false) @Size(max = 255) String clientName) throws IOException {
+    public ResponseEntity<Resource> exportExcel(@PathVariable /*UUID*/ String clientId) throws IOException {
 
         //Récupération du client concerné
-        ClientDTO client = clientService.getClientByNom(clientName);
+        //ClientDTO client = clientService.getClientById(clientId);
+        ClientDTO client = clientService.getClientByNom(clientId);
 
         //Récupération du nom de l'établissement concerné
         //EtablissementDTO ets = etablissementService.
@@ -93,6 +92,7 @@ public class FichierController {
 
         return ResponseEntity.ok().header( HttpHeaders.CONTENT_DISPOSITION,"attachment; filename=\"" + fileName + ".xlsx\"")
                 .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION)
                 .body(resource);
     }
 }
