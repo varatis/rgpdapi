@@ -2,7 +2,6 @@ package com.minds.rgpd.business.services.impl;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.regex.Matcher;
@@ -25,7 +24,11 @@ import com.minds.rgpd.business.dtos.InfoFichierDTO.InfoFichierDTOBuilder;
 import com.minds.rgpd.business.services.FichierService;
 import com.minds.rgpd.business.utilities.mappers.ClientMapper;
 import com.minds.rgpd.persistence.entities.Client;
+import com.minds.rgpd.persistence.entities.Preconisation;
+import com.minds.rgpd.persistence.entities.Traitement;
 import com.minds.rgpd.persistence.repositories.ClientRepository;
+import com.minds.rgpd.persistence.repositories.PreconisationRepository;
+import com.minds.rgpd.persistence.repositories.TraitementRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,6 +59,8 @@ public class FichierServiceImpl implements FichierService {
     private final ClientMapper clientMapper;
     private final ExcelImportService importer;
     private final ImportSpecifications importSpecifications;
+    private final TraitementRepository traitementRepository;
+    private final PreconisationRepository preconisationRepository;
 
     // @Transactional explicite pour les méthodes d'écriture
     @Override
@@ -105,84 +110,89 @@ public class FichierServiceImpl implements FichierService {
         try(InputStream inputStream = fichier.getInputStream();
             Workbook workbook = createWorkbook(fileName, inputStream)) {
 
-            List<ImportSpecification<?>> specifications = new ArrayList<>();
-            specifications.add(importSpecifications.traitement(client, version));
+            // 1. Lecture de la feuille obligatoire "Registre de traitement".
+            //    Tant que la lecture n'a pas abouti, aucune écriture n'est faite :
+            //    le registre du client reste inchangé.
+            ImportSpecification<Traitement> specificationTraitements =
+                    importSpecifications.traitement(client, version);
+            ImportResult<Traitement> resultTraitements =
+                    importer.importSheet(workbook, specificationTraitements);
+
+            if (!specificationTraitements.allowEmpty() && resultTraitements.imported().isEmpty()) {
+                String details = resultTraitements.errors().isEmpty()
+                        ? "aucune ligne traitable"
+                        : resultTraitements.getResultMessage();
+                log.warn("Import du fichier {} interrompu : registre du client inchangé ({} : {})",
+                        fileName, specificationTraitements.sheetName(), details);
+                return infoFichier
+                        .dateFinTraitement(LocalDateTime.now())
+                        .statusFichier("%s : %s".formatted(specificationTraitements.sheetName(), details));
+            }
+
+            // 2. RG2 : l'import remplace l'état précédent des traitements et des
+            //    préconisations du client. L'utilisateur en a été averti au préalable
+            //    par la modale de confirmation de l'import (RG3).
+            remplacerRegistreClient(client);
+
+            // 3. Insertion des traitements du fichier, version portée par le nom
+            //    du fichier (ex. "ed3" -> version 3).
+            traitementRepository.saveAll(resultTraitements.imported());
+            log.info("{} : {} ligne(s) importée(s), {} erreur(s)",
+                    specificationTraitements.sheetName(),
+                    resultTraitements.imported().size(),
+                    resultTraitements.errors().size());
+
+            // RG5 : les colonnes complémentaires du registre, ici la feuille de
+            // suivi des préconisations, sont importées lorsqu'elles sont présentes.
+            // La lecture se fait après le remplacement des traitements : les liens
+            // préconisation -> traitement (par ID ou par nom) se résolvent alors
+            // sur les nouvelles lignes, garantissant la cohérence du registre (CA5).
             String preconisationSheet = findPreconisationSheet(workbook);
             if (preconisationSheet != null) {
-                specifications.add(importSpecifications.preconisation(client, preconisationSheet));
+                ImportSpecification<Preconisation> specificationPreconisations =
+                        importSpecifications.preconisation(client, preconisationSheet);
+                ImportResult<Preconisation> resultPreconisations =
+                        importer.importSheet(workbook, specificationPreconisations);
+
+                preconisationRepository.saveAll(resultPreconisations.imported());
+                log.info("{} : {} ligne(s) importée(s), {} erreur(s)",
+                        specificationPreconisations.sheetName(),
+                        resultPreconisations.imported().size(),
+                        resultPreconisations.errors().size());
             }
 
-            List<String> messages = new ArrayList<>();
-            boolean hasErrors = false;
-            for (ImportSpecification<?> specification : specifications) {
-                ImportReport report = runImport(workbook, specification);
-                messages.add(report.message());
-                hasErrors = hasErrors || !report.successful();
-            }
-
-            String returnedMessage = "OK";
-            // Rollback uniquement si une feuille obligatoire n'a produit aucune ligne.
-            if (hasErrors) {
-                log.warn("Import du fichier {} en erreur : transaction annulée, aucune donnée persistée", fileName);
-                TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
-                returnedMessage = String.join("\n", messages);
-            }
+            // L'import est abouti : le registre du client est remplacé. Les lignes
+            // rejetées (données incomplètes) restent détaillées dans les journaux ;
+            // le statut retourné reste "OK" pour une importation effective.
             return infoFichier
                     .dateFinTraitement(LocalDateTime.now())
-                    .statusFichier(returnedMessage);
+                    .statusFichier("OK");
 
-        } catch (IOException e) {
-            log.error("Erreur lors de la lecture du fichier : {}", e.getMessage(), e);
-            return infoFichier.statusFichier("Erreur de lecture : %s".formatted(e.getMessage()));
-        } catch (IllegalArgumentException e) {
-            log.error("Fichier invalide : {}", e.getMessage());
+        } catch (IOException | IllegalArgumentException e) {
+            // RG3 : en cas d'échec, l'import est annulé et l'état précédent du
+            // registre du client est conservé (transaction rejetée en rollback).
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            log.error("Import du fichier {} en erreur : transaction annulée, registre du client inchangé", fileName, e);
             return infoFichier.statusFichier(e.getMessage());
         }
     }
 
-    /** Résultat d'une feuille : message pour le rapport + statut (aucune erreur ?). */
-    private record ImportReport(String message, boolean successful) {}
-
     /**
-     * Méthode générique : le paramètre de type T est capturé ici, ce qui permet à
-     * l'appelant de manipuler des ImportSpecification&lt;?&gt; dans une liste hétérogène.
+     * RG2 : l'import d'un registre remplace l'état précédent des traitements et
+     * des préconisations du client.
+     * <p>
+     * Seules les données du registre du client importé sont supprimées : les
+     * référentiels partagés (établissements, définitions, durées, responsables
+     * de traitement) et les données des autres clients sont conservés. Les
+     * historisations liées aux traitements supprimés sont purgées par les
+     * cascades en base.
      */
-    private <T> ImportReport runImport(Workbook workbook, ImportSpecification<T> specification) {
-        ImportResult<T> result = importer.importSheet(workbook, specification);
-
-        if (!specification.allowEmpty() && result.imported().isEmpty()) {
-            String details = result.errors().isEmpty()
-                    ? "aucune ligne traitable"
-                    : result.getResultMessage();
-            return new ImportReport(
-                    "%s : %s".formatted(specification.sheetName(), details),
-                    false);
-        }
-
-        // On persiste les lignes valides même si d'autres lignes de la feuille sont incomplètes.
-        // Un rollback global n'a lieu que si une feuille obligatoire n'a aucune ligne importable.
-        int saved = persist(specification, result.imported());
-        log.info("{} : {} ligne(s) lue(s), {} sauvegardée(s), {} erreur(s)",
-                specification.sheetName(), result.imported().size(), saved, result.errors().size());
-
-        if (result.isSuccessful()) {
-            return new ImportReport("OK", true);
-        }
-
-        return new ImportReport(
-                "%s : %s (%d ligne(s) importée(s))".formatted(
-                        specification.sheetName(), result.getResultMessage(), saved),
-                true);
-    }
-
-    private <T> int persist(ImportSpecification<T> spec, List<T> items) {
-        List<T> toSave = items.stream()
-                .filter(item -> !spec.isDuplicate().test(item))
-                .toList();
-        if (!toSave.isEmpty()) {
-            spec.repository().saveAll(toSave);
-        }
-        return toSave.size();
+    private void remplacerRegistreClient(Client client) {
+        int preconisationsSupprimees = preconisationRepository.deleteByClient(client);
+        int liensSupprimes = traitementRepository.deleteLiensEtablissementsByClient(client.getId());
+        int traitementsSupprimes = traitementRepository.deleteByClient(client);
+        log.info("Registre du client {} remplacé : {} traitement(s) et {} préconisation(s) supprimé(s), {} lien(s) établissement purgé(s)",
+                client.getNom(), traitementsSupprimes, preconisationsSupprimees, liensSupprimes);
     }
 
     /**
@@ -192,7 +202,7 @@ public class FichierServiceImpl implements FichierService {
     private Workbook createWorkbook(String fileName, InputStream inputStream) throws IOException {
         String extension = getFileExtension(fileName);
         // Switch expression (Java 14+)
-        // Raison : Plus concis, pas besoin de break, et le compilateur vérifie l'exhaustivité
+        // Raison : Plus concis, pas besoin de break, le compilateur vérifie l'exhaustivité
         return switch (extension.toLowerCase()) {
             case EXTENSION_XLSX -> new XSSFWorkbook(inputStream);
             case EXTENSION_XLS -> new HSSFWorkbook(inputStream);

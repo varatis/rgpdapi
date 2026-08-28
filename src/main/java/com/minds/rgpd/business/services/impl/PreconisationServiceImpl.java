@@ -1,12 +1,15 @@
 package com.minds.rgpd.business.services.impl;
 
+import com.minds.rgpd.business.dtos.HistorisationDTO;
 import com.minds.rgpd.business.dtos.PreconisationDTO;
 import com.minds.rgpd.business.dtos.PreconisationFilterCriteria;
 import com.minds.rgpd.business.dtos.PreconisationPartielDTO;
 import com.minds.rgpd.business.exceptions.ResourceNotFoundException;
 import com.minds.rgpd.business.services.PreconisationService;
 import com.minds.rgpd.business.utilities.mappers.PreconisationMapper;
+import com.minds.rgpd.persistence.entities.HistorisationPreconisation;
 import com.minds.rgpd.persistence.entities.Preconisation;
+import com.minds.rgpd.persistence.repositories.HistorisationPreconisationRepository;
 import com.minds.rgpd.persistence.repositories.PreconisationRepository;
 import com.minds.rgpd.persistence.specifications.PreconisationSpecifications;
 import lombok.RequiredArgsConstructor;
@@ -16,12 +19,15 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import com.minds.rgpd.business.exceptions.DuplicateResourceException;
 import com.minds.rgpd.persistence.entities.Client;
 import com.minds.rgpd.persistence.entities.Traitement;
 import com.minds.rgpd.persistence.repositories.ClientRepository;
 import com.minds.rgpd.persistence.repositories.TraitementRepository;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -30,7 +36,14 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class PreconisationServiceImpl implements PreconisationService {
 
+    /**
+     * RG1 : motif posé sur l'entrée d'historisation lorsque l'utilisateur n'en
+     * saisit pas à la modification.
+     */
+    private static final String MOTIF_MODIFICATION_PAR_DEFAUT = "Modification de la préconisation";
+
     private final PreconisationRepository preconisationRepository;
+    private final HistorisationPreconisationRepository historisationPreconisationRepository;
     private final PreconisationMapper preconisationMapper;
     private final ClientRepository clientRepository;
     private final TraitementRepository traitementRepository;
@@ -94,7 +107,33 @@ public class PreconisationServiceImpl implements PreconisationService {
         preconisation.setClient(client);
         preconisation.setTraitement(traitement);
 
-        return preconisationMapper.mapToDTO(preconisationRepository.save(preconisation));
+        Preconisation sauvegardee = preconisationRepository.save(preconisation);
+
+        // RG1 : toute modification d'une préconisation est historisée. Le motif
+        // est renseigné par l'utilisateur (CA4) ; à défaut, un motif générique.
+        historiserModification(sauvegardee, preconisationDTO.motifModification());
+
+        return preconisationMapper.mapToDTO(sauvegardee);
+    }
+
+    @Override
+    public List<HistorisationDTO> getHistoriquePreconisation(UUID id) {
+        Preconisation preconisation = preconisationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Préconisation", "id", id));
+        return historisationPreconisationRepository
+                .findByPreconisationIdentifiantOrderByDateDesc(preconisation.getIdentifiant())
+                .stream()
+                .map(historisation -> new HistorisationDTO(historisation.getDate(), historisation.getMotif()))
+                .toList();
+    }
+
+    private void historiserModification(Preconisation preconisation, String motif) {
+        HistorisationPreconisation historisation = HistorisationPreconisation.builder()
+                .date(LocalDateTime.now())
+                .motif(StringUtils.hasText(motif) ? motif : MOTIF_MODIFICATION_PAR_DEFAUT)
+                .preconisation(preconisation)
+                .build();
+        historisationPreconisationRepository.save(historisation);
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.minds.rgpd.web.controllers;
 
+import com.minds.rgpd.business.dtos.HistorisationDTO;
 import com.minds.rgpd.business.dtos.PreconisationDTO;
 import com.minds.rgpd.business.dtos.PreconisationFilterCriteria;
 import com.minds.rgpd.business.dtos.PreconisationPartielDTO;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -74,6 +76,13 @@ public class PreconisationController {
     @Operation(summary = "Modifie une préconisation en l'identifiant avec son UUID")
     public ResponseEntity<PreconisationDTO> putPreconisation(@PathVariable UUID id, @RequestBody PreconisationDTO preconisation) {
         return ResponseEntity.ok(preconisationService.updatePreconisation(id, preconisation));
+    }
+
+    @GetMapping("/{id}/historique")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    @Operation(summary = "RG1 - Historique des modifications d'une préconisation (date + motif), du plus récent au plus ancien")
+    public ResponseEntity<List<HistorisationDTO>> getHistoriquePreconisation(@PathVariable UUID id) {
+        return ResponseEntity.ok(preconisationService.getHistoriquePreconisation(id));
     }
 
     @DeleteMapping("/{id}")

@@ -19,6 +19,14 @@ public record PreconisationDTO(
         String complexite,
         String commentaire,
         String etatAvancement,
+
+        /**
+         * RG1 / CA4 : motif de la modification, renseigné par l'utilisateur à la
+         * mise à jour ; alimente la table historisation_preconisation. Non
+         * exploité à la création ni restitué en lecture.
+         */
+        String motifModification,
+
         ClientDTO client,
         UUID traitementIdentifiant,
         Integer traitementIdFonctionnel,

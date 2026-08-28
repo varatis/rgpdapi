@@ -1,6 +1,7 @@
 package com.minds.rgpd.business.services.impl;
 
 import com.minds.rgpd.business.dtos.EtablissementDTO;
+import com.minds.rgpd.business.dtos.HistorisationDTO;
 import com.minds.rgpd.business.dtos.TraitementDTO;
 import com.minds.rgpd.business.dtos.TraitementFilterCriteria;
 import com.minds.rgpd.business.dtos.TraitementPartielDTO;
@@ -13,9 +14,11 @@ import com.minds.rgpd.business.utilities.ResponsableTraitementResolver;
 import com.minds.rgpd.business.utilities.mappers.TraitementMapper;
 import com.minds.rgpd.persistence.entities.Client;
 import com.minds.rgpd.persistence.entities.Etablissement;
+import com.minds.rgpd.persistence.entities.HistorisationTraitement;
 import com.minds.rgpd.persistence.entities.Traitement;
 import com.minds.rgpd.persistence.repositories.ClientRepository;
 import com.minds.rgpd.persistence.repositories.EtablissementRepository;
+import com.minds.rgpd.persistence.repositories.HistorisationTraitementRepository;
 import com.minds.rgpd.persistence.repositories.TraitementRepository;
 import com.minds.rgpd.persistence.specifications.TraitementSpecifications;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +28,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -39,9 +44,16 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class TraitementServiceImpl implements TraitementService {
 
+    /**
+     * RG1 : motif posé sur l'entrée d'historisation lorsque l'utilisateur n'en
+     * saisit pas à la modification.
+     */
+    private static final String MOTIF_MODIFICATION_PAR_DEFAUT = "Modification du traitement";
+
     private final TraitementRepository traitementRepository;
     private final ClientRepository clientRepository;
     private final EtablissementRepository etablissementRepository;
+    private final HistorisationTraitementRepository historisationTraitementRepository;
     private final TraitementMapper traitementMapper;
     private final DefinitionResolver definitionResolver;
     private final DureeResolver dureeResolver;
@@ -129,7 +141,35 @@ public class TraitementServiceImpl implements TraitementService {
 
         traitement.setEtablissements(etablissements);
 
-        return traitementMapper.mapToDTO(traitementRepository.save(traitement));
+        Traitement sauvegarde = traitementRepository.save(traitement);
+
+        // RG1 : toute modification d'un traitement est historisée. Le motif est
+        // renseigné par l'utilisateur (CA4) ; à défaut, un motif générique est posé.
+        historiserModification(sauvegarde, traitementDTO.motifModification());
+
+        return traitementMapper.mapToDTO(sauvegarde);
+    }
+
+    @Override
+    public List<HistorisationDTO> getHistoriqueTraitement(int idFonctionnel) {
+        Traitement traitement = traitementRepository.findByIdFonctionnel(idFonctionnel);
+        if (traitement == null) {
+            throw new ResourceNotFoundException("Traitement", "idFonctionnel", idFonctionnel);
+        }
+        return historisationTraitementRepository
+                .findByTraitementIdentifiantOrderByDateDesc(traitement.getIdentifiant())
+                .stream()
+                .map(historisation -> new HistorisationDTO(historisation.getDate(), historisation.getMotif()))
+                .toList();
+    }
+
+    private void historiserModification(Traitement traitement, String motif) {
+        HistorisationTraitement historisation = HistorisationTraitement.builder()
+                .date(LocalDateTime.now())
+                .motif(StringUtils.hasText(motif) ? motif : MOTIF_MODIFICATION_PAR_DEFAUT)
+                .traitement(traitement)
+                .build();
+        historisationTraitementRepository.save(historisation);
     }
 
     private List<Etablissement> resolveEtablissements(List<EtablissementDTO> etablissementDTOs, Client client) {

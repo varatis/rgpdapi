@@ -1,14 +1,17 @@
 package com.minds.rgpd.business.services.impl;
 
 import com.minds.rgpd.business.dtos.ClientDTO;
+import com.minds.rgpd.business.dtos.HistorisationDTO;
 import com.minds.rgpd.business.dtos.PreconisationDTO;
 import com.minds.rgpd.business.exceptions.DuplicateResourceException;
 import com.minds.rgpd.business.exceptions.ResourceNotFoundException;
 import com.minds.rgpd.business.utilities.mappers.PreconisationMapper;
 import com.minds.rgpd.persistence.entities.Client;
+import com.minds.rgpd.persistence.entities.HistorisationPreconisation;
 import com.minds.rgpd.persistence.entities.Preconisation;
 import com.minds.rgpd.persistence.entities.Traitement;
 import com.minds.rgpd.persistence.repositories.ClientRepository;
+import com.minds.rgpd.persistence.repositories.HistorisationPreconisationRepository;
 import com.minds.rgpd.persistence.repositories.PreconisationRepository;
 import com.minds.rgpd.persistence.repositories.TraitementRepository;
 import org.junit.jupiter.api.Test;
@@ -18,6 +21,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,6 +32,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -39,6 +44,9 @@ class PreconisationServiceImplTest {
 
     @Mock
     private PreconisationRepository preconisationRepository;
+
+    @Mock
+    private HistorisationPreconisationRepository historisationPreconisationRepository;
 
     @Mock
     private ClientRepository clientRepository;
@@ -244,5 +252,125 @@ class PreconisationServiceImplTest {
         assertThatThrownBy(() -> preconisationService.deletePreconisationById(PRECONISATION_UUID))
                 .isInstanceOf(ResourceNotFoundException.class);
         verify(preconisationRepository, never()).delete(any(Preconisation.class));
+    }
+
+    @Test
+    void updatePreconisation_historiseLaModificationAvecLeMotifUtilisateur() {
+        // GIVEN
+        Client client = client();
+        Traitement traitement = traitement(client);
+        Preconisation existante = Preconisation.builder()
+                .identifiant(PRECONISATION_UUID)
+                .libelle("Ancien libellé")
+                .client(client)
+                .build();
+        PreconisationDTO dto = PreconisationDTO.builder()
+                .identifiant(PRECONISATION_UUID)
+                .libelle("Chiffrer les sauvegardes")
+                .priorite("Haute")
+                .motifModification("Priorité revue au comité")
+                .client(ClientDTO.builder().id(CLIENT_UUID).nom("ClientA").build())
+                .traitementIdentifiant(TRAITEMENT_UUID)
+                .build();
+
+        when(preconisationRepository.findById(PRECONISATION_UUID)).thenReturn(Optional.of(existante));
+        when(clientRepository.findById(CLIENT_UUID)).thenReturn(Optional.of(client));
+        when(traitementRepository.findById(TRAITEMENT_UUID)).thenReturn(Optional.of(traitement));
+        when(preconisationRepository.save(existante)).thenReturn(existante);
+        when(preconisationMapper.mapToDTO(existante)).thenReturn(dto);
+
+        // WHEN
+        preconisationService.updatePreconisation(PRECONISATION_UUID, dto);
+
+        // THEN (RG1 : la modification est tracée dans historisation_preconisation)
+        ArgumentCaptor<HistorisationPreconisation> captor =
+                ArgumentCaptor.forClass(HistorisationPreconisation.class);
+        verify(historisationPreconisationRepository).save(captor.capture());
+        HistorisationPreconisation historisation = captor.getValue();
+        assertThat(historisation.getPreconisation()).isEqualTo(existante);
+        assertThat(historisation.getMotif()).isEqualTo("Priorité revue au comité");
+        assertThat(historisation.getDate()).isNotNull();
+    }
+
+    @Test
+    void updatePreconisation_sansMotifUtilisateur_historiseAvecLeMotifParDefaut() {
+        // GIVEN
+        Client client = client();
+        Preconisation existante = Preconisation.builder()
+                .identifiant(PRECONISATION_UUID)
+                .libelle("Chiffrer les sauvegardes")
+                .client(client)
+                .build();
+        PreconisationDTO dto = dto(null);
+
+        when(preconisationRepository.findById(PRECONISATION_UUID)).thenReturn(Optional.of(existante));
+        when(clientRepository.findById(CLIENT_UUID)).thenReturn(Optional.of(client));
+        when(preconisationRepository.save(existante)).thenReturn(existante);
+        when(preconisationMapper.mapToDTO(existante)).thenReturn(dto);
+
+        // WHEN
+        preconisationService.updatePreconisation(PRECONISATION_UUID, dto);
+
+        // THEN (CA4 : un motif est toujours posé, même sans saisie utilisateur)
+        ArgumentCaptor<HistorisationPreconisation> captor =
+                ArgumentCaptor.forClass(HistorisationPreconisation.class);
+        verify(historisationPreconisationRepository).save(captor.capture());
+        assertThat(captor.getValue().getMotif()).isEqualTo("Modification de la préconisation");
+    }
+
+    @Test
+    void createPreconisation_neProduitPasDHistorisation() {
+        // GIVEN
+        Client client = client();
+        PreconisationDTO dto = dto(null);
+        Preconisation mapped = Preconisation.builder().libelle(dto.libelle()).build();
+
+        when(clientRepository.findById(CLIENT_UUID)).thenReturn(Optional.of(client));
+        when(preconisationRepository.findDuplicates(client, dto.libelle(), null)).thenReturn(List.of());
+        when(preconisationMapper.mapToPreconisation(dto)).thenReturn(mapped);
+        when(preconisationRepository.save(mapped)).thenReturn(mapped);
+        when(preconisationMapper.mapToDTO(mapped)).thenReturn(dto);
+
+        // WHEN
+        preconisationService.createPreconisation(dto);
+
+        // THEN (RG1 : seule la modification est historisée)
+        verifyNoInteractions(historisationPreconisationRepository);
+    }
+
+    @Test
+    void getHistoriquePreconisation_retourneLesEntreesDuPlusRecentAuPlusAncien() {
+        // GIVEN
+        Preconisation preconisation = Preconisation.builder()
+                .identifiant(PRECONISATION_UUID)
+                .libelle("Chiffrer les sauvegardes")
+                .build();
+        HistorisationPreconisation entree = HistorisationPreconisation.builder()
+                .date(LocalDateTime.of(2026, 8, 25, 15, 30))
+                .motif("Priorité revue au comité")
+                .preconisation(preconisation)
+                .build();
+
+        when(preconisationRepository.findById(PRECONISATION_UUID)).thenReturn(Optional.of(preconisation));
+        when(historisationPreconisationRepository.findByPreconisationIdentifiantOrderByDateDesc(PRECONISATION_UUID))
+                .thenReturn(List.of(entree));
+
+        // WHEN
+        List<HistorisationDTO> historique = preconisationService.getHistoriquePreconisation(PRECONISATION_UUID);
+
+        // THEN
+        assertThat(historique).hasSize(1);
+        assertThat(historique.get(0).motif()).isEqualTo("Priorité revue au comité");
+        assertThat(historique.get(0).date()).isEqualTo(LocalDateTime.of(2026, 8, 25, 15, 30));
+    }
+
+    @Test
+    void getHistoriquePreconisation_inconnue_leveResourceNotFoundException() {
+        // GIVEN
+        when(preconisationRepository.findById(PRECONISATION_UUID)).thenReturn(Optional.empty());
+
+        // WHEN / THEN
+        assertThatThrownBy(() -> preconisationService.getHistoriquePreconisation(PRECONISATION_UUID))
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 }

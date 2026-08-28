@@ -12,15 +12,15 @@ import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 @Entity
-@Table(name = "historisation_Registre")
+@Table(name = "historisation_Preconisation")
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @SuperBuilder
-public class HistorisationRegistre extends HistorisationGenerique{
+public class HistorisationPreconisation extends HistorisationGenerique {
     @NotNull
     @ManyToOne
-    @JoinColumn(name = "client_uuid")
-    Client client;
+    @JoinColumn(name = "preconisation_uuid")
+    Preconisation preconisation;
 }

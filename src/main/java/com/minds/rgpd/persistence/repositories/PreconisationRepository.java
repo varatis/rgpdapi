@@ -5,6 +5,7 @@ import com.minds.rgpd.persistence.entities.Preconisation;
 import com.minds.rgpd.persistence.entities.Traitement;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -26,4 +27,12 @@ public interface PreconisationRepository extends JpaRepository<Preconisation, UU
             @Param("libelle") String libelle,
             @Param("traitement") Traitement traitement
     );
+
+    /**
+     * RG2 : l'import remplace l'état précédent du registre — suppression
+     * en masse des préconisations du client avant l'insertion du fichier.
+     */
+    @Modifying
+    @Query("DELETE FROM Preconisation p WHERE p.client = :client")
+    int deleteByClient(@Param("client") Client client);
 }
