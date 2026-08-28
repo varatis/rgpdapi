@@ -46,4 +46,12 @@ public class DemandeController {
                 demandeService.createDemande(demandeDTO)
         );
     }
+
+    @PutMapping("/{id}/traiter")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPERADMIN')")
+    public ResponseEntity<DemandeDTO> traiterDemande(@PathVariable UUID id) {
+        return ResponseEntity.ok(
+                demandeService.traiterDemande(id)
+        );
+    }
 }
