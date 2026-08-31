@@ -1,5 +1,6 @@
 package com.minds.rgpd.business.Imports;
 
+import com.minds.rgpd.business.enums.ViolationStatut;
 import com.minds.rgpd.business.utilities.DefinitionResolver;
 import com.minds.rgpd.business.utilities.DureeResolver;
 import com.minds.rgpd.business.utilities.ResponsableTraitementResolver;
@@ -7,12 +8,15 @@ import com.minds.rgpd.persistence.entities.Client;
 import com.minds.rgpd.persistence.entities.Etablissement;
 import com.minds.rgpd.persistence.entities.Preconisation;
 import com.minds.rgpd.persistence.entities.Traitement;
+import com.minds.rgpd.persistence.entities.Violation;
 import com.minds.rgpd.persistence.repositories.EtablissementRepository;
 import com.minds.rgpd.persistence.repositories.PreconisationRepository;
 import com.minds.rgpd.persistence.repositories.TraitementRepository;
+import com.minds.rgpd.persistence.repositories.ViolationRepository;
 
 import lombok.RequiredArgsConstructor;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +31,7 @@ public final class ImportSpecifications {
     private final TraitementRepository traitementRepository;
     private final EtablissementRepository etablissementRepository;
     private final PreconisationRepository preconisationRepository;
+    private final ViolationRepository violationRepository;
     private final DefinitionResolver definitionResolver;
     private final DureeResolver dureeResolver;
     private final ResponsableTraitementResolver responsableTraitementResolver;
@@ -118,44 +123,6 @@ public final class ImportSpecifications {
         );
     }
 
-    private List<Etablissement> findOrCreateEtablissements(String etablissementsRaw, Client client, Map<String, Etablissement> cache)
-    {
-        if (etablissementsRaw == null || etablissementsRaw.isBlank()) {
-            return List.of();
-        }
-        return etablissementsRaw.lines()
-            .filter(line -> !line.isBlank())
-            .map(String::trim)  // Nettoyage des espaces
-            .distinct()         // Évite les doublons dans le même fichier
-            .map(nom -> cache.computeIfAbsent(nom, n -> findOrCreateEtablissement(n, client)))
-            .toList();
-    }
-    /**
-     * Extraction de la logique pour un seul établissement
-     */
-    private Etablissement findOrCreateEtablissement(String nom, Client client) {
-        return etablissementRepository.findByNom(nom)
-            .orElseGet(() -> createEtablissement(nom, client));
-    }
-    /**
-     * Séparation création/sauvegarde
-     */
-    private Etablissement createEtablissement(String nom, Client client) {
-        Etablissement newEtablissement = Etablissement.builder()
-            .id(UUID.randomUUID())
-            .nom(nom)
-            .client(client)
-            .build();
-        return newEtablissement;
-    }
-    private int parseVersion(String version) {
-        try {
-            return Integer.parseInt(version);
-        } catch (NumberFormatException e) {
-            return 1;
-        }
-    }
-
     public ImportSpecification<Preconisation> preconisation(Client client, String sheetName) {
         return new ImportSpecification<>(
                 sheetName,
@@ -191,6 +158,97 @@ public final class ImportSpecifications {
         );
     }
 
+    /**
+     * Feuille « Recueil de violation » : en-têtes en ligne 3, aucune colonne obligatoire.
+     * Le registre des violations est souvent vide ou partiellement rempli : on importe
+     * ce qui est présent plutôt que de faire échouer l'import du fichier.
+     */
+    public ImportSpecification<Violation> violation(Client client, String sheetName) {
+        return new ImportSpecification<>(
+                sheetName,
+                true,
+                3,
+                List.of(),
+                row -> {
+                    Violation.ViolationBuilder builder = Violation.builder();
+                    builder.client(client);
+                    builder.dateViolation(readOptionalDate(row, "Date"));
+                    builder.natureViolation(row.getOptionalString("Nature de la violation de DCP",
+                        "Nature de la violation"));
+                    builder.donneesConcernees(row.getOptionalString("DCP concernées",
+                        "Données concernées"));
+                    builder.nombreApproximatifDonneesConcernees(readOptionalInt(row,
+                         "Nombre approximatif de données concernées"));
+                    // « Catégrories » : faute de frappe présente dans les registres modèles.
+                    builder.categoriesPersonnesConcernees(row.getOptionalString("Catégories de personnes concernées"));
+                    builder.nombrePersonnesConcernees(readOptionalInt(row,
+                        "Nombre de personnes concernées"));
+                    builder.consequences(row.getOptionalString("Conséquences"));
+                    builder.mesuresPrisesPrevues(row.getOptionalString("Mesures prises / prévues",
+                        "Mesures prises/prévues"));
+                    builder.informationCnil(row.getOptionalString("Information CNIL (qui, date, …)",
+                        "Information CNIL"));
+                    builder.risqueEleveDroitsLibertes(readOptionalBoolean(row,
+                        "Risque élevé pour les droits et libertés de la/les personne(s) concernée(s) ?",
+                        "Risque élevé pour les droits et libertés"));
+                    builder.communicationPersonnesEffectueeEtDate(row.getOptionalString(
+                        "Si oui, communication aux personnes effectuée ? + date"));
+                    builder.commentaires(row.getOptionalString("Commentaires"));
+
+                    builder.statut(ViolationStatut.EN_COURS);
+                    return builder.build();
+                },
+                violation -> !violationRepository.findByAllBusinessFields(
+                        violation.getClient(),
+                        violation.getDateViolation(),
+                        violation.getNatureViolation(),
+                        violation.getDonneesConcernees()
+                ).isEmpty(),
+                violationRepository
+        );
+    }
+
+    private List<Etablissement> findOrCreateEtablissements(String etablissementsRaw, Client client, Map<String, Etablissement> cache)
+    {
+        if (etablissementsRaw == null || etablissementsRaw.isBlank()) {
+            return List.of();
+        }
+        return etablissementsRaw.lines()
+            .filter(line -> !line.isBlank())
+            .map(String::trim)  // Nettoyage des espaces
+            .distinct()         // Évite les doublons dans le même fichier
+            .map(nom -> cache.computeIfAbsent(nom, n -> findOrCreateEtablissement(n, client)))
+            .toList();
+    }
+    
+    /**
+     * Extraction de la logique pour un seul établissement
+     */
+    private Etablissement findOrCreateEtablissement(String nom, Client client) {
+        return etablissementRepository.findByNom(nom)
+            .orElseGet(() -> createEtablissement(nom, client));
+    }
+
+    /**
+     * Séparation création/sauvegarde
+     */
+    private Etablissement createEtablissement(String nom, Client client) {
+        Etablissement newEtablissement = Etablissement.builder()
+            .id(UUID.randomUUID())
+            .nom(nom)
+            .client(client)
+            .build();
+        return newEtablissement;
+    }
+
+    private int parseVersion(String version) {
+        try {
+            return Integer.parseInt(version);
+        } catch (NumberFormatException e) {
+            return 1;
+        }
+    }
+
     private Traitement resolveTraitement(ExcelRow row, Client client) {
         Integer idFonctionnel = readOptionalInt(row, "ID", "ID traitement", "Id traitement");
         if (idFonctionnel != null) {
@@ -219,6 +277,30 @@ public final class ImportSpecifications {
             } catch (ExcelParsingException e) {
                 return null;
             }
+        }
+        return null;
+    }
+
+    private LocalDate readOptionalDate(ExcelRow row, String... columnNames) {
+        for (String columnName : columnNames) {
+            if (!row.hasColumn(columnName) || row.isEmpty(columnName)) {
+                continue;
+            }
+            try {
+                return row.getDate(columnName);
+            } catch (ExcelParsingException e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private Boolean readOptionalBoolean(ExcelRow row, String... columnNames) {
+        for (String columnName : columnNames) {
+            if (!row.hasColumn(columnName) || row.isEmpty(columnName)) {
+                continue;
+            }
+            return row.getBoolean(columnName);
         }
         return null;
     }
