@@ -52,6 +52,11 @@ public class FichierServiceImpl implements FichierService {
             "Suivi des préconisations",
             "Préconisations"
     );
+    private static final List<String> VIOLATION_SHEET_NAMES = List.of(
+            "Recueil de violation",
+            "Recueil de violations",
+            "Registre des violations"
+    );
     private final ClientRepository clientRepository;
     private final ClientMapper clientMapper;
     private final ExcelImportService importer;
@@ -107,9 +112,14 @@ public class FichierServiceImpl implements FichierService {
 
             List<ImportSpecification<?>> specifications = new ArrayList<>();
             specifications.add(importSpecifications.traitement(client, version));
-            String preconisationSheet = findPreconisationSheet(workbook);
+            String preconisationSheet = findSheet(workbook, PRECONISATION_SHEET_NAMES);
             if (preconisationSheet != null) {
                 specifications.add(importSpecifications.preconisation(client, preconisationSheet));
+            }
+            // Feuille facultative : absente de certains registres, et vide dans la plupart.
+            String violationSheet = findSheet(workbook, VIOLATION_SHEET_NAMES);
+            if (violationSheet != null) {
+                specifications.add(importSpecifications.violation(client, violationSheet));
             }
 
             List<String> messages = new ArrayList<>();
@@ -203,8 +213,8 @@ public class FichierServiceImpl implements FichierService {
         };
     }
 
-    private String findPreconisationSheet(Workbook workbook) {
-        for (String sheetName : PRECONISATION_SHEET_NAMES) {
+    private String findSheet(Workbook workbook, List<String> candidateNames) {
+        for (String sheetName : candidateNames) {
             if (workbook.getSheet(sheetName) != null) {
                 return sheetName;
             }
