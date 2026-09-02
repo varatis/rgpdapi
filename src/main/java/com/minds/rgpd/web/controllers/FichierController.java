@@ -78,7 +78,9 @@ public class FichierController {
     public ResponseEntity<Resource> exportExcel(@AuthenticationPrincipal Jwt jwt) throws IOException {
 
         //Récupération du client concerné
-        String clientName = jwt.getClaimAsString("client_groups").substring(1, jwt.getClaimAsString("client_groups").length() - 1);
+
+        String ListClientsNameStr = jwt.getClaimAsString("client_groups");
+        String clientName = ListClientsNameStr.substring(1, ListClientsNameStr.length() - 1);
         ClientDTO client = clientService.getClientByNom(clientName);
 
         //Récupération du nom de l'établissement concerné
