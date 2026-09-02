@@ -15,7 +15,6 @@ import java.util.UUID;
 @Repository
 public interface PreconisationRepository extends JpaRepository<Preconisation, UUID>, JpaSpecificationExecutor<Preconisation> {
 
-    /** RG2 : les préconisations suivent le sort des traitements remplacés. */
     List<Preconisation> findByClient(Client client);
 
     @Query("""

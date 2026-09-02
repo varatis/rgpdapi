@@ -22,13 +22,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/**
- * Traçabilité du registre de traitements.
- * <ul>
- *   <li>RG1 : l'historique d'un traitement est consultable ;</li>
- *   <li>CA4 : l'utilisateur peut y ajouter lui-même une entrée.</li>
- * </ul>
- */
 @Slf4j
 @RestController
 @RequiredArgsConstructor

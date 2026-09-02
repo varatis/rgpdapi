@@ -102,9 +102,6 @@ public final class ImportSpecifications {
                 traitementBuilder.paysDestinataires(row.getString("Pays destinataires"));
                 traitementBuilder.commentaires(row.getString("Commentaires"));
 
-                // RG5 : colonnes complémentaires du registre (bloc « Analyse de conformité »
-                // et critères PIA). Elles sont facultatives : les registres antérieurs au
-                // modèle CREATIVE courant ne les portent pas, l'import ne doit pas échouer.
                 mapColonnesComplementaires(row, traitementBuilder);
 
                 String rawEtablissementNames = row.getString("Etablissement(s)");
@@ -113,7 +110,6 @@ public final class ImportSpecifications {
                 traitementBuilder.etablissements(etablissements);
                 traitementBuilder.client(client);
                 traitementBuilder.version(parseVersion(version));
-
 
                 return traitementBuilder.build();
             },
@@ -213,14 +209,6 @@ public final class ImportSpecifications {
         );
     }
 
-    /**
-     * Colonnes complémentaires du registre de traitements (RG5).
-     * <p>
-     * Le modèle CREATIVE ajoute à droite du registre un bloc « Analyse de conformité »
-     * (impact, risques et scores associés, score global, exposition) puis un bloc
-     * « Critères PIA » coché d'une croix. Ces colonnes n'étaient pas lues jusqu'ici :
-     * elles sont importées lorsqu'elles sont présentes, ignorées sinon.
-     */
     private void mapColonnesComplementaires(ExcelRow row, Traitement.TraitementBuilder builder) {
         builder.impactTraitement(row.getOptionalInt("Impact du traitement"));
 
@@ -249,7 +237,6 @@ public final class ImportSpecifications {
         builder.scoreTransfertTiersMalEncadre(row.getOptionalInt("Score8"));
 
         builder.transfertHorsUeAbusif(row.getOptionalInt("Transfert hors UE abusif"));
-        // Le modèle Excel écrit cette colonne en minuscule, contrairement aux autres.
         Integer scoreHorsUe = row.getOptionalInt("score9");
         builder.scoreTransfertHorsUeAbusif(scoreHorsUe != null ? scoreHorsUe : row.getOptionalInt("Score9"));
 
@@ -305,11 +292,6 @@ public final class ImportSpecifications {
         return newEtablissement;
     }
 
-    /**
-     * Version du registre portée par le fichier (RG4). Elle est de la forme
-     * « 3.25 » (édition.année) dans les registres CREATIVE : le traitement ne
-     * stocke qu'un entier, on retient donc le numéro d'édition.
-     */
     private int parseVersion(String version) {
         if (version == null || version.isBlank()) {
             return 1;

@@ -42,10 +42,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(pd);
     }
 
-    /**
-     * Requête recevable mais inexploitable (client introuvable dans le jeton,
-     * fichier au format inattendu…) : 400 plutôt que 500.
-     */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<String> handleIllegalArgument(IllegalArgumentException e) {
         log.warn("Requête invalide : {}", e.getMessage());

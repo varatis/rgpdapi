@@ -154,10 +154,6 @@ public class Traitement {
     @Column(name = "commentaires")
     String commentaires;
 
-    // ------------------------------------------------------------------
-    // Colonnes complémentaires du registre (RG5) : bloc « Analyse de conformité »
-    // ------------------------------------------------------------------
-
     @Column(name = "impact_traitement")
     Integer impactTraitement;
 
@@ -229,10 +225,6 @@ public class Traitement {
 
     @Column(name = "exposition_traitement")
     Integer expositionTraitement;
-
-    // ------------------------------------------------------------------
-    // Critères PIA (RG5) : cochés d'une croix dans le fichier Excel
-    // ------------------------------------------------------------------
 
     @Column(name = "critere_evaluation_scoring")
     Boolean critereEvaluationScoring;

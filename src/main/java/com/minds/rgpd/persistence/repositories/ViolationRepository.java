@@ -15,7 +15,6 @@ import java.util.UUID;
 @Repository
 public interface ViolationRepository extends JpaRepository<Violation, UUID>, JpaSpecificationExecutor<Violation> {
 
-    /** RG2 : le recueil de violations est remplacé en même temps que le registre. */
     List<Violation> findByClient(Client client);
 
     // Retourner List au lieu de Optional

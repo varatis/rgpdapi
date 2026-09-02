@@ -96,7 +96,6 @@ public record TraitementDTO(
 
         String commentaires,
 
-        // Colonnes complémentaires du registre (RG5) : bloc « Analyse de conformité »
         Integer impactTraitement,
 
         Integer detournementFinalite,
@@ -145,7 +144,6 @@ public record TraitementDTO(
 
         Integer expositionTraitement,
 
-        // Critères PIA (RG5)
         Boolean critereEvaluationScoring,
 
         Boolean critereDecisionAutomatique,
@@ -164,7 +162,6 @@ public record TraitementDTO(
 
         Boolean critereExclusionBeneficeDroit,
 
-        /** Historique des modifications du traitement (RG1). Lecture seule. */
         List<HistorisationDTO> historiqueTraitement
 ) {
 }

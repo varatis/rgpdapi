@@ -114,11 +114,10 @@ public interface TraitementMapper {
     @Mapping(target = "client", ignore = true)
     ResponsableTraitement toResponsableTraitement(ResponsableTraitementDTO responsableTraitementDTO);
 
-    /**
-     * L'historique est exposé en lecture seule : il n'est alimenté que par
-     * {@link com.minds.rgpd.business.services.HistorisationService}, jamais par
-     * le corps d'une requête de modification de traitement.
-     */
+    HistorisationDTO mapHistorisation(HistorisationTraitement historisation);
+
+    List<HistorisationDTO> mapHistorisations(List<HistorisationTraitement> historisations);
+
     HistorisationDTO mapHistorisation(HistorisationTraitement historisation);
 
     List<HistorisationDTO> mapHistorisations(List<HistorisationTraitement> historisations);

@@ -29,7 +29,6 @@ import java.util.Objects;
 @Transactional(readOnly = true)
 public class HistorisationServiceImpl implements HistorisationService {
 
-    /** Auteur enregistré lorsque la modification n'est rattachable à aucun utilisateur. */
     private static final String AUTEUR_SYSTEME = "système";
 
     private final HistorisationTraitementRepository historisationTraitementRepository;
@@ -113,10 +112,6 @@ public class HistorisationServiceImpl implements HistorisationService {
         return Objects.isNull(creation.date()) ? LocalDateTime.now() : creation.date();
     }
 
-    /**
-     * L'auteur n'est jamais fourni par le client : il est lu dans le jeton, afin
-     * que l'historique reste opposable.
-     */
     private String auteurCourant() {
         CurrentUser utilisateur = AccessUserInformation.getCurrentUser();
         if (Objects.isNull(utilisateur)) {

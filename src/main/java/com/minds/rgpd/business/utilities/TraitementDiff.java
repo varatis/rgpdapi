@@ -14,26 +14,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/**
- * Compare deux états d'un traitement pour produire le motif d'historisation (RG1).
- * <p>
- * Le motif est calculé plutôt que saisi : sans lui, l'historique se réduirait à
- * « modification », ce qui ne permet pas de reconstituer l'évolution du registre.
- * L'utilisateur peut compléter l'historique par une entrée saisie (CA4).
- */
 public final class TraitementDiff {
 
-    /** Champs techniques ou dérivés qui n'ont pas à apparaître dans l'historique. */
     private static final List<String> CHAMPS_IGNORES = List.of(
             "identifiant", "client", "historiqueTraitement", "version", "dateMiseAJour");
 
     private TraitementDiff() {
     }
 
-    /**
-     * Motif décrivant les écarts entre {@code avant} et {@code apres},
-     * ou {@code null} si les deux états sont équivalents.
-     */
     public static String motifDeModification(Map<String, String> avant, Map<String, String> apres) {
         List<String> ecarts = new ArrayList<>();
         for (Map.Entry<String, String> entree : apres.entrySet()) {
@@ -50,10 +38,6 @@ public final class TraitementDiff {
         return String.join(" ; ", ecarts);
     }
 
-    /**
-     * Photographie des champs métier d'un traitement, sous forme lisible.
-     * À prendre avant puis après la modification, sur l'entité managée.
-     */
     public static Map<String, String> snapshot(Traitement traitement) {
         Map<String, String> valeurs = new LinkedHashMap<>();
         if (Objects.isNull(traitement)) {
@@ -67,7 +51,6 @@ public final class TraitementDiff {
             try {
                 valeurs.put(champ.getName(), representer(champ.get(traitement)));
             } catch (IllegalAccessException e) {
-                // Un champ inaccessible ne doit pas empêcher l'enregistrement de la modification.
                 valeurs.put(champ.getName(), null);
             }
         }
@@ -91,8 +74,6 @@ public final class TraitementDiff {
             return date.toString();
         }
         if (valeur instanceof List<?> liste) {
-            // Les listes sont triées : l'ordre de chargement d'une collection JPA
-            // n'est pas garanti et ne doit pas passer pour une modification.
             return liste.stream()
                     .map(TraitementDiff::representerElement)
                     .sorted()
@@ -109,7 +90,6 @@ public final class TraitementDiff {
         return String.valueOf(element);
     }
 
-    /** L'historique reste lisible : les champs longs sont tronqués. */
     private static String abrege(String valeur) {
         if (Objects.isNull(valeur)) {
             return "";

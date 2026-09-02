@@ -14,10 +14,6 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Le motif d'historisation (RG1) doit décrire ce qui a réellement changé :
- * un motif générique ne permettrait pas de reconstituer l'évolution du registre.
- */
 class TraitementDiffTest {
 
     private Traitement traitement() {
@@ -65,7 +61,6 @@ class TraitementDiffTest {
         assertThat(motif).contains("finalitePrincipale").contains("Gestion RH").contains("Gestion de la paie");
     }
 
-    /** La date de mise à jour est recalculée à chaque modification : elle ne fait pas motif. */
     @Test
     void dateDeMiseAJour_estExclueDuMotif() {
         Traitement traitement = traitement();

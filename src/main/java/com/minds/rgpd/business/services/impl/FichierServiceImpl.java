@@ -70,25 +70,13 @@ public class FichierServiceImpl implements FichierService {
             "Recueil de violations",
             "Registre des violations"
     );
-    /** Onglet du registre, identique en import et en export. */
     private static final String SHEET_REGISTRE = "Registre de traitement";
 
-    /**
-     * L'en-tête du registre CREATIVE est en ligne 6 (index 5) et démarre en
-     * colonne B (index 1). L'export respecte cette disposition pour rester
-     * réimportable : {@link com.minds.rgpd.business.Imports.ImportSpecifications}
-     * déclare {@code headerRows = 6}.
-     */
     private static final int HEADER_ROW_INDEX = 5;
     private static final int FIRST_COLUMN = 1;
 
     private static final DateTimeFormatter EXPORT_DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-    /**
-     * En-têtes du registre exporté : mêmes libellés que ceux lus à l'import,
-     * colonnes complémentaires comprises (RG5). Toute divergence de libellé
-     * rendrait l'export non réimportable.
-     */
     private static final String[] EXPORT_HEADERS = {
             "ID",
             "Etablissement(s)",
@@ -128,7 +116,6 @@ public class FichierServiceImpl implements FichierService {
             "Transferts hors UE (Oui / Non)",
             "Pays destinataires",
             "Commentaires",
-            // Analyse de conformité (RG5)
             "Impact du traitement",
             "Détournement de finalité",
             "Score",
@@ -153,7 +140,6 @@ public class FichierServiceImpl implements FichierService {
             "Score global",
             "Commentaires analyse",
             "Exposition du traitement",
-            // Critères PIA (RG5)
             "évaluation / scoring",
             "décision automatique",
             "surveillance systématique",
@@ -182,13 +168,6 @@ public class FichierServiceImpl implements FichierService {
         return importFichier(fichier, infoFichier, false);
     }
 
-    /**
-     * Import du registre.
-     * <p>
-     * RG2 : l'import <em>remplace</em> l'état précédent des traitements du client ;
-     * RG3 : ce remplacement n'est exécuté qu'après confirmation explicite de
-     * l'utilisateur, à qui l'on renvoie sinon l'aperçu de ses conséquences.
-     */
     @Override
     @Transactional
     public InfoFichierDTOBuilder importFichier(
@@ -216,8 +195,6 @@ public class FichierServiceImpl implements FichierService {
 
         return clientRepository.findByNom(nomClient)
                 .map(client -> {
-                    // RG3 : tant que l'utilisateur n'a pas confirmé, on ne touche à rien
-                    // et on lui décrit ce que l'import détruirait.
                     ImportApercuDTO apercu = construireApercu(originalFilename, client, version);
                     if (apercu.remplacementDonnees() && !confirmerRemplacement) {
                         log.info("Import du fichier {} suspendu : confirmation du remplacement requise",
@@ -237,7 +214,6 @@ public class FichierServiceImpl implements FichierService {
                 });
     }
 
-    /** RG3 : conséquences d'un import, calculées sans rien modifier. */
     @Override
     public ImportApercuDTO apercuImport(String nomFichier) {
         if (Objects.isNull(nomFichier) || nomFichier.isBlank()) {
@@ -309,9 +285,6 @@ public class FichierServiceImpl implements FichierService {
         try(InputStream inputStream = fichier.getInputStream();
             Workbook workbook = createWorkbook(fileName, inputStream)) {
 
-            // RG2 : l'état précédent est supprimé avant lecture du fichier. Le tout
-            // se déroule dans la même transaction : en cas d'erreur bloquante, le
-            // rollback restitue le registre dans son état d'origine.
             int remplaces = remplacerRegistre(client);
 
             List<ImportSpecification<?>> specifications = new ArrayList<>();
@@ -350,10 +323,8 @@ public class FichierServiceImpl implements FichierService {
                         .statusFichier(returnedMessage);
             }
 
-            // RG4 : la version du registre est reprise du fichier importé.
             mettreAJourVersionRegistre(client, version);
 
-            // RG1 : l'import est un évènement majeur du registre, il est historisé.
             historisationService.historiserRegistre(client,
                     "%s (%s) : %d traitement(s) remplacé(s) par %d traitement(s), version du registre %s"
                             .formatted(HistorisationService.MOTIF_IMPORT, fileName, remplaces, importes, version));
@@ -374,34 +345,17 @@ public class FichierServiceImpl implements FichierService {
         }
     }
 
-    /**
-     * RG2 : suppression de l'état précédent du registre du client.
-     * <p>
-     * Les préconisations et violations sont supprimées avec les traitements
-     * auxquels elles se rattachent, faute de quoi le registre serait incohérent
-     * après import (CA5). Le référentiel du client (définitions, durées,
-     * responsables) et ses établissements sont conservés : ils sont réutilisés
-     * par les lignes importées.
-     *
-     * @return le nombre de traitements supprimés
-     */
     private int remplacerRegistre(Client client) {
         List<Traitement> existants = traitementRepository.findByClient(client);
         preconisationRepository.deleteAll(preconisationRepository.findByClient(client));
         violationRepository.deleteAll(violationRepository.findByClient(client));
         traitementRepository.deleteAll(existants);
-        // Les suppressions doivent être visibles avant la réinsertion : les
-        // contrôles de doublon de l'import interrogent la base.
         traitementRepository.flush();
         log.info("Registre du client {} remplacé : {} traitement(s) supprimé(s)",
                 client.getNom(), existants.size());
         return existants.size();
     }
 
-    /**
-     * RG4 : la version du registre est mise à jour depuis le fichier lorsqu'elle
-     * y est disponible. La date de version suit, pour dater l'édition en cours.
-     */
     private void mettreAJourVersionRegistre(Client client, String version) {
         if (Objects.isNull(version) || version.isBlank()) {
             return;
@@ -419,7 +373,8 @@ public class FichierServiceImpl implements FichierService {
         clientRepository.save(client);
     }
 
-    /** Résultat d'une feuille : message pour le rapport, statut, et lignes enregistrées. */
+    /** Résultat d'une feuille : message pour le rapport + statut (aucune erreur ?). */
+    /** Résultat d'une feuille : message pour le rapport + statut (aucune erreur ?). */
     private record ImportReport(String message, boolean successful, int lignesEnregistrees) {}
 
     /**
@@ -501,14 +456,6 @@ public class FichierServiceImpl implements FichierService {
         return fileName.substring(lastDotIndex + 1);
     }
 
-    /**
-     * Export du registre au format attendu par l'import.
-     * <p>
-     * L'export est proposé comme sauvegarde préalable à un import (RG3) : il doit
-     * donc pouvoir être réimporté tel quel. Les en-têtes sont écrits sur la même
-     * ligne que dans le modèle CREATIVE (ligne 6, colonnes à partir de B) et les
-     * colonnes complémentaires du registre (RG5) y figurent également.
-     */
     @Override
     public byte[] generationExcelRegistreTraitements(ClientDTO client, String fileName) throws IOException {
 
@@ -521,7 +468,6 @@ public class FichierServiceImpl implements FichierService {
 
             Sheet sheet = workbook.createSheet(SHEET_REGISTRE);
 
-            // Ligne de titre, comme dans le modèle, puis l'en-tête en ligne 6.
             sheet.createRow(0).createCell(FIRST_COLUMN)
                     .setCellValue("Grille de collecte / Registre des activités de traitement - " + client.nom());
 
@@ -535,6 +481,7 @@ public class FichierServiceImpl implements FichierService {
                 ecrireLigneTraitement(sheet.createRow(rowIndex++), traitement);
             }
 
+            // Automatically size columns
             for (int i = 0; i < EXPORT_HEADERS.length; i++) {
                 sheet.autoSizeColumn(FIRST_COLUMN + i);
             }
@@ -548,8 +495,6 @@ public class FichierServiceImpl implements FichierService {
         int colonne = FIRST_COLUMN;
 
         ecrire(row, colonne++, traitement.idFonctionnel());
-        // Les établissements sont saisis un par ligne dans le fichier : l'import
-        // relit ce même séparateur.
         ecrire(row, colonne++, traitement.etablissements() == null
                 ? ""
                 : traitement.etablissements().stream()
@@ -592,7 +537,6 @@ public class FichierServiceImpl implements FichierService {
         ecrire(row, colonne++, traitement.paysDestinataires());
         ecrire(row, colonne++, traitement.commentaires());
 
-        // Colonnes complémentaires (RG5)
         ecrire(row, colonne++, traitement.impactTraitement());
         ecrire(row, colonne++, traitement.detournementFinalite());
         ecrire(row, colonne++, traitement.scoreDetournementFinalite());
@@ -633,7 +577,6 @@ public class FichierServiceImpl implements FichierService {
         row.createCell(colonne).setCellValue(Objects.isNull(valeur) ? "" : String.valueOf(valeur));
     }
 
-    /** Les dates sont réécrites au format jj/MM/aaaa attendu par l'import. */
     private void ecrireDate(Row row, int colonne, LocalDate date) {
         row.createCell(colonne).setCellValue(Objects.isNull(date) ? "" : date.format(EXPORT_DATE_FORMAT));
     }

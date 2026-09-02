@@ -29,11 +29,6 @@ public class HistorisationGenerique {
     @Column(name = "motif", columnDefinition = "TEXT")
     private String motif;
 
-    /**
-     * Identifiant de l'utilisateur à l'origine de la modification (RG1).
-     * Renseigné à partir du JWT lorsqu'un utilisateur est authentifié,
-     * « import » lorsque la modification provient d'un import de fichier.
-     */
     @Column(name = "auteur")
     private String auteur;
 }

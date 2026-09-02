@@ -106,7 +106,6 @@ public class TraitementServiceImpl implements TraitementService {
         traitement.setEtablissements(etablissements);
 
         Traitement cree = traitementRepository.save(traitement);
-        // RG1 : la création est le premier évènement de la vie du traitement.
         historisationService.historiserTraitement(cree, "Création du traitement");
 
         return traitementMapper.mapToDTO(cree);
@@ -125,8 +124,6 @@ public class TraitementServiceImpl implements TraitementService {
 
         List<Etablissement> etablissements = resolveEtablissements(traitementDTO.etablissements(), client);
 
-        // RG1 : l'état antérieur est photographié avant la mise à jour, pour que
-        // le motif d'historisation décrive précisément ce qui a changé.
         Map<String, String> avant = TraitementDiff.snapshot(traitement);
 
         traitementMapper.updateTraitementFromDto(traitementDTO, traitement);
@@ -141,7 +138,6 @@ public class TraitementServiceImpl implements TraitementService {
         traitementMapper.copierReferentiels(referentiels, traitement);
 
         traitement.setEtablissements(etablissements);
-        // Le registre reste cohérent : la date de mise à jour suit toute modification (CA5).
         traitement.setDateMiseAJour(LocalDate.now());
 
         Traitement modifie = traitementRepository.save(traitement);
@@ -200,8 +196,6 @@ public class TraitementServiceImpl implements TraitementService {
     @Transactional
     public void deleteTraitementById(UUID id) {
         Traitement traitement = traitementRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Traitement", "UUID", id));
-        // RG1 : la suppression est tracée au niveau du registre, l'historique du
-        // traitement disparaissant avec lui (cascade).
         historisationService.historiserRegistre(
                 traitement.getClient(),
                 "Suppression du traitement n°%s « %s »".formatted(traitement.getIdFonctionnel(), traitement.getNom()));

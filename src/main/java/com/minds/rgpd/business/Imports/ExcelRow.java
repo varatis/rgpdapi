@@ -146,11 +146,6 @@ public class ExcelRow {
         return null;
     }
 
-    /**
-     * Entier d'une colonne facultative : {@code null} si la colonne est absente,
-     * vide ou non numérique. Utilisé pour les colonnes complémentaires du registre
-     * (scores d'analyse de conformité), qui n'existent pas dans tous les fichiers.
-     */
     public Integer getOptionalInt(String columnName) {
         if (!hasColumn(columnName) || isEmpty(columnName)) {
             return null;
@@ -162,12 +157,6 @@ public class ExcelRow {
         }
     }
 
-    /**
-     * Colonne cochée d'une croix (critères PIA du registre CREATIVE) :
-     * {@code true} si la cellule contient une croix ou un « oui »,
-     * {@code false} si la colonne existe mais est vide,
-     * {@code null} si la colonne est absente du fichier.
-     */
     public Boolean getCroix(String columnName) {
         if (!hasColumn(columnName)) {
             return null;

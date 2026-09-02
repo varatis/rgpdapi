@@ -74,7 +74,7 @@ public class EnvoiFichierIT extends AbstractITSpring {
         // GIVEN
         MockMultipartFile file = registre();
 
-        // WHEN : RG3, l'utilisateur confirme le remplacement de ses données
+        // WHEN
         String infoFichierDTOString = mockMvc.perform(multipart("/importFichierRgpd")
                         .file(file)
                         .param("confirmerRemplacement", "true"))
@@ -85,14 +85,11 @@ public class EnvoiFichierIT extends AbstractITSpring {
         InfoFichierDTO infoFichierDTO = mapper.readValue(infoFichierDTOString, InfoFichierDTO.class);
         assertThat(infoFichierDTO.nomFichier()).isEqualTo(FILENAME);
         assertThat(infoFichierDTO.statusFichier()).isEqualTo("OK");
-        // Le registre du client ne contient plus que les lignes du fichier (RG2) :
-        // les 2 traitements initialisés par le script ont été remplacés.
         List<Traitement> traitementList = traitementRepository.findByClient(client());
         assertThat(traitementList).isNotNull().hasSize(80);
         assertThat(infoFichierDTO.nombreTraitementsRemplaces()).isEqualTo(2);
     }
 
-    /** RG2 : l'import remplace l'état précédent des traitements du client. */
     @Test
     void importRemplaceLesTraitementsExistantsDuClient() throws Exception {
         Client client = client();
@@ -107,16 +104,13 @@ public class EnvoiFichierIT extends AbstractITSpring {
         assertThat(info.statusFichier()).isEqualTo("OK");
         assertThat(info.nombreTraitementsRemplaces()).isEqualTo(2);
 
-        // Les traitements pré-existants du client ont disparu…
         assertThat(traitementRepository.findByClient(client))
                 .extracting(Traitement::getNom)
                 .doesNotContain("Gestion des salariés", "Suivi des ventes");
-        // … et ceux des autres clients sont intacts.
         assertThat(traitementRepository.findByNomAndClient("Conformité RGPD",
                 clientRepository.findByNom("Entreprise Alpha").orElseThrow())).isNotEmpty();
     }
 
-    /** RG3 : sans confirmation, rien n'est modifié et l'aperçu est renvoyé. */
     @Test
     void importSansConfirmationNeModifieRien() throws Exception {
         Client client = client();
@@ -137,7 +131,6 @@ public class EnvoiFichierIT extends AbstractITSpring {
         assertThat(traitementRepository.findByClient(client)).hasSameSizeAs(avant);
     }
 
-    /** RG3 : l'aperçu est consultable avant même l'envoi du fichier. */
     @Test
     void apercuImportDecritLesConsequences() throws Exception {
         String reponse = mockMvc.perform(get("/importFichierRgpd/apercu").param("nomFichier", FILENAME))
@@ -147,7 +140,6 @@ public class EnvoiFichierIT extends AbstractITSpring {
         assertThat(reponse).contains("\"remplacementDonnees\":true");
     }
 
-    /** RG4 : la version du registre est reprise du fichier importé. */
     @Test
     void importMetAJourLaVersionDuRegistre() throws Exception {
         mockMvc.perform(multipart("/importFichierRgpd")
@@ -157,13 +149,11 @@ public class EnvoiFichierIT extends AbstractITSpring {
         Client client = client();
         assertThat(client.getVersion()).isEqualTo("3.25");
         assertThat(client.getDateVersion()).isNotNull();
-        // RG1 : l'import laisse une trace dans l'historique du registre.
         assertThat(historisationRegistreRepository.findByClientOrderByDateDesc(client))
                 .isNotEmpty()
                 .anySatisfy(h -> assertThat(h.getMotif()).contains("Import du registre"));
     }
 
-    /** RG5 : les colonnes complémentaires du registre sont importées. */
     @Test
     void importChargeLesColonnesComplementaires() throws Exception {
         mockMvc.perform(multipart("/importFichierRgpd")

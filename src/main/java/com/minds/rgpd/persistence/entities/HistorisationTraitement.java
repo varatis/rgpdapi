@@ -23,4 +23,8 @@ public class HistorisationTraitement extends HistorisationGenerique {
     @ManyToOne
     @JoinColumn(name = "traitement_uuid")
     Traitement traitement;
+
+    /*public HistorisationTraitement(){
+        super();
+    }*/
 }
