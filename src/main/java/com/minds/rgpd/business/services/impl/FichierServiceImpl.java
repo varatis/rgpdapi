@@ -1,4 +1,33 @@
 package com.minds.rgpd.business.services.impl;
+
+import com.minds.rgpd.business.Imports.ExcelImportService;
+import com.minds.rgpd.business.Imports.ImportResult;
+import com.minds.rgpd.business.Imports.ImportSpecification;
+import com.minds.rgpd.business.Imports.ImportSpecifications;
+import com.minds.rgpd.business.dtos.*;
+import com.minds.rgpd.business.dtos.InfoFichierDTO.InfoFichierDTOBuilder;
+import com.minds.rgpd.business.services.FichierService;
+import com.minds.rgpd.business.utilities.mappers.ClientMapper;
+import com.minds.rgpd.business.utilities.mappers.TraitementMapper;
+import com.minds.rgpd.persistence.entities.Client;
+import com.minds.rgpd.persistence.entities.Traitement;
+import com.minds.rgpd.persistence.repositories.ClientRepository;
+import com.minds.rgpd.persistence.repositories.TraitementRepository;
+import com.minds.rgpd.persistence.specifications.TraitementSpecifications;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDateTime;
@@ -7,28 +36,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.interceptor.TransactionAspectSupport;
-import org.springframework.web.multipart.MultipartFile;
-
-import com.minds.rgpd.business.Imports.ExcelImportService;
-import com.minds.rgpd.business.Imports.ImportResult;
-import com.minds.rgpd.business.Imports.ImportSpecification;
-import com.minds.rgpd.business.Imports.ImportSpecifications;
-import com.minds.rgpd.business.dtos.ClientDTO;
-import com.minds.rgpd.business.dtos.InfoFichierDTO.InfoFichierDTOBuilder;
-import com.minds.rgpd.business.services.FichierService;
-import com.minds.rgpd.business.utilities.mappers.ClientMapper;
-import com.minds.rgpd.persistence.entities.Client;
-import com.minds.rgpd.persistence.repositories.ClientRepository;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
@@ -61,6 +68,8 @@ public class FichierServiceImpl implements FichierService {
     private final ClientMapper clientMapper;
     private final ExcelImportService importer;
     private final ImportSpecifications importSpecifications;
+    private final TraitementRepository traitementRepository;
+    private final TraitementMapper traitementMapper;
 
     // @Transactional explicite pour les méthodes d'écriture
     @Override
@@ -228,5 +237,146 @@ public class FichierServiceImpl implements FichierService {
             return "";
         }
         return fileName.substring(lastDotIndex + 1);
+    }
+
+    @Override
+    public byte[] generationExcelRegistreTraitements(ClientDTO client, String fileName) throws IOException {
+
+        // Récupération des traitements
+        Specification<Traitement> spec = TraitementSpecifications.search(client.nom(), null,  null, null);
+        List<TraitementDTO> traitementList = traitementMapper.mapToDTOList(traitementRepository.findAll(spec));
+
+        Workbook workbook = new XSSFWorkbook();
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        Sheet sheet = workbook.createSheet("Registre de traitement");
+        Row headerRow = sheet.createRow(0);
+
+        String[] headers = {
+                "id",
+                "Etablissement(s)",
+                "Données concernées",
+                "Nom du traitement",
+                "Date d'identification du traitement",
+                "Date de mise à jour",
+                "Historique des modifications",
+                "Data Protection Officer",
+                "Responsable de traitement",
+                "Gestionnaire de la mise en œuvre du traitement",
+                "Finalité principale",
+                "Sous-finalités",
+                "Catégories de personnes concernées par le traitement",
+                "Données d'identification",
+                "Données de connexion",
+                "Données de localisation",
+                "Données sur le comportement et la vie personnelle",
+                "Données économiques et financières",
+                "Données professionnelles",
+                "Catégories particulières de données (NIR, santé par exemple)",
+                "Sensibilité",
+                "Etude d'impact (PIA)",
+                "Canaux de collecte des données",
+                "Licéité du traitement",
+                "Recours au traitements automatisés (y compris profilage) ? (Oui / Non)",
+                "Emplacement physique du traitement",
+                "Dispositions existantes pour assurer la sécurité des données",
+                "Emplacement numérique du traitement",
+                "Dispositions existantes pour assurer la sécurité des données",
+                "Hébergement",
+                "Durée de conservation",
+                "Archivage ? (Oui / Non)",
+                "Durée d'archivage",
+                "Catégories de destinataires",
+                "Raisons du transfert vers les catégories de destinataires",
+                "Transferts hors UE (Oui / Non)",
+                "Pays destinataires",
+                "Commentaires"
+        };
+
+        for (int i = 0; i < headers.length; i++) {
+            headerRow.createCell(i).setCellValue(headers[i]);
+        }
+
+        // Data
+        int rowIndex = 1;
+
+        for (TraitementDTO traitement : traitementList) {
+            Row row = sheet.createRow(rowIndex++);
+
+            StringBuilder etablissementsSb = new StringBuilder();
+            for(EtablissementDTO ets : traitement.etablissements()){
+                etablissementsSb.append(ets.nom()).append(", ");
+            }
+
+            row.createCell(0).setCellValue(traitement.idFonctionnel());
+            row.createCell(1).setCellValue(etablissementsSb.toString());
+            row.createCell(2).setCellValue(Objects.toString(traitement.donneesConcernees(), ""));
+            row.createCell(3).setCellValue(Objects.toString(traitement.nom(),""));
+            row.createCell(4).setCellValue(Objects.toString(traitement.dateIdentification(),""));
+            row.createCell(5).setCellValue(Objects.toString(traitement.dateMiseAJour(),""));
+            row.createCell(6).setCellValue(Objects.toString(traitement.historiqueModifications(),""));
+            row.createCell(7).setCellValue(Objects.toString(traitement.dataProtectionOfficer(),""));
+
+            ResponsableTraitementDTO respTr = traitement.responsableTraitement();
+            String respTrStr = respTr == null ? "" : respTr.valeur();
+            row.createCell(8).setCellValue(respTrStr);
+            row.createCell(9).setCellValue(Objects.toString(traitement.gestionnaireMiseEnOeuvre(),""));
+
+            DefinitionDTO finPr = traitement.finalitePrincipale();
+            String finPrStr = finPr == null ? "" : finPr.valeur();
+            row.createCell(10).setCellValue(finPrStr);
+
+            row.createCell(11).setCellValue(Objects.toString(traitement.sousFinalites(),""));
+            row.createCell(12).setCellValue(Objects.toString(traitement.categoriesPersonnesConcernees(),""));
+            row.createCell(13).setCellValue(Objects.toString(traitement.donneesIdentification(),""));
+            row.createCell(14).setCellValue(Objects.toString(traitement.donneesConnexion(),""));
+            row.createCell(15).setCellValue(Objects.toString(traitement.donneesLocalisation(),""));
+            row.createCell(16).setCellValue(Objects.toString(traitement.donneesComportementViePerso(),""));
+            row.createCell(17).setCellValue(Objects.toString(traitement.donneesEconomiquesFinancieres(),""));
+            row.createCell(18).setCellValue(Objects.toString(traitement.donneesProfessionnelles(),""));
+            row.createCell(19).setCellValue(Objects.toString(traitement.categoriesParticulieresDonnees(),""));
+
+            DefinitionDTO sensib = traitement.sensibilite();
+            String sensibStr = sensib == null ? "" : sensib.valeur();
+            row.createCell(20).setCellValue(sensibStr);
+
+            DefinitionDTO etImp = traitement.etudeImpact();
+            String etImpStr = etImp == null ? "" : etImp.valeur();
+            row.createCell(21).setCellValue(etImpStr);
+            row.createCell(22).setCellValue(Objects.toString(traitement.canauxCollecteDonnees(),""));
+
+            DefinitionDTO licTr = traitement.licieteTraitement();
+            String licTrStr = licTr == null ? "" : licTr.valeur();
+            row.createCell(23).setCellValue(licTrStr);
+            row.createCell(24).setCellValue(Objects.toString(traitement.recoursTraitementAutomatises(),""));
+            row.createCell(25).setCellValue(Objects.toString(traitement.emplacementPhysique(),""));
+            row.createCell(26).setCellValue(Objects.toString(traitement.dispositionsSecuriteDonneesPhysique(),""));
+            row.createCell(27).setCellValue(Objects.toString(traitement.emplacementNumerique(),""));
+            row.createCell(28).setCellValue(Objects.toString(traitement.dispositionsSecuriteDonneesNumerique(),""));
+            row.createCell(29).setCellValue(Objects.toString(traitement.hebergement(),""));
+
+            DureeDTO durCons = traitement.dureeConservation();
+            String durConsStr = durCons == null ? "" : durCons.valeur();
+            row.createCell(30).setCellValue(durConsStr);
+
+            row.createCell(31).setCellValue(Objects.toString(traitement.archivage(),"non"));
+
+            DureeDTO durArc = traitement.dureeArchivage();
+            String durArcStr = durArc == null ? "" : durArc.valeur();
+            row.createCell(32).setCellValue(durArcStr);
+            row.createCell(33).setCellValue(Objects.toString(traitement.categoriesDestinataires(),""));
+            row.createCell(34).setCellValue(Objects.toString(traitement.raisonsTransfertDestinataires(),""));
+            row.createCell(35).setCellValue(Objects.toString(traitement.transfertsHorsUE(),""));
+            row.createCell(36).setCellValue(Objects.toString(traitement.paysDestinataires(),""));
+            row.createCell(37).setCellValue(Objects.toString(traitement.commentaires(),""));
+        }
+
+        // Automatically size columns
+        for (int i = 0; i < headers.length; i++) {
+            sheet.autoSizeColumn(i);
+        }
+
+        workbook.write(outputStream);
+
+        return outputStream.toByteArray();
     }
 }

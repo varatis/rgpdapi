@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 
 @Service
@@ -33,6 +34,13 @@ public class ClientServiceImpl implements ClientService {
     public ClientDTO getClientByNom(String nom) {
         Client client = clientRepository.findByNom(nom)
                 .orElseThrow(() -> new ResourceNotFoundException("Client", "nom", nom));
+        return clientMapper.map(client);
+    }
+
+    @Override
+    public ClientDTO getClientById(UUID id) {
+        Client client = clientRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Client", "uuid", id));
         return clientMapper.map(client);
     }
 }
