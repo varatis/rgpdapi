@@ -18,7 +18,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@Transactional(readOnly = true) // Default for all read operations
+@Transactional(readOnly = true)
 public class ClientServiceImpl implements ClientService {
 
     private final ClientMapper clientMapper;

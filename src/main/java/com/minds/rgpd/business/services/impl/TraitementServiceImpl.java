@@ -6,7 +6,9 @@ import com.minds.rgpd.business.dtos.TraitementFilterCriteria;
 import com.minds.rgpd.business.dtos.TraitementPartielDTO;
 import com.minds.rgpd.business.exceptions.DuplicateResourceException;
 import com.minds.rgpd.business.exceptions.ResourceNotFoundException;
+import com.minds.rgpd.business.services.HistorisationService;
 import com.minds.rgpd.business.services.TraitementService;
+import com.minds.rgpd.business.utilities.TraitementDiff;
 import com.minds.rgpd.business.utilities.DefinitionResolver;
 import com.minds.rgpd.business.utilities.DureeResolver;
 import com.minds.rgpd.business.utilities.ResponsableTraitementResolver;
@@ -26,8 +28,10 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -46,6 +50,7 @@ public class TraitementServiceImpl implements TraitementService {
     private final DefinitionResolver definitionResolver;
     private final DureeResolver dureeResolver;
     private final ResponsableTraitementResolver responsableTraitementResolver;
+    private final HistorisationService historisationService;
 
     @Override
     public Page<TraitementPartielDTO> getTraitements(Pageable pageable, String clientName, TraitementFilterCriteria criteria) {
@@ -100,7 +105,10 @@ public class TraitementServiceImpl implements TraitementService {
         responsableTraitementResolver.resolveResponsableTraitement(traitement, client);
         traitement.setEtablissements(etablissements);
 
-        return traitementMapper.mapToDTO(traitementRepository.save(traitement));
+        Traitement cree = traitementRepository.save(traitement);
+        historisationService.historiserTraitement(cree, "Création du traitement");
+
+        return traitementMapper.mapToDTO(cree);
     }
 
     @Override
@@ -116,6 +124,8 @@ public class TraitementServiceImpl implements TraitementService {
 
         List<Etablissement> etablissements = resolveEtablissements(traitementDTO.etablissements(), client);
 
+        Map<String, String> avant = TraitementDiff.snapshot(traitement);
+
         traitementMapper.updateTraitementFromDto(traitementDTO, traitement);
 
         // Les références vers le référentiel sont résolues sur un traitement
@@ -128,8 +138,14 @@ public class TraitementServiceImpl implements TraitementService {
         traitementMapper.copierReferentiels(referentiels, traitement);
 
         traitement.setEtablissements(etablissements);
+        traitement.setDateMiseAJour(LocalDate.now());
 
-        return traitementMapper.mapToDTO(traitementRepository.save(traitement));
+        Traitement modifie = traitementRepository.save(traitement);
+
+        String motif = TraitementDiff.motifDeModification(avant, TraitementDiff.snapshot(modifie));
+        historisationService.historiserTraitement(modifie, motif);
+
+        return traitementMapper.mapToDTO(modifie);
     }
 
     private List<Etablissement> resolveEtablissements(List<EtablissementDTO> etablissementDTOs, Client client) {
@@ -180,6 +196,9 @@ public class TraitementServiceImpl implements TraitementService {
     @Transactional
     public void deleteTraitementById(UUID id) {
         Traitement traitement = traitementRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Traitement", "UUID", id));
+        historisationService.historiserRegistre(
+                traitement.getClient(),
+                "Suppression du traitement n°%s « %s »".formatted(traitement.getIdFonctionnel(), traitement.getNom()));
         traitementRepository.delete(traitement);
     }
 }
