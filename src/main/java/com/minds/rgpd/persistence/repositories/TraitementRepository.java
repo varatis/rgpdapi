@@ -57,4 +57,8 @@ public interface TraitementRepository extends JpaRepository<Traitement, UUID>, J
             )
             """)
     List<Traitement> findDuplicateTraitements();
+
+    List<Traitement> findByClient(Client client);
+
+    long countByClient(Client client);
 }

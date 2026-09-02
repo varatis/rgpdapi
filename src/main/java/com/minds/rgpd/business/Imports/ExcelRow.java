@@ -146,6 +146,31 @@ public class ExcelRow {
         return null;
     }
 
+    public Integer getOptionalInt(String columnName) {
+        if (!hasColumn(columnName) || isEmpty(columnName)) {
+            return null;
+        }
+        try {
+            return getInt(columnName);
+        } catch (ExcelParsingException e) {
+            return null;
+        }
+    }
+
+    public Boolean getCroix(String columnName) {
+        if (!hasColumn(columnName)) {
+            return null;
+        }
+        if (isEmpty(columnName)) {
+            return Boolean.FALSE;
+        }
+        String value = getString(columnName);
+        if (value.equalsIgnoreCase("non") || value.equals("0")) {
+            return Boolean.FALSE;
+        }
+        return Boolean.TRUE;
+    }
+
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private LocalDate parseLatestDate(String value) {

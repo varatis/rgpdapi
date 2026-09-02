@@ -3,12 +3,16 @@ package com.minds.rgpd.persistence.entities;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
 
-@Builder
+@Getter
+@Setter
+@SuperBuilder
 @MappedSuperclass
 @NoArgsConstructor
 @AllArgsConstructor
@@ -22,6 +26,9 @@ public class HistorisationGenerique {
     private LocalDateTime date;
 
     @NotNull
-    @Column(name = "motif")
+    @Column(name = "motif", columnDefinition = "TEXT")
     private String motif;
+
+    @Column(name = "auteur")
+    private String auteur;
 }

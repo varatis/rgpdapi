@@ -10,6 +10,16 @@ public record InfoFichierDTO(
         String nomFichier,
         LocalDateTime dateReception,
         LocalDateTime dateFinTraitement,
-        String statusFichier
+        String statusFichier,
+
+        boolean confirmationRequise,
+
+        ImportApercuDTO apercu,
+
+        String version,
+
+        Integer nombreTraitementsRemplaces,
+
+        Integer nombreTraitementsImportes
 ) {
 }

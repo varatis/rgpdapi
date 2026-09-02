@@ -42,6 +42,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(pd);
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<String> handleIllegalArgument(IllegalArgumentException e) {
+        log.warn("Requête invalide : {}", e.getMessage());
+        return ResponseEntity.badRequest().body(e.getMessage());
+    }
+
     @ExceptionHandler(IOException.class)
     public ResponseEntity<String> handleIOException(IOException ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ex.getMessage());

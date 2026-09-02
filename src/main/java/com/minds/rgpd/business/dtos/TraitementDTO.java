@@ -94,6 +94,74 @@ public record TraitementDTO(
 
         String paysDestinataires,
 
-        String commentaires
+        String commentaires,
+
+        Integer impactTraitement,
+
+        Integer detournementFinalite,
+
+        Integer scoreDetournementFinalite,
+
+        Integer collecteDcpInappropriees,
+
+        Integer scoreCollecteDcpInappropriees,
+
+        Integer conservationExcessiveDcp,
+
+        Integer scoreConservationExcessiveDcp,
+
+        Integer securisationInsuffisanteDcp,
+
+        Integer scoreSecurisationInsuffisanteDcp,
+
+        Integer vicesConsentement,
+
+        Integer scoreVicesConsentement,
+
+        Integer manqueTransparence,
+
+        Integer scoreManqueTransparence,
+
+        Integer incapaciteExerciceDroits,
+
+        Integer scoreIncapaciteExerciceDroits,
+
+        Integer transfertTiersMalEncadre,
+
+        Integer scoreTransfertTiersMalEncadre,
+
+        Integer transfertHorsUeAbusif,
+
+        Integer scoreTransfertHorsUeAbusif,
+
+        Integer defautPreuve,
+
+        Integer scoreDefautPreuve,
+
+        Integer scoreGlobal,
+
+        String commentairesAnalyse,
+
+        Integer expositionTraitement,
+
+        Boolean critereEvaluationScoring,
+
+        Boolean critereDecisionAutomatique,
+
+        Boolean critereSurveillanceSystematique,
+
+        Boolean critereCollecteDonneesSensibles,
+
+        Boolean critereCollecteLargeEchelle,
+
+        Boolean critereCroisementDonnees,
+
+        Boolean criterePersonnesVulnerables,
+
+        Boolean critereUsageInnovant,
+
+        Boolean critereExclusionBeneficeDroit,
+
+        List<HistorisationDTO> historiqueTraitement
 ) {
 }
