@@ -102,6 +102,11 @@ public final class ImportSpecifications {
                 traitementBuilder.paysDestinataires(row.getString("Pays destinataires"));
                 traitementBuilder.commentaires(row.getString("Commentaires"));
 
+                // RG5 : colonnes complémentaires du registre (bloc « Analyse de conformité »
+                // et critères PIA). Elles sont facultatives : les registres antérieurs au
+                // modèle CREATIVE courant ne les portent pas, l'import ne doit pas échouer.
+                mapColonnesComplementaires(row, traitementBuilder);
+
                 String rawEtablissementNames = row.getString("Etablissement(s)");
                 var etablissements = findOrCreateEtablissements(
                         rawEtablissementNames, client, etablissementsDuFichier);
@@ -208,6 +213,57 @@ public final class ImportSpecifications {
         );
     }
 
+    private void mapColonnesComplementaires(ExcelRow row, Traitement.TraitementBuilder builder) {
+        builder.impactTraitement(row.getOptionalInt("Impact du traitement"));
+
+        builder.detournementFinalite(row.getOptionalInt("Détournement de finalité"));
+        builder.scoreDetournementFinalite(row.getOptionalInt("Score"));
+
+        builder.collecteDcpInappropriees(row.getOptionalInt("Collecte de DCP inapprorpiées"));
+        builder.scoreCollecteDcpInappropriees(row.getOptionalInt("Score2"));
+
+        builder.conservationExcessiveDcp(row.getOptionalInt("Conservation excessive de DCP"));
+        builder.scoreConservationExcessiveDcp(row.getOptionalInt("Score3"));
+
+        builder.securisationInsuffisanteDcp(row.getOptionalInt("Sécurisation insuffisante des DCP"));
+        builder.scoreSecurisationInsuffisanteDcp(row.getOptionalInt("Score4"));
+
+        builder.vicesConsentement(row.getOptionalInt("Vices du consentement"));
+        builder.scoreVicesConsentement(row.getOptionalInt("Score5"));
+
+        builder.manqueTransparence(row.getOptionalInt("Manque de transparence"));
+        builder.scoreManqueTransparence(row.getOptionalInt("Score6"));
+
+        builder.incapaciteExerciceDroits(row.getOptionalInt("Incapacité à permettre l'exercice des droits"));
+        builder.scoreIncapaciteExerciceDroits(row.getOptionalInt("Score7"));
+
+        builder.transfertTiersMalEncadre(row.getOptionalInt("Transfert auprès d'un tiers mal encadré"));
+        builder.scoreTransfertTiersMalEncadre(row.getOptionalInt("Score8"));
+
+        builder.transfertHorsUeAbusif(row.getOptionalInt("Transfert hors UE abusif"));
+        // Le modèle Excel écrit cette colonne en minuscule, contrairement aux autres.
+        Integer scoreHorsUe = row.getOptionalInt("score9");
+        builder.scoreTransfertHorsUeAbusif(scoreHorsUe != null ? scoreHorsUe : row.getOptionalInt("Score9"));
+
+        builder.defautPreuve(row.getOptionalInt("Défaut de preuve"));
+        builder.scoreDefautPreuve(row.getOptionalInt("Score10"));
+
+        builder.scoreGlobal(row.getOptionalInt("Score global"));
+        builder.commentairesAnalyse(
+                row.hasColumn("Commentaires analyse") ? row.getString("Commentaires analyse") : null);
+        builder.expositionTraitement(row.getOptionalInt("Exposition du traitement"));
+
+        builder.critereEvaluationScoring(row.getCroix("évaluation / scoring"));
+        builder.critereDecisionAutomatique(row.getCroix("décision automatique"));
+        builder.critereSurveillanceSystematique(row.getCroix("surveillance systématique"));
+        builder.critereCollecteDonneesSensibles(row.getCroix("collecte de données sensibles"));
+        builder.critereCollecteLargeEchelle(row.getCroix("collecte de données personnelles à large échelle"));
+        builder.critereCroisementDonnees(row.getCroix("croisement de données"));
+        builder.criterePersonnesVulnerables(row.getCroix("personnes vulnérables"));
+        builder.critereUsageInnovant(row.getCroix("usage innovant"));
+        builder.critereExclusionBeneficeDroit(row.getCroix("exclusion du bénéfice d’un droit/contrat"));
+    }
+
     private List<Etablissement> findOrCreateEtablissements(String etablissementsRaw, Client client, Map<String, Etablissement> cache)
     {
         if (etablissementsRaw == null || etablissementsRaw.isBlank()) {
@@ -242,8 +298,12 @@ public final class ImportSpecifications {
     }
 
     private int parseVersion(String version) {
+        if (version == null || version.isBlank()) {
+            return 1;
+        }
+        String edition = version.trim().split("[.,]")[0];
         try {
-            return Integer.parseInt(version);
+            return Integer.parseInt(edition);
         } catch (NumberFormatException e) {
             return 1;
         }

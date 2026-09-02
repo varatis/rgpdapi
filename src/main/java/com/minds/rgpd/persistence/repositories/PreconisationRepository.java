@@ -15,6 +15,8 @@ import java.util.UUID;
 @Repository
 public interface PreconisationRepository extends JpaRepository<Preconisation, UUID>, JpaSpecificationExecutor<Preconisation> {
 
+    List<Preconisation> findByClient(Client client);
+
     @Query("""
             SELECT p FROM Preconisation p
             WHERE p.client = :client

@@ -1,6 +1,7 @@
 package com.minds.rgpd.business.utilities.mappers;
 
 import com.minds.rgpd.business.dtos.DefinitionDTO;
+import com.minds.rgpd.business.dtos.HistorisationDTO;
 import com.minds.rgpd.business.dtos.DureeDTO;
 import com.minds.rgpd.business.dtos.ResponsableTraitementDTO;
 import com.minds.rgpd.business.dtos.TraitementDTO;
@@ -8,6 +9,7 @@ import com.minds.rgpd.business.dtos.TraitementPartielDTO;
 import com.minds.rgpd.persistence.entities.Definition;
 import com.minds.rgpd.persistence.entities.Duree;
 import com.minds.rgpd.persistence.entities.EtudeImpact;
+import com.minds.rgpd.persistence.entities.HistorisationTraitement;
 import com.minds.rgpd.persistence.entities.FinalitePrincipale;
 import com.minds.rgpd.persistence.entities.LiceiteTraitement;
 import com.minds.rgpd.persistence.entities.ResponsableTraitement;
@@ -42,6 +44,7 @@ public interface TraitementMapper {
     List<TraitementDTO> mapToDTOList(List<Traitement> traitements);
 
     @Mapping(target = "etablissements", ignore = true)
+    @Mapping(target = "historiqueTraitement", ignore = true)
     Traitement mapToTraitement(TraitementDTO traitementDTO);
 
     List<Traitement> mapToTraitementList(List<TraitementDTO> traitementsDTO);
@@ -64,6 +67,7 @@ public interface TraitementMapper {
     @Mapping(target = "dureeConservation", ignore = true)
     @Mapping(target = "dureeArchivage", ignore = true)
     @Mapping(target = "responsableTraitement", ignore = true)
+    @Mapping(target = "historiqueTraitement", ignore = true)
     void updateTraitementFromDto(TraitementDTO traitementDTO, @MappingTarget Traitement traitement);
 
     /**
@@ -109,6 +113,15 @@ public interface TraitementMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "client", ignore = true)
     ResponsableTraitement toResponsableTraitement(ResponsableTraitementDTO responsableTraitementDTO);
+
+    /**
+     * L'historique est exposé en lecture seule : il n'est alimenté que par
+     * {@link com.minds.rgpd.business.services.HistorisationService}, jamais par
+     * le corps d'une requête de modification de traitement.
+     */
+    HistorisationDTO mapHistorisation(HistorisationTraitement historisation);
+
+    List<HistorisationDTO> mapHistorisations(List<HistorisationTraitement> historisations);
 
     /**
      * Aplatit une définition sur sa seule valeur textuelle, pour les vues

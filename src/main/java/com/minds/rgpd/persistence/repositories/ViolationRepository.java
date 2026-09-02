@@ -15,6 +15,8 @@ import java.util.UUID;
 @Repository
 public interface ViolationRepository extends JpaRepository<Violation, UUID>, JpaSpecificationExecutor<Violation> {
 
+    List<Violation> findByClient(Client client);
+
     // Retourner List au lieu de Optional
     // Raison : Il peut y avoir des doublons en base (données historiques).
     // Optional lance NonUniqueResultException si > 1 résultat.

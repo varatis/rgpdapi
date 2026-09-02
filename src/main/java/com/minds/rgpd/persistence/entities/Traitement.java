@@ -154,6 +154,113 @@ public class Traitement {
     @Column(name = "commentaires")
     String commentaires;
 
+    // ------------------------------------------------------------------
+    // Colonnes complémentaires du registre (RG5) : bloc « Analyse de conformité »
+    // ------------------------------------------------------------------
+
+    @Column(name = "impact_traitement")
+    Integer impactTraitement;
+
+    @Column(name = "detournement_finalite")
+    Integer detournementFinalite;
+
+    @Column(name = "score_detournement_finalite")
+    Integer scoreDetournementFinalite;
+
+    @Column(name = "collecte_dcp_inappropriees")
+    Integer collecteDcpInappropriees;
+
+    @Column(name = "score_collecte_dcp_inappropriees")
+    Integer scoreCollecteDcpInappropriees;
+
+    @Column(name = "conservation_excessive_dcp")
+    Integer conservationExcessiveDcp;
+
+    @Column(name = "score_conservation_excessive_dcp")
+    Integer scoreConservationExcessiveDcp;
+
+    @Column(name = "securisation_insuffisante_dcp")
+    Integer securisationInsuffisanteDcp;
+
+    @Column(name = "score_securisation_insuffisante_dcp")
+    Integer scoreSecurisationInsuffisanteDcp;
+
+    @Column(name = "vices_consentement")
+    Integer vicesConsentement;
+
+    @Column(name = "score_vices_consentement")
+    Integer scoreVicesConsentement;
+
+    @Column(name = "manque_transparence")
+    Integer manqueTransparence;
+
+    @Column(name = "score_manque_transparence")
+    Integer scoreManqueTransparence;
+
+    @Column(name = "incapacite_exercice_droits")
+    Integer incapaciteExerciceDroits;
+
+    @Column(name = "score_incapacite_exercice_droits")
+    Integer scoreIncapaciteExerciceDroits;
+
+    @Column(name = "transfert_tiers_mal_encadre")
+    Integer transfertTiersMalEncadre;
+
+    @Column(name = "score_transfert_tiers_mal_encadre")
+    Integer scoreTransfertTiersMalEncadre;
+
+    @Column(name = "transfert_hors_ue_abusif")
+    Integer transfertHorsUeAbusif;
+
+    @Column(name = "score_transfert_hors_ue_abusif")
+    Integer scoreTransfertHorsUeAbusif;
+
+    @Column(name = "defaut_preuve")
+    Integer defautPreuve;
+
+    @Column(name = "score_defaut_preuve")
+    Integer scoreDefautPreuve;
+
+    @Column(name = "score_global")
+    Integer scoreGlobal;
+
+    @Column(name = "commentaires_analyse")
+    String commentairesAnalyse;
+
+    @Column(name = "exposition_traitement")
+    Integer expositionTraitement;
+
+    // ------------------------------------------------------------------
+    // Critères PIA (RG5) : cochés d'une croix dans le fichier Excel
+    // ------------------------------------------------------------------
+
+    @Column(name = "critere_evaluation_scoring")
+    Boolean critereEvaluationScoring;
+
+    @Column(name = "critere_decision_automatique")
+    Boolean critereDecisionAutomatique;
+
+    @Column(name = "critere_surveillance_systematique")
+    Boolean critereSurveillanceSystematique;
+
+    @Column(name = "critere_collecte_donnees_sensibles")
+    Boolean critereCollecteDonneesSensibles;
+
+    @Column(name = "critere_collecte_large_echelle")
+    Boolean critereCollecteLargeEchelle;
+
+    @Column(name = "critere_croisement_donnees")
+    Boolean critereCroisementDonnees;
+
+    @Column(name = "critere_personnes_vulnerables")
+    Boolean criterePersonnesVulnerables;
+
+    @Column(name = "critere_usage_innovant")
+    Boolean critereUsageInnovant;
+
+    @Column(name = "critere_exclusion_benefice_droit")
+    Boolean critereExclusionBeneficeDroit;
+
     @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinTable(
             name = "traitement_etablissement",
