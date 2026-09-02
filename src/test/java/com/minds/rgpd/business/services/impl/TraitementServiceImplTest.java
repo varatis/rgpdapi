@@ -2,6 +2,7 @@ package com.minds.rgpd.business.services.impl;
 
 import com.minds.rgpd.business.dtos.TraitementFilterCriteria;
 import com.minds.rgpd.business.dtos.TraitementPartielDTO;
+import com.minds.rgpd.business.services.HistorisationService;
 import com.minds.rgpd.business.utilities.mappers.TraitementMapper;
 import com.minds.rgpd.persistence.entities.Traitement;
 import com.minds.rgpd.persistence.repositories.ClientRepository;
@@ -45,6 +46,9 @@ class TraitementServiceImplTest {
 
     @Mock
     private TraitementMapper traitementMapper;
+
+    @Mock
+    private HistorisationService historisationService;
 
     @InjectMocks
     private TraitementServiceImpl traitementService;

@@ -57,4 +57,9 @@ public interface TraitementRepository extends JpaRepository<Traitement, UUID>, J
             )
             """)
     List<Traitement> findDuplicateTraitements();
+
+    /** RG2 : l'import remplace l'état précédent des traitements du client. */
+    List<Traitement> findByClient(Client client);
+
+    long countByClient(Client client);
 }

@@ -21,6 +21,9 @@ public interface PreconisationRepository extends JpaRepository<Preconisation, UU
               AND p.libelle = :libelle
               AND ((:traitement IS NULL AND p.traitement IS NULL) OR p.traitement = :traitement)
             """)
+    /** RG2 : les préconisations suivent le sort des traitements remplacés. */
+    List<Preconisation> findByClient(Client client);
+
     List<Preconisation> findDuplicates(
             @Param("client") Client client,
             @Param("libelle") String libelle,

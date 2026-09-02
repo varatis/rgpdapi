@@ -7,12 +7,15 @@ import com.minds.rgpd.business.Imports.ImportSpecifications;
 import com.minds.rgpd.business.dtos.*;
 import com.minds.rgpd.business.dtos.InfoFichierDTO.InfoFichierDTOBuilder;
 import com.minds.rgpd.business.services.FichierService;
+import com.minds.rgpd.business.services.HistorisationService;
 import com.minds.rgpd.business.utilities.mappers.ClientMapper;
 import com.minds.rgpd.business.utilities.mappers.TraitementMapper;
 import com.minds.rgpd.persistence.entities.Client;
 import com.minds.rgpd.persistence.entities.Traitement;
 import com.minds.rgpd.persistence.repositories.ClientRepository;
+import com.minds.rgpd.persistence.repositories.PreconisationRepository;
 import com.minds.rgpd.persistence.repositories.TraitementRepository;
+import com.minds.rgpd.persistence.repositories.ViolationRepository;
 import com.minds.rgpd.persistence.specifications.TraitementSpecifications;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +33,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -49,7 +54,8 @@ public class FichierServiceImpl implements FichierService {
     // Raison : La compilation d'une regex est coûteuse. En la compilant une seule
     // fois au chargement de la classe, on évite de recompiler à chaque appel.
     private static final Pattern FILENAME_PATTERN = Pattern.compile(
-            "^(?<client>[^_]+)_(?<etablissement>[^_]+)_Registre RGPD_ed(?<version>[^.]+)\\.[^.]+\\.[a-z]+$"
+            "^(?<client>[^_]+)_(?<etablissement>[^_]+)_Registre RGPD_ed(?<version>.+)\\.(?<extension>xlsx|xls)$",
+            Pattern.CASE_INSENSITIVE
     );
 
     // Extensions de fichiers supportées
@@ -64,17 +70,131 @@ public class FichierServiceImpl implements FichierService {
             "Recueil de violations",
             "Registre des violations"
     );
+    /** Onglet du registre, identique en import et en export. */
+    private static final String SHEET_REGISTRE = "Registre de traitement";
+
+    /**
+     * L'en-tête du registre CREATIVE est en ligne 6 (index 5) et démarre en
+     * colonne B (index 1). L'export respecte cette disposition pour rester
+     * réimportable : {@link com.minds.rgpd.business.Imports.ImportSpecifications}
+     * déclare {@code headerRows = 6}.
+     */
+    private static final int HEADER_ROW_INDEX = 5;
+    private static final int FIRST_COLUMN = 1;
+
+    private static final DateTimeFormatter EXPORT_DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+    /**
+     * En-têtes du registre exporté : mêmes libellés que ceux lus à l'import,
+     * colonnes complémentaires comprises (RG5). Toute divergence de libellé
+     * rendrait l'export non réimportable.
+     */
+    private static final String[] EXPORT_HEADERS = {
+            "ID",
+            "Etablissement(s)",
+            "Données concernées",
+            "Nom du traitement",
+            "Date d'identification du traitement",
+            "Date de mise à jour",
+            "Historique des modifications",
+            "Data Protection Officer",
+            "Responsable de traitement",
+            "Gestionnaire de la mise en œuvre du traitement",
+            "Finalité principale",
+            "Sous-finalités",
+            "Catégories de personnes concernées par le traitement",
+            "Données d'identification",
+            "Données de connexion",
+            "Données de localisation",
+            "Données sur le comportement et la vie personnelle",
+            "Données économiques et financières",
+            "Données professionnelles",
+            "Catégories particulières de données (NIR, santé par exemple)",
+            "Sensibilité",
+            "Etude d'impact (PIA)",
+            "Canaux de collecte des données",
+            "Licéité du traitement",
+            "Recours au traitements automatisés (y compris profilage) ? (Oui / Non)",
+            "Emplacement physique du traitement",
+            "Dispositions existantes pour assurer la sécurité des données",
+            "Emplacement numérique du traitement",
+            "Dispositions existantes pour assurer la sécurité des données",
+            "Hébergement",
+            "Durée de conservation",
+            "Archivage ? (Oui / Non)",
+            "Durée d'archivage",
+            "Catégories de destinataires",
+            "Raisons du transfert vers les catégories de destinataires",
+            "Transferts hors UE (Oui / Non)",
+            "Pays destinataires",
+            "Commentaires",
+            // Analyse de conformité (RG5)
+            "Impact du traitement",
+            "Détournement de finalité",
+            "Score",
+            "Collecte de DCP inapprorpiées",
+            "Score2",
+            "Conservation excessive de DCP",
+            "Score3",
+            "Sécurisation insuffisante des DCP",
+            "Score4",
+            "Vices du consentement",
+            "Score5",
+            "Manque de transparence",
+            "Score6",
+            "Incapacité à permettre l'exercice des droits",
+            "Score7",
+            "Transfert auprès d'un tiers mal encadré",
+            "Score8",
+            "Transfert hors UE abusif",
+            "score9",
+            "Défaut de preuve",
+            "Score10",
+            "Score global",
+            "Commentaires analyse",
+            "Exposition du traitement",
+            // Critères PIA (RG5)
+            "évaluation / scoring",
+            "décision automatique",
+            "surveillance systématique",
+            "collecte de données sensibles",
+            "collecte de données personnelles à large échelle",
+            "croisement de données",
+            "personnes vulnérables",
+            "usage innovant",
+            "exclusion du bénéfice d’un droit/contrat"
+    };
+
     private final ClientRepository clientRepository;
     private final ClientMapper clientMapper;
     private final ExcelImportService importer;
     private final ImportSpecifications importSpecifications;
     private final TraitementRepository traitementRepository;
+    private final PreconisationRepository preconisationRepository;
+    private final ViolationRepository violationRepository;
     private final TraitementMapper traitementMapper;
+    private final HistorisationService historisationService;
 
     // @Transactional explicite pour les méthodes d'écriture
     @Override
     @Transactional
     public InfoFichierDTOBuilder importFichier(MultipartFile fichier, InfoFichierDTOBuilder infoFichier) {
+        return importFichier(fichier, infoFichier, false);
+    }
+
+    /**
+     * Import du registre.
+     * <p>
+     * RG2 : l'import <em>remplace</em> l'état précédent des traitements du client ;
+     * RG3 : ce remplacement n'est exécuté qu'après confirmation explicite de
+     * l'utilisateur, à qui l'on renvoie sinon l'aperçu de ses conséquences.
+     */
+    @Override
+    @Transactional
+    public InfoFichierDTOBuilder importFichier(
+            MultipartFile fichier,
+            InfoFichierDTOBuilder infoFichier,
+            boolean confirmerRemplacement) {
         log.info("Début de l'import du fichier : {}", fichier.getOriginalFilename());
         String originalFilename = fichier.getOriginalFilename();
 
@@ -95,13 +215,83 @@ public class FichierServiceImpl implements FichierService {
         log.info("Client extrait du nom de fichier : {}, version : {}", nomClient, version);
 
         return clientRepository.findByNom(nomClient)
-                .map(client -> processImport(fichier, client, version, infoFichier))
+                .map(client -> {
+                    // RG3 : tant que l'utilisateur n'a pas confirmé, on ne touche à rien
+                    // et on lui décrit ce que l'import détruirait.
+                    ImportApercuDTO apercu = construireApercu(originalFilename, client, version);
+                    if (apercu.remplacementDonnees() && !confirmerRemplacement) {
+                        log.info("Import du fichier {} suspendu : confirmation du remplacement requise",
+                                originalFilename);
+                        return infoFichier
+                                .statusFichier(apercu.avertissement())
+                                .confirmationRequise(true)
+                                .apercu(apercu);
+                    }
+                    return processImport(fichier, client, version, infoFichier);
+                })
                 .orElseGet(() -> {
                     log.warn("Client non trouvé en base : {}", nomClient);
                     return infoFichier.statusFichier(
                             "Client absent de la base de données : %s".formatted(nomClient)
                     );
                 });
+    }
+
+    /** RG3 : conséquences d'un import, calculées sans rien modifier. */
+    @Override
+    public ImportApercuDTO apercuImport(String nomFichier) {
+        if (Objects.isNull(nomFichier) || nomFichier.isBlank()) {
+            return apercuInvalide(nomFichier, "Le nom du fichier est null");
+        }
+        Matcher matcher = FILENAME_PATTERN.matcher(nomFichier);
+        if (!matcher.matches()) {
+            return apercuInvalide(nomFichier,
+                    "Le fichier %s n'a pas le nom formaté comme attendu.".formatted(nomFichier));
+        }
+        String nomClient = matcher.group("client");
+        String version = matcher.group("version");
+        return clientRepository.findByNom(nomClient)
+                .map(client -> construireApercu(nomFichier, client, version))
+                .orElseGet(() -> apercuInvalide(nomFichier,
+                        "Client absent de la base de données : %s".formatted(nomClient)));
+    }
+
+    private ImportApercuDTO apercuInvalide(String nomFichier, String message) {
+        return ImportApercuDTO.builder()
+                .nomFichier(nomFichier)
+                .fichierValide(false)
+                .messageErreur(message)
+                .remplacementDonnees(false)
+                .build();
+    }
+
+    private ImportApercuDTO construireApercu(String nomFichier, Client client, String versionFichier) {
+        long traitements = traitementRepository.countByClient(client);
+        long preconisations = preconisationRepository.findByClient(client).size();
+        long violations = violationRepository.findByClient(client).size();
+        boolean remplacement = traitements > 0 || preconisations > 0 || violations > 0;
+
+        String avertissement = remplacement
+                ? ("L'import va remplacer la totalité du registre de %s : %d traitement(s), "
+                + "%d préconisation(s) et %d violation(s) enregistrés seront supprimés et "
+                + "remplacés par le contenu du fichier. Exportez le registre actuel avant de confirmer.")
+                .formatted(client.getNom(), traitements, preconisations, violations)
+                : "Le registre de %s est vide : l'import créera les données du fichier.".formatted(client.getNom());
+
+        return ImportApercuDTO.builder()
+                .nomFichier(nomFichier)
+                .clientNom(client.getNom())
+                .fichierValide(true)
+                .versionActuelle(client.getVersion())
+                .dateVersionActuelle(client.getDateVersion())
+                .versionFichier(versionFichier)
+                .remplacementDonnees(remplacement)
+                .nombreTraitementsExistants(traitements)
+                .nombrePreconisationsExistantes(preconisations)
+                .nombreViolationsExistantes(violations)
+                .avertissement(avertissement)
+                .urlExportPrealable("/importFichierRgpd/export")
+                .build();
     }
 
     private InfoFichierDTOBuilder processImport(
@@ -119,8 +309,14 @@ public class FichierServiceImpl implements FichierService {
         try(InputStream inputStream = fichier.getInputStream();
             Workbook workbook = createWorkbook(fileName, inputStream)) {
 
+            // RG2 : l'état précédent est supprimé avant lecture du fichier. Le tout
+            // se déroule dans la même transaction : en cas d'erreur bloquante, le
+            // rollback restitue le registre dans son état d'origine.
+            int remplaces = remplacerRegistre(client);
+
             List<ImportSpecification<?>> specifications = new ArrayList<>();
             specifications.add(importSpecifications.traitement(client, version));
+
             String preconisationSheet = findSheet(workbook, PRECONISATION_SHEET_NAMES);
             if (preconisationSheet != null) {
                 specifications.add(importSpecifications.preconisation(client, preconisationSheet));
@@ -133,10 +329,14 @@ public class FichierServiceImpl implements FichierService {
 
             List<String> messages = new ArrayList<>();
             boolean hasErrors = false;
+            int importes = 0;
             for (ImportSpecification<?> specification : specifications) {
                 ImportReport report = runImport(workbook, specification);
                 messages.add(report.message());
                 hasErrors = hasErrors || !report.successful();
+                if (SHEET_REGISTRE.equals(specification.sheetName())) {
+                    importes = report.lignesEnregistrees();
+                }
             }
 
             String returnedMessage = "OK";
@@ -145,10 +345,25 @@ public class FichierServiceImpl implements FichierService {
                 log.warn("Import du fichier {} en erreur : transaction annulée, aucune donnée persistée", fileName);
                 TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
                 returnedMessage = String.join("\n", messages);
+                return infoFichier
+                        .dateFinTraitement(LocalDateTime.now())
+                        .statusFichier(returnedMessage);
             }
+
+            // RG4 : la version du registre est reprise du fichier importé.
+            mettreAJourVersionRegistre(client, version);
+
+            // RG1 : l'import est un évènement majeur du registre, il est historisé.
+            historisationService.historiserRegistre(client,
+                    "%s (%s) : %d traitement(s) remplacé(s) par %d traitement(s), version du registre %s"
+                            .formatted(HistorisationService.MOTIF_IMPORT, fileName, remplaces, importes, version));
+
             return infoFichier
                     .dateFinTraitement(LocalDateTime.now())
-                    .statusFichier(returnedMessage);
+                    .statusFichier(returnedMessage)
+                    .version(client.getVersion())
+                    .nombreTraitementsRemplaces(remplaces)
+                    .nombreTraitementsImportes(importes);
 
         } catch (IOException e) {
             log.error("Erreur lors de la lecture du fichier : {}", e.getMessage(), e);
@@ -159,8 +374,53 @@ public class FichierServiceImpl implements FichierService {
         }
     }
 
-    /** Résultat d'une feuille : message pour le rapport + statut (aucune erreur ?). */
-    private record ImportReport(String message, boolean successful) {}
+    /**
+     * RG2 : suppression de l'état précédent du registre du client.
+     * <p>
+     * Les préconisations et violations sont supprimées avec les traitements
+     * auxquels elles se rattachent, faute de quoi le registre serait incohérent
+     * après import (CA5). Le référentiel du client (définitions, durées,
+     * responsables) et ses établissements sont conservés : ils sont réutilisés
+     * par les lignes importées.
+     *
+     * @return le nombre de traitements supprimés
+     */
+    private int remplacerRegistre(Client client) {
+        List<Traitement> existants = traitementRepository.findByClient(client);
+        preconisationRepository.deleteAll(preconisationRepository.findByClient(client));
+        violationRepository.deleteAll(violationRepository.findByClient(client));
+        traitementRepository.deleteAll(existants);
+        // Les suppressions doivent être visibles avant la réinsertion : les
+        // contrôles de doublon de l'import interrogent la base.
+        traitementRepository.flush();
+        log.info("Registre du client {} remplacé : {} traitement(s) supprimé(s)",
+                client.getNom(), existants.size());
+        return existants.size();
+    }
+
+    /**
+     * RG4 : la version du registre est mise à jour depuis le fichier lorsqu'elle
+     * y est disponible. La date de version suit, pour dater l'édition en cours.
+     */
+    private void mettreAJourVersionRegistre(Client client, String version) {
+        if (Objects.isNull(version) || version.isBlank()) {
+            return;
+        }
+        String versionNettoyee = version.trim();
+        if (versionNettoyee.equals(client.getVersion())) {
+            client.setDateVersion(LocalDate.now());
+            clientRepository.save(client);
+            return;
+        }
+        log.info("Version du registre du client {} : {} -> {}",
+                client.getNom(), client.getVersion(), versionNettoyee);
+        client.setVersion(versionNettoyee);
+        client.setDateVersion(LocalDate.now());
+        clientRepository.save(client);
+    }
+
+    /** Résultat d'une feuille : message pour le rapport, statut, et lignes enregistrées. */
+    private record ImportReport(String message, boolean successful, int lignesEnregistrees) {}
 
     /**
      * Méthode générique : le paramètre de type T est capturé ici, ce qui permet à
@@ -175,7 +435,8 @@ public class FichierServiceImpl implements FichierService {
                     : result.getResultMessage();
             return new ImportReport(
                     "%s : %s".formatted(specification.sheetName(), details),
-                    false);
+                    false,
+                    0);
         }
 
         // On persiste les lignes valides même si d'autres lignes de la feuille sont incomplètes.
@@ -185,13 +446,14 @@ public class FichierServiceImpl implements FichierService {
                 specification.sheetName(), result.imported().size(), saved, result.errors().size());
 
         if (result.isSuccessful()) {
-            return new ImportReport("OK", true);
+            return new ImportReport("OK", true, saved);
         }
 
         return new ImportReport(
                 "%s : %s (%d ligne(s) importée(s))".formatted(
                         specification.sheetName(), result.getResultMessage(), saved),
-                true);
+                true,
+                saved);
     }
 
     private <T> int persist(ImportSpecification<T> spec, List<T> items) {
@@ -239,6 +501,14 @@ public class FichierServiceImpl implements FichierService {
         return fileName.substring(lastDotIndex + 1);
     }
 
+    /**
+     * Export du registre au format attendu par l'import.
+     * <p>
+     * L'export est proposé comme sauvegarde préalable à un import (RG3) : il doit
+     * donc pouvoir être réimporté tel quel. Les en-têtes sont écrits sur la même
+     * ligne que dans le modèle CREATIVE (ligne 6, colonnes à partir de B) et les
+     * colonnes complémentaires du registre (RG5) y figurent également.
+     */
     @Override
     public byte[] generationExcelRegistreTraitements(ClientDTO client, String fileName) throws IOException {
 
@@ -246,137 +516,146 @@ public class FichierServiceImpl implements FichierService {
         Specification<Traitement> spec = TraitementSpecifications.search(client.nom(), null,  null, null);
         List<TraitementDTO> traitementList = traitementMapper.mapToDTOList(traitementRepository.findAll(spec));
 
-        Workbook workbook = new XSSFWorkbook();
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        Sheet sheet = workbook.createSheet("Registre de traitement");
-        Row headerRow = sheet.createRow(0);
+        try (Workbook workbook = new XSSFWorkbook();
+             ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
 
-        String[] headers = {
-                "id",
-                "Etablissement(s)",
-                "Données concernées",
-                "Nom du traitement",
-                "Date d'identification du traitement",
-                "Date de mise à jour",
-                "Historique des modifications",
-                "Data Protection Officer",
-                "Responsable de traitement",
-                "Gestionnaire de la mise en œuvre du traitement",
-                "Finalité principale",
-                "Sous-finalités",
-                "Catégories de personnes concernées par le traitement",
-                "Données d'identification",
-                "Données de connexion",
-                "Données de localisation",
-                "Données sur le comportement et la vie personnelle",
-                "Données économiques et financières",
-                "Données professionnelles",
-                "Catégories particulières de données (NIR, santé par exemple)",
-                "Sensibilité",
-                "Etude d'impact (PIA)",
-                "Canaux de collecte des données",
-                "Licéité du traitement",
-                "Recours au traitements automatisés (y compris profilage) ? (Oui / Non)",
-                "Emplacement physique du traitement",
-                "Dispositions existantes pour assurer la sécurité des données",
-                "Emplacement numérique du traitement",
-                "Dispositions existantes pour assurer la sécurité des données",
-                "Hébergement",
-                "Durée de conservation",
-                "Archivage ? (Oui / Non)",
-                "Durée d'archivage",
-                "Catégories de destinataires",
-                "Raisons du transfert vers les catégories de destinataires",
-                "Transferts hors UE (Oui / Non)",
-                "Pays destinataires",
-                "Commentaires"
-        };
+            Sheet sheet = workbook.createSheet(SHEET_REGISTRE);
 
-        for (int i = 0; i < headers.length; i++) {
-            headerRow.createCell(i).setCellValue(headers[i]);
-        }
+            // Ligne de titre, comme dans le modèle, puis l'en-tête en ligne 6.
+            sheet.createRow(0).createCell(FIRST_COLUMN)
+                    .setCellValue("Grille de collecte / Registre des activités de traitement - " + client.nom());
 
-        // Data
-        int rowIndex = 1;
-
-        for (TraitementDTO traitement : traitementList) {
-            Row row = sheet.createRow(rowIndex++);
-
-            StringBuilder etablissementsSb = new StringBuilder();
-            for(EtablissementDTO ets : traitement.etablissements()){
-                etablissementsSb.append(ets.nom()).append(", ");
+            Row headerRow = sheet.createRow(HEADER_ROW_INDEX);
+            for (int i = 0; i < EXPORT_HEADERS.length; i++) {
+                headerRow.createCell(FIRST_COLUMN + i).setCellValue(EXPORT_HEADERS[i]);
             }
 
-            row.createCell(0).setCellValue(traitement.idFonctionnel());
-            row.createCell(1).setCellValue(etablissementsSb.toString());
-            row.createCell(2).setCellValue(Objects.toString(traitement.donneesConcernees(), ""));
-            row.createCell(3).setCellValue(Objects.toString(traitement.nom(),""));
-            row.createCell(4).setCellValue(Objects.toString(traitement.dateIdentification(),""));
-            row.createCell(5).setCellValue(Objects.toString(traitement.dateMiseAJour(),""));
-            row.createCell(6).setCellValue(Objects.toString(traitement.historiqueModifications(),""));
-            row.createCell(7).setCellValue(Objects.toString(traitement.dataProtectionOfficer(),""));
+            int rowIndex = HEADER_ROW_INDEX + 1;
+            for (TraitementDTO traitement : traitementList) {
+                ecrireLigneTraitement(sheet.createRow(rowIndex++), traitement);
+            }
 
-            ResponsableTraitementDTO respTr = traitement.responsableTraitement();
-            String respTrStr = respTr == null ? "" : respTr.valeur();
-            row.createCell(8).setCellValue(respTrStr);
-            row.createCell(9).setCellValue(Objects.toString(traitement.gestionnaireMiseEnOeuvre(),""));
+            for (int i = 0; i < EXPORT_HEADERS.length; i++) {
+                sheet.autoSizeColumn(FIRST_COLUMN + i);
+            }
 
-            DefinitionDTO finPr = traitement.finalitePrincipale();
-            String finPrStr = finPr == null ? "" : finPr.valeur();
-            row.createCell(10).setCellValue(finPrStr);
-
-            row.createCell(11).setCellValue(Objects.toString(traitement.sousFinalites(),""));
-            row.createCell(12).setCellValue(Objects.toString(traitement.categoriesPersonnesConcernees(),""));
-            row.createCell(13).setCellValue(Objects.toString(traitement.donneesIdentification(),""));
-            row.createCell(14).setCellValue(Objects.toString(traitement.donneesConnexion(),""));
-            row.createCell(15).setCellValue(Objects.toString(traitement.donneesLocalisation(),""));
-            row.createCell(16).setCellValue(Objects.toString(traitement.donneesComportementViePerso(),""));
-            row.createCell(17).setCellValue(Objects.toString(traitement.donneesEconomiquesFinancieres(),""));
-            row.createCell(18).setCellValue(Objects.toString(traitement.donneesProfessionnelles(),""));
-            row.createCell(19).setCellValue(Objects.toString(traitement.categoriesParticulieresDonnees(),""));
-
-            DefinitionDTO sensib = traitement.sensibilite();
-            String sensibStr = sensib == null ? "" : sensib.valeur();
-            row.createCell(20).setCellValue(sensibStr);
-
-            DefinitionDTO etImp = traitement.etudeImpact();
-            String etImpStr = etImp == null ? "" : etImp.valeur();
-            row.createCell(21).setCellValue(etImpStr);
-            row.createCell(22).setCellValue(Objects.toString(traitement.canauxCollecteDonnees(),""));
-
-            DefinitionDTO licTr = traitement.licieteTraitement();
-            String licTrStr = licTr == null ? "" : licTr.valeur();
-            row.createCell(23).setCellValue(licTrStr);
-            row.createCell(24).setCellValue(Objects.toString(traitement.recoursTraitementAutomatises(),""));
-            row.createCell(25).setCellValue(Objects.toString(traitement.emplacementPhysique(),""));
-            row.createCell(26).setCellValue(Objects.toString(traitement.dispositionsSecuriteDonneesPhysique(),""));
-            row.createCell(27).setCellValue(Objects.toString(traitement.emplacementNumerique(),""));
-            row.createCell(28).setCellValue(Objects.toString(traitement.dispositionsSecuriteDonneesNumerique(),""));
-            row.createCell(29).setCellValue(Objects.toString(traitement.hebergement(),""));
-
-            DureeDTO durCons = traitement.dureeConservation();
-            String durConsStr = durCons == null ? "" : durCons.valeur();
-            row.createCell(30).setCellValue(durConsStr);
-
-            row.createCell(31).setCellValue(Objects.toString(traitement.archivage(),"non"));
-
-            DureeDTO durArc = traitement.dureeArchivage();
-            String durArcStr = durArc == null ? "" : durArc.valeur();
-            row.createCell(32).setCellValue(durArcStr);
-            row.createCell(33).setCellValue(Objects.toString(traitement.categoriesDestinataires(),""));
-            row.createCell(34).setCellValue(Objects.toString(traitement.raisonsTransfertDestinataires(),""));
-            row.createCell(35).setCellValue(Objects.toString(traitement.transfertsHorsUE(),""));
-            row.createCell(36).setCellValue(Objects.toString(traitement.paysDestinataires(),""));
-            row.createCell(37).setCellValue(Objects.toString(traitement.commentaires(),""));
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
         }
+    }
 
-        // Automatically size columns
-        for (int i = 0; i < headers.length; i++) {
-            sheet.autoSizeColumn(i);
-        }
+    private void ecrireLigneTraitement(Row row, TraitementDTO traitement) {
+        int colonne = FIRST_COLUMN;
 
-        workbook.write(outputStream);
+        ecrire(row, colonne++, traitement.idFonctionnel());
+        // Les établissements sont saisis un par ligne dans le fichier : l'import
+        // relit ce même séparateur.
+        ecrire(row, colonne++, traitement.etablissements() == null
+                ? ""
+                : traitement.etablissements().stream()
+                        .map(EtablissementDTO::nom)
+                        .collect(java.util.stream.Collectors.joining(System.lineSeparator())));
+        ecrire(row, colonne++, traitement.donneesConcernees());
+        ecrire(row, colonne++, traitement.nom());
+        ecrireDate(row, colonne++, traitement.dateIdentification());
+        ecrireDate(row, colonne++, traitement.dateMiseAJour());
+        ecrire(row, colonne++, traitement.historiqueModifications());
+        ecrire(row, colonne++, traitement.dataProtectionOfficer());
+        ecrire(row, colonne++, valeurDe(traitement.responsableTraitement()));
+        ecrire(row, colonne++, traitement.gestionnaireMiseEnOeuvre());
+        ecrire(row, colonne++, valeurDe(traitement.finalitePrincipale()));
+        ecrire(row, colonne++, traitement.sousFinalites());
+        ecrire(row, colonne++, traitement.categoriesPersonnesConcernees());
+        ecrire(row, colonne++, traitement.donneesIdentification());
+        ecrire(row, colonne++, traitement.donneesConnexion());
+        ecrire(row, colonne++, traitement.donneesLocalisation());
+        ecrire(row, colonne++, traitement.donneesComportementViePerso());
+        ecrire(row, colonne++, traitement.donneesEconomiquesFinancieres());
+        ecrire(row, colonne++, traitement.donneesProfessionnelles());
+        ecrire(row, colonne++, traitement.categoriesParticulieresDonnees());
+        ecrire(row, colonne++, valeurDe(traitement.sensibilite()));
+        ecrire(row, colonne++, valeurDe(traitement.etudeImpact()));
+        ecrire(row, colonne++, traitement.canauxCollecteDonnees());
+        ecrire(row, colonne++, valeurDe(traitement.licieteTraitement()));
+        ecrireOuiNon(row, colonne++, traitement.recoursTraitementAutomatises());
+        ecrire(row, colonne++, traitement.emplacementPhysique());
+        ecrire(row, colonne++, traitement.dispositionsSecuriteDonneesPhysique());
+        ecrire(row, colonne++, traitement.emplacementNumerique());
+        ecrire(row, colonne++, traitement.dispositionsSecuriteDonneesNumerique());
+        ecrire(row, colonne++, traitement.hebergement());
+        ecrire(row, colonne++, valeurDe(traitement.dureeConservation()));
+        ecrireOuiNon(row, colonne++, traitement.archivage());
+        ecrire(row, colonne++, valeurDe(traitement.dureeArchivage()));
+        ecrire(row, colonne++, traitement.categoriesDestinataires());
+        ecrire(row, colonne++, traitement.raisonsTransfertDestinataires());
+        ecrireOuiNon(row, colonne++, traitement.transfertsHorsUE());
+        ecrire(row, colonne++, traitement.paysDestinataires());
+        ecrire(row, colonne++, traitement.commentaires());
 
-        return outputStream.toByteArray();
+        // Colonnes complémentaires (RG5)
+        ecrire(row, colonne++, traitement.impactTraitement());
+        ecrire(row, colonne++, traitement.detournementFinalite());
+        ecrire(row, colonne++, traitement.scoreDetournementFinalite());
+        ecrire(row, colonne++, traitement.collecteDcpInappropriees());
+        ecrire(row, colonne++, traitement.scoreCollecteDcpInappropriees());
+        ecrire(row, colonne++, traitement.conservationExcessiveDcp());
+        ecrire(row, colonne++, traitement.scoreConservationExcessiveDcp());
+        ecrire(row, colonne++, traitement.securisationInsuffisanteDcp());
+        ecrire(row, colonne++, traitement.scoreSecurisationInsuffisanteDcp());
+        ecrire(row, colonne++, traitement.vicesConsentement());
+        ecrire(row, colonne++, traitement.scoreVicesConsentement());
+        ecrire(row, colonne++, traitement.manqueTransparence());
+        ecrire(row, colonne++, traitement.scoreManqueTransparence());
+        ecrire(row, colonne++, traitement.incapaciteExerciceDroits());
+        ecrire(row, colonne++, traitement.scoreIncapaciteExerciceDroits());
+        ecrire(row, colonne++, traitement.transfertTiersMalEncadre());
+        ecrire(row, colonne++, traitement.scoreTransfertTiersMalEncadre());
+        ecrire(row, colonne++, traitement.transfertHorsUeAbusif());
+        ecrire(row, colonne++, traitement.scoreTransfertHorsUeAbusif());
+        ecrire(row, colonne++, traitement.defautPreuve());
+        ecrire(row, colonne++, traitement.scoreDefautPreuve());
+        ecrire(row, colonne++, traitement.scoreGlobal());
+        ecrire(row, colonne++, traitement.commentairesAnalyse());
+        ecrire(row, colonne++, traitement.expositionTraitement());
+
+        ecrireCroix(row, colonne++, traitement.critereEvaluationScoring());
+        ecrireCroix(row, colonne++, traitement.critereDecisionAutomatique());
+        ecrireCroix(row, colonne++, traitement.critereSurveillanceSystematique());
+        ecrireCroix(row, colonne++, traitement.critereCollecteDonneesSensibles());
+        ecrireCroix(row, colonne++, traitement.critereCollecteLargeEchelle());
+        ecrireCroix(row, colonne++, traitement.critereCroisementDonnees());
+        ecrireCroix(row, colonne++, traitement.criterePersonnesVulnerables());
+        ecrireCroix(row, colonne++, traitement.critereUsageInnovant());
+        ecrireCroix(row, colonne, traitement.critereExclusionBeneficeDroit());
+    }
+
+    private void ecrire(Row row, int colonne, Object valeur) {
+        row.createCell(colonne).setCellValue(Objects.isNull(valeur) ? "" : String.valueOf(valeur));
+    }
+
+    /** Les dates sont réécrites au format jj/MM/aaaa attendu par l'import. */
+    private void ecrireDate(Row row, int colonne, LocalDate date) {
+        row.createCell(colonne).setCellValue(Objects.isNull(date) ? "" : date.format(EXPORT_DATE_FORMAT));
+    }
+
+    private void ecrireOuiNon(Row row, int colonne, Boolean valeur) {
+        String texte = Objects.isNull(valeur) ? "" : (Boolean.TRUE.equals(valeur) ? "Oui" : "Non");
+        row.createCell(colonne).setCellValue(texte);
+    }
+
+    private void ecrireCroix(Row row, int colonne, Boolean valeur) {
+        row.createCell(colonne).setCellValue(Boolean.TRUE.equals(valeur) ? "X" : "");
+    }
+
+    private String valeurDe(DefinitionDTO definition) {
+        return Objects.isNull(definition) ? "" : definition.valeur();
+    }
+
+    private String valeurDe(DureeDTO duree) {
+        return Objects.isNull(duree) ? "" : duree.valeur();
+    }
+
+    private String valeurDe(ResponsableTraitementDTO responsable) {
+        return Objects.isNull(responsable) ? "" : responsable.valeur();
     }
 }

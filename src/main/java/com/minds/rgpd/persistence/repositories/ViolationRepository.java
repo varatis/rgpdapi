@@ -25,6 +25,9 @@ public interface ViolationRepository extends JpaRepository<Violation, UUID>, Jpa
               AND v.natureViolation = :natureViolation
               AND v.donneesConcernees = :donneesConcernees
             """)
+    /** RG2 : le recueil de violations est remplacé en même temps que le registre. */
+    List<Violation> findByClient(Client client);
+
     List<Violation> findByAllBusinessFields(
             @Param("client") Client client,
             @Param("dateViolation") LocalDate dateViolation,
