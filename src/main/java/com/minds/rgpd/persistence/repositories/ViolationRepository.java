@@ -15,6 +15,9 @@ import java.util.UUID;
 @Repository
 public interface ViolationRepository extends JpaRepository<Violation, UUID>, JpaSpecificationExecutor<Violation> {
 
+    /** RG2 : le recueil de violations est remplacé en même temps que le registre. */
+    List<Violation> findByClient(Client client);
+
     // Retourner List au lieu de Optional
     // Raison : Il peut y avoir des doublons en base (données historiques).
     // Optional lance NonUniqueResultException si > 1 résultat.
@@ -25,9 +28,6 @@ public interface ViolationRepository extends JpaRepository<Violation, UUID>, Jpa
               AND v.natureViolation = :natureViolation
               AND v.donneesConcernees = :donneesConcernees
             """)
-    /** RG2 : le recueil de violations est remplacé en même temps que le registre. */
-    List<Violation> findByClient(Client client);
-
     List<Violation> findByAllBusinessFields(
             @Param("client") Client client,
             @Param("dateViolation") LocalDate dateViolation,

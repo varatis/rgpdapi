@@ -15,15 +15,15 @@ import java.util.UUID;
 @Repository
 public interface PreconisationRepository extends JpaRepository<Preconisation, UUID>, JpaSpecificationExecutor<Preconisation> {
 
+    /** RG2 : les préconisations suivent le sort des traitements remplacés. */
+    List<Preconisation> findByClient(Client client);
+
     @Query("""
             SELECT p FROM Preconisation p
             WHERE p.client = :client
               AND p.libelle = :libelle
               AND ((:traitement IS NULL AND p.traitement IS NULL) OR p.traitement = :traitement)
             """)
-    /** RG2 : les préconisations suivent le sort des traitements remplacés. */
-    List<Preconisation> findByClient(Client client);
-
     List<Preconisation> findDuplicates(
             @Param("client") Client client,
             @Param("libelle") String libelle,
