@@ -16,6 +16,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -71,13 +73,13 @@ public class FichierController {
         return ResponseEntity.ok(infoFichier.build());
     }
 
-    @GetMapping("/export/{clientId}")
+    @GetMapping("/export")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Resource> exportExcel(@PathVariable /*UUID*/ String clientId) throws IOException {
+    public ResponseEntity<Resource> exportExcel(@AuthenticationPrincipal Jwt jwt) throws IOException {
 
         //Récupération du client concerné
-        //ClientDTO client = clientService.getClientById(clientId);
-        ClientDTO client = clientService.getClientByNom(clientId);
+        String clientName = jwt.getClaimAsString("client_groups").substring(1, jwt.getClaimAsString("client_groups").length() - 1);
+        ClientDTO client = clientService.getClientByNom(clientName);
 
         //Récupération du nom de l'établissement concerné
         //EtablissementDTO ets = etablissementService.

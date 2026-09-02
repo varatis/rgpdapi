@@ -248,7 +248,7 @@ public class FichierServiceImpl implements FichierService {
 
         Workbook workbook = new XSSFWorkbook();
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        Sheet sheet = workbook.createSheet(fileName);
+        Sheet sheet = workbook.createSheet("Registre de traitement");
         Row headerRow = sheet.createRow(0);
 
         String[] headers = {
