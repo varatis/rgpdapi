@@ -5,8 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.io.IOException;
 import java.util.stream.Collectors;
@@ -25,6 +27,45 @@ public class GlobalExceptionHandler {
     public ResponseEntity<String> handleDuplicate(DuplicateResourceException e) {
         log.warn("Doublon : {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+    }
+
+    @ExceptionHandler(InvalidFileException.class)
+    public ResponseEntity<ProblemDetail> handleInvalidFile(InvalidFileException e) {
+        log.warn("Fichier invalide : {}", e.getMessage());
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        pd.setTitle("Fichier invalide");
+        pd.setDetail(e.getMessage());
+        return ResponseEntity.badRequest().body(pd);
+    }
+
+    /**
+     * Dépassement détecté par le conteneur pendant la lecture du flux, avant que
+     * le contrôleur ne soit atteint. Sans ce handler, Spring répondrait 500.
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ProblemDetail> handleTooLarge(MaxUploadSizeExceededException e) {
+        log.warn("Fichier trop volumineux : {}", e.getMessage());
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.CONTENT_TOO_LARGE);
+        pd.setTitle("Fichier trop volumineux");
+        pd.setDetail("Le fichier envoyé dépasse la taille maximale autorisée.");
+        return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE).body(pd);
+    }
+
+    /**
+     * Violations de @Valid sur un corps de requête. Sans ce handler, Spring
+     * répondrait dans son propre format, incohérent avec les ProblemDetail
+     * renvoyés par le reste de l'API.
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ProblemDetail> handleInvalidBody(MethodArgumentNotValidException ex) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        pd.setTitle("Requête invalide");
+        pd.setDetail(ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .map(fe -> fe.getField() + " " + fe.getDefaultMessage())
+                .collect(Collectors.joining(", ")));
+        return ResponseEntity.badRequest().body(pd);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
