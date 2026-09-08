@@ -13,6 +13,7 @@ import com.minds.rgpd.persistence.repositories.TraitementRepository;
 import com.minds.rgpd.persistence.repositories.ViolationRepository;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
@@ -84,7 +85,7 @@ class FichierExportTemplateTest {
         List<TraitementDTO> traitements = troisTraitements();
 
         TraitementRepository traitementRepository = mock(TraitementRepository.class);
-        when(traitementRepository.findAll(any())).thenReturn(List.of());
+        when(traitementRepository.findAll(any(Specification.class))).thenReturn(List.of());
         TraitementMapper traitementMapper = mock(TraitementMapper.class);
         when(traitementMapper.mapToDTOList(any())).thenReturn(traitements);
 
@@ -103,7 +104,7 @@ class FichierExportTemplateTest {
             assertThat(xssf.getStylesSource().getNumCellStyles()).isGreaterThan(1);
             assertThat(xssf.getTheme()).isNotNull();
 
-            Sheet registre = wb.getSheet("Registre de traitement");
+            XSSFSheet registre = (XSSFSheet) wb.getSheet("Registre de traitement");
 
             assertThat(registre.getRow(5).getCell(1).getStringCellValue()).isEqualTo("ID");
             assertThat(registre.getRow(5).getCell(4).getStringCellValue())
@@ -130,7 +131,7 @@ class FichierExportTemplateTest {
                         .donneesConcernees("Données diverses").build());
 
         TraitementRepository traitementRepository = mock(TraitementRepository.class);
-        when(traitementRepository.findAll(any())).thenReturn(List.of());
+        when(traitementRepository.findAll(any(Specification.class))).thenReturn(List.of());
         TraitementMapper traitementMapper = mock(TraitementMapper.class);
         when(traitementMapper.mapToDTOList(any())).thenReturn(traitements);
 
