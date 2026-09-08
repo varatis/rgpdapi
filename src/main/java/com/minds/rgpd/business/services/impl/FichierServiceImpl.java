@@ -20,10 +20,13 @@ import com.minds.rgpd.persistence.specifications.TraitementSpecifications;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +36,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -172,6 +178,14 @@ public class FichierServiceImpl implements FichierService {
     private final ViolationRepository violationRepository;
     private final TraitementMapper traitementMapper;
     private final HistorisationService historisationService;
+
+    /**
+     * Répertoire où l'import archive le fichier reçu (voir {@code FichierController}).
+     * Il sert de source au modèle d'export : l'export reprend le fichier importé pour
+     * conserver intégralement son design et sa structure. Vide si non configuré.
+     */
+    @Value("${application.fichier.upload.dir:}")
+    private String uploadDir;
 
     // @Transactional explicite pour les méthodes d'écriture
     @Override
@@ -471,17 +485,60 @@ public class FichierServiceImpl implements FichierService {
 
     @Override
     public byte[] generationExcelRegistreTraitements(ClientDTO client, String fileName) throws IOException {
+        // L'export reprend le modèle importé (archivé lors de l'import dans uploadDir) afin de
+        // conserver intégralement son design et sa structure : les autres onglets, les styles,
+        // la zone de titre, l'en-tête, le filtre automatique et les largeurs de colonnes.
+        // En leur absence, on retombe sur une génération standard à partir de zéro.
+        InputStream template = resolveTemplateStream(fileName);
+        if (template != null) {
+            try {
+                return generationExcelRegistreTraitements(client, fileName, template);
+            } catch (Exception e) {
+                log.warn("Export impossible à partir du modèle {} : {}. Repli sur la génération standard.",
+                        fileName, e.getMessage());
+            } finally {
+                fermerSilencieusement(template);
+            }
+        }
+        return generationExcelRegistreTraitements(client, fileName, null);
+    }
+
+    /**
+     * Variante testable : le modèle est fourni explicitement (flux) ou {@code null} pour
+     * générer entièrement à partir de zéro. Dans tous les cas le classeur produit contient
+     * l'onglet « Registre de traitement » réimportable (mêmes libellés et colonnes que l'import).
+     */
+    byte[] generationExcelRegistreTraitements(ClientDTO client, String fileName, InputStream template)
+            throws IOException {
 
         // Récupération des traitements
         Specification<Traitement> spec = TraitementSpecifications.search(client.nom(), null,  null, null);
         List<TraitementDTO> traitementList = traitementMapper.mapToDTOList(traitementRepository.findAll(spec));
 
-        try (Workbook workbook = new XSSFWorkbook();
+        boolean depuisTemplate = template != null;
+        try (Workbook workbook = depuisTemplate ? new XSSFWorkbook(template) : new XSSFWorkbook();
              ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
 
-            Sheet sheet = workbook.createSheet(SHEET_REGISTRE);
+            ecrireRegistre(workbook, client, traitementList, depuisTemplate);
 
-            // Ligne de titre, comme dans le modèle, puis l'en-tête en ligne 6.
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        }
+    }
+
+    private void ecrireRegistre(Workbook workbook, ClientDTO client,
+                                List<TraitementDTO> traitementList, boolean depuisTemplate) {
+        Sheet sheet = workbook.getSheet(SHEET_REGISTRE);
+        if (sheet == null) {
+            sheet = workbook.createSheet(SHEET_REGISTRE);
+        }
+
+        if (depuisTemplate) {
+            // On conserve la zone de titre (lignes 1-5) et l'en-tête (ligne 6) du modèle :
+            // seules les lignes de données sont remplacées, dans leurs colonnes d'origine.
+            purgerLignesDonnees(sheet, traitementList.size());
+        } else {
+            // Ancien comportement : on reconstruit le titre et l'en-tête.
             sheet.createRow(0).createCell(FIRST_COLUMN)
                     .setCellValue("Grille de collecte / Registre des activités de traitement - " + client.nom());
 
@@ -489,18 +546,98 @@ public class FichierServiceImpl implements FichierService {
             for (int i = 0; i < EXPORT_HEADERS.length; i++) {
                 headerRow.createCell(FIRST_COLUMN + i).setCellValue(EXPORT_HEADERS[i]);
             }
+        }
 
-            int rowIndex = HEADER_ROW_INDEX + 1;
-            for (TraitementDTO traitement : traitementList) {
-                ecrireLigneTraitement(sheet.createRow(rowIndex++), traitement);
+        int rowIndex = HEADER_ROW_INDEX + 1;
+        for (TraitementDTO traitement : traitementList) {
+            // En mode template, on réutilise les lignes existantes pour préserver leur mise en
+            // forme (hauteur, style de cellule) ; sinon on crée une nouvelle ligne.
+            Row row = sheet.getRow(rowIndex);
+            if (row == null) {
+                row = sheet.createRow(rowIndex);
             }
+            ecrireLigneTraitement(row, traitement);
+            rowIndex++;
+        }
 
+        if (depuisTemplate) {
+            // Le filtre automatique et la plage de la base de filtre suivent le nombre de lignes.
+            mettreAJourFiltreRegistre(sheet, rowIndex - 1);
+        } else {
             for (int i = 0; i < EXPORT_HEADERS.length; i++) {
                 sheet.autoSizeColumn(FIRST_COLUMN + i);
             }
+        }
+    }
 
-            workbook.write(outputStream);
-            return outputStream.toByteArray();
+    /**
+     * Efface le contenu de toutes les lignes de données présentes sous l'en-tête (colonnes du
+     * registre), sans toucher aux lignes vides formatées du modèle (dépourvues de cellules).
+     * Les cellules conservent leur style : seul leur contenu est réinitialisé, ce qui préserve
+     * le design d'origine lors de la réécriture. Les lignes non réécrites (registre moins fourni
+     * qu'avant) restent présentes mais vidées, préservant la structure du modèle.
+     *
+     * @param nombreLignes nombre de lignes qui seront réécrites (informatif ; toutes les lignes
+     *                     existantes sous l'en-tête sont de toute façon vidées pour éviter toute
+     *                     persistance de données périmées).
+     */
+    private void purgerLignesDonnees(Sheet sheet, int nombreLignes) {
+        int premiereDonnee = HEADER_ROW_INDEX + 1;
+        int derniereExistante = sheet.getLastRowNum();
+        for (int idx = premiereDonnee; idx <= derniereExistante; idx++) {
+            Row row = sheet.getRow(idx);
+            if (row == null) {
+                continue;
+            }
+            for (int c = FIRST_COLUMN; c <= FIRST_COLUMN + EXPORT_HEADERS.length - 1; c++) {
+                Cell cell = row.getCell(c, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+                if (cell != null) {
+                    cell.setBlank();
+                }
+            }
+        }
+    }
+
+    /**
+     * Replace la plage du filtre automatique (et la defined name _xlnm._FilterDatabase
+     * associée) sur l'en-tête et les nouvelles lignes de données.
+     */
+    private void mettreAJourFiltreRegistre(Sheet sheet, int derniereLigneDonnees) {
+        try {
+            if (derniereLigneDonnees < HEADER_ROW_INDEX + 1) {
+                return;
+            }
+            // derniereLigneDonnees est un index 0-based ; la dernière ligne (1-based) vaut +1.
+            int derniereLigne = derniereLigneDonnees + 1;
+            CellRangeAddress filterRange = CellRangeAddress.valueOf("A6:HK" + derniereLigne);
+            sheet.setAutoFilter(filterRange);
+        } catch (Exception e) {
+            log.warn("Mise à jour du filtre automatique impossible : {}", e.getMessage());
+        }
+    }
+
+    /** Renvoie le flux du modèle d'export archivé lors de l'import, ou null s'il est indisponible. */
+    private InputStream resolveTemplateStream(String fileName) {
+        if (uploadDir == null || uploadDir.isBlank()) {
+            return null;
+        }
+        Path path = Paths.get(uploadDir).resolve(fileName + ".xlsx");
+        if (!Files.isRegularFile(path)) {
+            return null;
+        }
+        try {
+            return Files.newInputStream(path);
+        } catch (IOException e) {
+            log.warn("Lecture du modèle d'export impossible ({}): {}", path, e.getMessage());
+            return null;
+        }
+    }
+
+    private void fermerSilencieusement(InputStream stream) {
+        try {
+            stream.close();
+        } catch (IOException ignored) {
+            // fermeture best-effort
         }
     }
 
@@ -588,21 +725,27 @@ public class FichierServiceImpl implements FichierService {
     }
 
     private void ecrire(Row row, int colonne, Object valeur) {
-        row.createCell(colonne).setCellValue(Objects.isNull(valeur) ? "" : String.valueOf(valeur));
+        // En mode template, la cellule existe déjà avec son style d'origine : on la réutilise
+        // pour conserver la mise en forme. À défaut (génération standard), une cellule vide est créée.
+        Cell cell = row.getCell(colonne, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+        cell.setCellValue(Objects.isNull(valeur) ? "" : String.valueOf(valeur));
     }
 
     /** Les dates sont réécrites au format jj/MM/aaaa attendu par l'import. */
     private void ecrireDate(Row row, int colonne, LocalDate date) {
-        row.createCell(colonne).setCellValue(Objects.isNull(date) ? "" : date.format(EXPORT_DATE_FORMAT));
+        Cell cell = row.getCell(colonne, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+        cell.setCellValue(Objects.isNull(date) ? "" : date.format(EXPORT_DATE_FORMAT));
     }
 
     private void ecrireOuiNon(Row row, int colonne, Boolean valeur) {
         String texte = Objects.isNull(valeur) ? "" : (Boolean.TRUE.equals(valeur) ? "Oui" : "Non");
-        row.createCell(colonne).setCellValue(texte);
+        Cell cell = row.getCell(colonne, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+        cell.setCellValue(texte);
     }
 
     private void ecrireCroix(Row row, int colonne, Boolean valeur) {
-        row.createCell(colonne).setCellValue(Boolean.TRUE.equals(valeur) ? "X" : "");
+        Cell cell = row.getCell(colonne, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+        cell.setCellValue(Boolean.TRUE.equals(valeur) ? "X" : "");
     }
 
     private String valeurDe(DefinitionDTO definition) {
