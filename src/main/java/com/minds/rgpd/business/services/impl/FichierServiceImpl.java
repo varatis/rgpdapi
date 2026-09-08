@@ -179,11 +179,6 @@ public class FichierServiceImpl implements FichierService {
     private final TraitementMapper traitementMapper;
     private final HistorisationService historisationService;
 
-    /**
-     * Répertoire où l'import archive le fichier reçu (voir {@code FichierController}).
-     * Il sert de source au modèle d'export : l'export reprend le fichier importé pour
-     * conserver intégralement son design et sa structure. Vide si non configuré.
-     */
     @Value("${application.fichier.upload.dir:}")
     private String uploadDir;
 
@@ -485,10 +480,6 @@ public class FichierServiceImpl implements FichierService {
 
     @Override
     public byte[] generationExcelRegistreTraitements(ClientDTO client, String fileName) throws IOException {
-        // L'export reprend le modèle importé (archivé lors de l'import dans uploadDir) afin de
-        // conserver intégralement son design et sa structure : les autres onglets, les styles,
-        // la zone de titre, l'en-tête, le filtre automatique et les largeurs de colonnes.
-        // En leur absence, on retombe sur une génération standard à partir de zéro.
         InputStream template = resolveTemplateStream(fileName);
         if (template != null) {
             try {
@@ -503,11 +494,6 @@ public class FichierServiceImpl implements FichierService {
         return generationExcelRegistreTraitements(client, fileName, null);
     }
 
-    /**
-     * Variante testable : le modèle est fourni explicitement (flux) ou {@code null} pour
-     * générer entièrement à partir de zéro. Dans tous les cas le classeur produit contient
-     * l'onglet « Registre de traitement » réimportable (mêmes libellés et colonnes que l'import).
-     */
     byte[] generationExcelRegistreTraitements(ClientDTO client, String fileName, InputStream template)
             throws IOException {
 
@@ -534,11 +520,8 @@ public class FichierServiceImpl implements FichierService {
         }
 
         if (depuisTemplate) {
-            // On conserve la zone de titre (lignes 1-5) et l'en-tête (ligne 6) du modèle :
-            // seules les lignes de données sont remplacées, dans leurs colonnes d'origine.
             purgerLignesDonnees(sheet, traitementList.size());
         } else {
-            // Ancien comportement : on reconstruit le titre et l'en-tête.
             sheet.createRow(0).createCell(FIRST_COLUMN)
                     .setCellValue("Grille de collecte / Registre des activités de traitement - " + client.nom());
 
@@ -550,8 +533,6 @@ public class FichierServiceImpl implements FichierService {
 
         int rowIndex = HEADER_ROW_INDEX + 1;
         for (TraitementDTO traitement : traitementList) {
-            // En mode template, on réutilise les lignes existantes pour préserver leur mise en
-            // forme (hauteur, style de cellule) ; sinon on crée une nouvelle ligne.
             Row row = sheet.getRow(rowIndex);
             if (row == null) {
                 row = sheet.createRow(rowIndex);
@@ -561,7 +542,6 @@ public class FichierServiceImpl implements FichierService {
         }
 
         if (depuisTemplate) {
-            // Le filtre automatique et la plage de la base de filtre suivent le nombre de lignes.
             mettreAJourFiltreRegistre(sheet, rowIndex - 1);
         } else {
             for (int i = 0; i < EXPORT_HEADERS.length; i++) {
@@ -570,17 +550,6 @@ public class FichierServiceImpl implements FichierService {
         }
     }
 
-    /**
-     * Efface le contenu de toutes les lignes de données présentes sous l'en-tête (colonnes du
-     * registre), sans toucher aux lignes vides formatées du modèle (dépourvues de cellules).
-     * Les cellules conservent leur style : seul leur contenu est réinitialisé, ce qui préserve
-     * le design d'origine lors de la réécriture. Les lignes non réécrites (registre moins fourni
-     * qu'avant) restent présentes mais vidées, préservant la structure du modèle.
-     *
-     * @param nombreLignes nombre de lignes qui seront réécrites (informatif ; toutes les lignes
-     *                     existantes sous l'en-tête sont de toute façon vidées pour éviter toute
-     *                     persistance de données périmées).
-     */
     private void purgerLignesDonnees(Sheet sheet, int nombreLignes) {
         int premiereDonnee = HEADER_ROW_INDEX + 1;
         int derniereExistante = sheet.getLastRowNum();
@@ -598,16 +567,11 @@ public class FichierServiceImpl implements FichierService {
         }
     }
 
-    /**
-     * Replace la plage du filtre automatique (et la defined name _xlnm._FilterDatabase
-     * associée) sur l'en-tête et les nouvelles lignes de données.
-     */
     private void mettreAJourFiltreRegistre(Sheet sheet, int derniereLigneDonnees) {
         try {
             if (derniereLigneDonnees < HEADER_ROW_INDEX + 1) {
                 return;
             }
-            // derniereLigneDonnees est un index 0-based ; la dernière ligne (1-based) vaut +1.
             int derniereLigne = derniereLigneDonnees + 1;
             CellRangeAddress filterRange = CellRangeAddress.valueOf("A6:HK" + derniereLigne);
             sheet.setAutoFilter(filterRange);
@@ -616,7 +580,6 @@ public class FichierServiceImpl implements FichierService {
         }
     }
 
-    /** Renvoie le flux du modèle d'export archivé lors de l'import, ou null s'il est indisponible. */
     private InputStream resolveTemplateStream(String fileName) {
         if (uploadDir == null || uploadDir.isBlank()) {
             return null;
@@ -637,7 +600,6 @@ public class FichierServiceImpl implements FichierService {
         try {
             stream.close();
         } catch (IOException ignored) {
-            // fermeture best-effort
         }
     }
 
@@ -725,8 +687,6 @@ public class FichierServiceImpl implements FichierService {
     }
 
     private void ecrire(Row row, int colonne, Object valeur) {
-        // En mode template, la cellule existe déjà avec son style d'origine : on la réutilise
-        // pour conserver la mise en forme. À défaut (génération standard), une cellule vide est créée.
         Cell cell = row.getCell(colonne, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
         cell.setCellValue(Objects.isNull(valeur) ? "" : String.valueOf(valeur));
     }
