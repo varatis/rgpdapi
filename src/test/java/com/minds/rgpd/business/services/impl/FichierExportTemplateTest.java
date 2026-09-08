@@ -117,8 +117,8 @@ class FichierExportTemplateTest {
             assertThat(registre.getRow(6).getCell(4).getStringCellValue()).isEqualTo("Traitement alpha");
             assertThat(registre.getRow(8).getCell(4).getStringCellValue()).isEqualTo("Traitement gamma");
 
-            assertThat(registre.getAutoFilter()).isNotNull();
-            assertThat(registre.getAutoFilter().formatAsString()).isEqualTo("A6:HK9");
+            String filterRef = registre.getCTWorksheet().getAutoFilter().getRef();
+            assertThat(filterRef).isEqualTo("A6:HK9");
         }
     }
 
