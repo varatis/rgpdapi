@@ -1,21 +1,26 @@
 package com.minds.rgpd.infrastructure.keycloak;
 
-import com.minds.rgpd.business.identity.IdentityGateway;
+import com.minds.rgpd.business.exceptions.IdentityProviderException;
+import com.minds.rgpd.business.identity.GroupeIdentite;
 import com.minds.rgpd.business.identity.IdentiteCommande;
 import com.minds.rgpd.business.identity.IdentiteUtilisateur;
-import com.minds.rgpd.business.identity.GroupeIdentite;
-import java.time.Duration;
+import com.minds.rgpd.business.identity.IdentityGateway;
+import org.springframework.stereotype.Component;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.Stream;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.client.HttpServerErrorException;
 
+/**
+ * Implémentation Keycloak de la passerelle d'identité : les utilisateurs,
+ * leurs rôles et leurs groupes (un groupe par client) vivent dans Keycloak.
+ */
+@Component
 public class KeycloakIdentityGateway implements IdentityGateway {
 
     private final KeycloakAdminClient adminClient;
@@ -29,73 +34,26 @@ public class KeycloakIdentityGateway implements IdentityGateway {
 
     @Override
     public List<IdentiteUtilisateur> utilisateurs() {
-        List<KeycloakUserRepresentation> keycloakUsers = adminClient.getGroupMembers(null);
-        List<IdentiteUtilisateur> result = new ArrayList<>();
-        for (KeycloakUserRepresentation user : keycloakUsers) {
-            List<String> roles = adminClient.getClientRoles(properties.getResourceClientId()).stream()
-                    .filter(r -> user.getRealmRoles() != null && user.getRealmRoles().contains(r.getName()))
-                    .map(KeycloakRoleRepresentation::getName)
-                    .collect(Collectors.toList());
-            String groupe = null;
-            if (user.getGroups() != null) {
-                for (KeycloakGroupRepresentation g : user.getGroups()) {
-                    if (g.getPath() != null && g.getPath().startsWith(properties.getGroupPrefix())) {
-                        groupe = g.getName();
-                        break;
-                    }
-                }
-            }
-            result.add(new IdentiteUtilisateur(
-                    user.getId(),
-                    user.getUsername(),
-                    user.getFirstName(),
-                    user.getLastName(),
-                    user.getEmail(),
-                    user.isEnabled(),
-                    roles,
-                    groupe
-            ));
+        String clientUuid = clientUuid();
+        Set<String> nomsRolesClient = nomsRolesClient(clientUuid);
+        List<KeycloakUserRepresentation> users = adminClient.getUsers();
+        List<IdentiteUtilisateur> result = new ArrayList<>(users.size());
+        for (KeycloakUserRepresentation user : users) {
+            result.add(toIdentite(user, nomsRolesClient));
         }
         return result;
     }
 
     @Override
     public Optional<IdentiteUtilisateur> utilisateur(UUID id) {
-        Optional<KeycloakUserRepresentation> user = adminClient.getUserById(id);
-        if (user.isEmpty()) {
-            return Optional.empty();
-        }
-        List<String> roles = adminClient.getClientRoles(properties.getResourceClientId()).stream()
-                .map(KeycloakRoleRepresentation::getName)
-                .collect(Collectors.toList());
-        String groupe = null;
-        if (user.get().getGroups() != null) {
-            for (KeycloakGroupRepresentation g : user.get().getGroups()) {
-                if (g.getPath() != null && g.getPath().startsWith(properties.getGroupPrefix())) {
-                    groupe = g.getName();
-                    break;
-                }
-            }
-        }
-        return Optional.of(new IdentiteUtilisateur(
-                user.get().getId(),
-                user.get().getUsername(),
-                user.get().getFirstName(),
-                user.get().getLastName(),
-                user.get().getEmail(),
-                user.get().isEnabled(),
-                roles,
-                groupe
-        ));
+        return adminClient.getUserById(id)
+                .map(user -> toIdentite(user, nomsRolesClient(clientUuid())));
     }
 
     @Override
     public Optional<IdentiteUtilisateur> parEmail(String email) {
-        Optional<KeycloakUserRepresentation> user = adminClient.getUserByEmail(email);
-        if (user.isEmpty()) {
-            return Optional.empty();
-        }
-        return utilisateur(user.get().getId()).map(u -> u);
+        return adminClient.getUserByEmail(email)
+                .flatMap(user -> utilisateur(user.getId()));
     }
 
     @Override
@@ -105,20 +63,14 @@ public class KeycloakIdentityGateway implements IdentityGateway {
         representation.put("email", commande.email());
         representation.put("firstName", commande.prenom());
         representation.put("lastName", commande.nom());
-        representation.put("enabled", true);
+        representation.put("enabled", commande.actif());
         representation.put("emailVerified", false);
-
-        if (commande.roles() != null && !commande.roles().isEmpty()) {
-            representation.put("roles", commande.roles());
-        }
 
         UUID userId = adminClient.createUser(representation);
 
         if (commande.groupe() != null && !commande.groupe().isEmpty()) {
-            UUID groupId = findGroupByName(commande.groupe()).orElse(null);
-            if (groupId != null) {
-                adminClient.addUserToGroup(userId, groupId);
-            }
+            groupe(commande.groupe())
+                    .ifPresent(groupe -> adminClient.addUserToGroup(userId, groupe.id()));
         }
 
         return userId;
@@ -126,30 +78,27 @@ public class KeycloakIdentityGateway implements IdentityGateway {
 
     @Override
     public void modifierUtilisateur(UUID id, IdentiteCommande commande) {
-        Optional<IdentiteUtilisateur> existing = utilisateur(id);
-        if (existing.isEmpty()) {
-            throw new IllegalArgumentException("Utilisateur introuvable: " + id);
+        Optional<IdentiteUtilisateur> existant = utilisateur(id);
+        if (existant.isEmpty()) {
+            throw new IllegalArgumentException("Utilisateur introuvable : " + id);
         }
 
         Map<String, Object> representation = new LinkedHashMap<>();
-        representation.put("id", id.toString());
         representation.put("firstName", commande.prenom());
         representation.put("lastName", commande.nom());
         representation.put("email", commande.email());
         representation.put("enabled", commande.actif());
-
         adminClient.updateUser(id, representation);
 
         if (commande.groupe() != null && !commande.groupe().isEmpty()) {
-            UUID groupId = findGroupByName(commande.groupe()).orElse(null);
-            if (groupId != null) {
-                adminClient.addUserToGroup(id, groupId);
-            }
+            groupe(commande.groupe())
+                    .ifPresent(groupe -> adminClient.addUserToGroup(id, groupe.id()));
         }
 
         if (commande.roles() != null && !commande.roles().isEmpty()) {
-            adminClient.removeClientRoles(id, properties.getResourceClientId(), existing.get().roles());
-            adminClient.assignClientRoles(id, properties.getResourceClientId(), commande.roles());
+            String clientUuid = clientUuid();
+            adminClient.removeClientRoles(id, clientUuid, existant.get().roles());
+            adminClient.assignClientRoles(id, clientUuid, commande.roles());
         }
     }
 
@@ -160,69 +109,106 @@ public class KeycloakIdentityGateway implements IdentityGateway {
 
     @Override
     public List<String> rolesDisponibles() {
-        return adminClient.getClientRoles(properties.getResourceClientId()).stream()
-                .map(KeycloakRoleRepresentation::getName)
-                .collect(Collectors.toList());
+        return List.copyOf(nomsRolesClient(clientUuid()));
     }
 
     @Override
     public void affecterRole(UUID id, String role) {
-        adminClient.assignClientRoles(id, properties.getResourceClientId(), List.of(role));
+        adminClient.assignClientRoles(id, clientUuid(), List.of(role));
     }
 
     @Override
     public Optional<GroupeIdentite> groupe(String nom) {
-        Optional<KeycloakGroupRepresentation> group = adminClient.getGroupByName(nom);
-        if (group.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.of(new GroupeIdentite(
-                group.get().getId(),
-                group.get().getName(),
-                group.get().getPath()
-        ));
+        return adminClient.getGroupByName(nom)
+                .map(groupe -> new GroupeIdentite(groupe.getId(), groupe.getName(), groupe.getPath()));
     }
 
     @Override
     public GroupeIdentite creerGroupe(String nom) {
-        UUID parentId = null;
-        Optional<GroupeIdentite> parent = adminClient.groupe(properties.getGroupPrefix());
-        if (parent.isPresent()) {
-            parentId = parent.get().id();
-        }
-        UUID groupId = adminClient.createGroup(nom, parentId != null ? properties.getGroupPrefix() : null);
-        Optional<GroupeIdentite> created = adminClient.groupe(nom);
-        return created.map(g -> new GroupeIdentite(g.id(), g.name(), g.path()));
+        UUID parentId = groupe(nomGroupeParent())
+                .map(GroupeIdentite::id)
+                .orElse(null);
+        adminClient.createGroup(nom, parentId);
+        return groupe(nom)
+                .orElseThrow(() -> new IdentityProviderException("création du groupe", "nom", nom));
     }
 
     @Override
     public void supprimerGroupe(String nom) {
-        Optional<GroupeIdentite> group = adminClient.groupe(nom);
-        group.ifPresent(g -> adminClient.deleteGroup(g.id()));
+        groupe(nom).ifPresent(groupe -> adminClient.deleteGroup(groupe.id()));
     }
 
     @Override
     public List<UUID> membresGroupe(String nom) {
-        Optional<GroupeIdentite> group = adminClient.groupe(nom);
-        if (group.isEmpty()) {
-            return List.of();
-        }
-        UUID groupId = group.get().id();
-        List<KeycloakUserRepresentation> members = adminClient.getGroupMembers(groupId);
-        return members.stream()
-                .map(KeycloakUserRepresentation::getId)
-                .collect(Collectors.toList());
+        return groupe(nom)
+                .map(groupe -> adminClient.getGroupMembers(groupe.id()).stream()
+                        .map(KeycloakUserRepresentation::getId)
+                        .collect(Collectors.toList()))
+                .orElse(List.of());
     }
 
     @Override
     public void supprimerUtilisateursDeGroupe(String nom) {
-        List<UUID> members = membresGroupe(nom);
-        for (UUID memberId : members) {
-            adminClient.deleteUser(memberId);
+        for (UUID membreId : membresGroupe(nom)) {
+            adminClient.deleteUser(membreId);
         }
     }
 
-    private Optional<GroupeIdentite> findGroupByName(String nom) {
-        return adminClient.groupe(nom);
+    private IdentiteUtilisateur toIdentite(KeycloakUserRepresentation user, Set<String> nomsRolesClient) {
+        List<String> roles = user.getRealmRoles() == null
+                ? List.of()
+                : user.getRealmRoles().stream()
+                        .filter(nomsRolesClient::contains)
+                        .collect(Collectors.toList());
+        return new IdentiteUtilisateur(
+                user.getId(),
+                user.getUsername(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getEmail(),
+                user.isEnabled(),
+                roles,
+                groupePrincipal(user)
+        );
+    }
+
+    /**
+     * Nom du groupe parent des groupes de clients : le préfixe configuré
+     * ({@code application.keycloak.group-prefix}, ex. {@code /clients}) désigne
+     * un chemin ; le groupe racine correspondant porte le même nom sans le
+     * slash initial.
+     */
+    private String nomGroupeParent() {
+        String prefix = properties.getGroupPrefix();
+        return prefix.startsWith("/") ? prefix.substring(1) : prefix;
+    }
+
+    private String groupePrincipal(KeycloakUserRepresentation user) {
+        if (user.getGroups() == null) {
+            return null;
+        }
+        for (KeycloakGroupRepresentation groupe : user.getGroups()) {
+            if (groupe.getPath() != null && groupe.getPath().startsWith(properties.getGroupPrefix())) {
+                return groupe.getName();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * L'API de rôles client de Keycloak est adressée par l'UUID interne du
+     * client, pas par son identifiant public ({@code resourceClientId}).
+     */
+    private String clientUuid() {
+        return adminClient.getClientUuidByResourceId(properties.getResourceClientId());
+    }
+
+    private Set<String> nomsRolesClient(String clientUuid) {
+        if (clientUuid == null) {
+            return Set.of();
+        }
+        return adminClient.getClientRoles(clientUuid).stream()
+                .map(KeycloakRoleRepresentation::getName)
+                .collect(Collectors.toSet());
     }
 }

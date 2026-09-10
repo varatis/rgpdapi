@@ -4,22 +4,21 @@ import com.minds.rgpd.business.dtos.UtilisateurDTO;
 import com.minds.rgpd.business.dtos.UtilisateurFilterCriteria;
 import com.minds.rgpd.business.dtos.UtilisateurWriteDTO;
 import com.minds.rgpd.business.exceptions.IdentityProviderException;
+import com.minds.rgpd.business.identity.IdentiteCommande;
+import com.minds.rgpd.business.identity.IdentiteUtilisateur;
 import com.minds.rgpd.business.identity.IdentityGateway;
-import com.minds.rgpd.business.services.ClientService;
 import com.minds.rgpd.business.services.UtilisateurService;
 import com.minds.rgpd.persistence.entities.Client;
 import com.minds.rgpd.persistence.repositories.ClientRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -35,24 +34,14 @@ public class UtilisateurServiceImpl implements UtilisateurService {
     @Override
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public List<UtilisateurDTO> rechercher(UtilisateurFilterCriteria criteres) {
-        List<IdentiteUtilisateur> all = identityGateway.utilisateurs();
-        List<UtilisateurDTO> result = all.stream()
+        Map<String, Client> clientsParNom = clientsParNom();
+        return identityGateway.utilisateurs().stream()
                 .filter(u -> criteres.nom() == null || u.nom().toLowerCase().contains(criteres.nom().toLowerCase()))
                 .filter(u -> criteres.prenom() == null || u.prenom().toLowerCase().contains(criteres.prenom().toLowerCase()))
-                .filter(u -> criteres.clientId() == null || u.clientId().equals(criteres.clientId()))
-                .map(u -> new UtilisateurDTO(
-                        u.id(),
-                        u.identifiant(),
-                        u.prenom(),
-                        u.nom(),
-                        u.email(),
-                        u.actif(),
-                        u.roles(),
-                        u.clientId(),
-                        u.groupe()
-                ))
+                .filter(u -> criteres.clientId() == null
+                        || criteres.clientId().equals(clientIdDuGroupe(u, clientsParNom)))
+                .map(u -> toDTO(u, clientsParNom))
                 .collect(Collectors.toList());
-        return result;
     }
 
     @Override
@@ -67,7 +56,7 @@ public class UtilisateurServiceImpl implements UtilisateurService {
                 payload.email(),
                 payload.roles(),
                 payload.groupe(),
-                payload.actif()
+                actifParDefaut(payload.actif())
         );
         UUID userId = identityGateway.creerUtilisateur(commande);
         return new UtilisateurDTO(
@@ -76,7 +65,7 @@ public class UtilisateurServiceImpl implements UtilisateurService {
                 payload.prenom(),
                 payload.nom(),
                 payload.email(),
-                true,
+                actifParDefaut(payload.actif()),
                 payload.roles(),
                 payload.clientId(),
                 client.getNom()
@@ -87,7 +76,14 @@ public class UtilisateurServiceImpl implements UtilisateurService {
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public UtilisateurDTO modifier(UUID id, UtilisateurWriteDTO payload) {
         validateRoles(payload.roles());
-        identityModifierUtilisateur(id, payload);
+        identityGateway.modifierUtilisateur(id, new IdentiteCommande(
+                payload.prenom(),
+                payload.nom(),
+                payload.email(),
+                payload.roles(),
+                payload.groupe(),
+                actifParDefaut(payload.actif())
+        ));
         Client client = clientRepository.findById(payload.clientId())
                 .orElseThrow(() -> new IdentityProviderException("Client introuvable", "id", payload.clientId().toString()));
         return new UtilisateurDTO(
@@ -96,7 +92,7 @@ public class UtilisateurServiceImpl implements UtilisateurService {
                 payload.prenom(),
                 payload.nom(),
                 payload.email(),
-                true,
+                actifParDefaut(payload.actif()),
                 payload.roles(),
                 payload.clientId(),
                 client.getNom()
@@ -111,18 +107,9 @@ public class UtilisateurServiceImpl implements UtilisateurService {
 
     @Override
     public UtilisateurDTO getUtilisateurParId(UUID id) {
+        Map<String, Client> clientsParNom = clientsParNom();
         return identityGateway.utilisateur(id)
-                .map(u -> new UtilisateurDTO(
-                        u.id(),
-                        u.identifiant(),
-                        u.prenom(),
-                        u.nom(),
-                        u.email(),
-                        u.actif(),
-                        u.roles(),
-                        u.clientId(),
-                        u.groupe()
-                ))
+                .map(u -> toDTO(u, clientsParNom))
                 .orElseThrow(() -> new IdentityProviderException("Utilisateur introuvable", "id", id.toString()));
     }
 
@@ -141,14 +128,40 @@ public class UtilisateurServiceImpl implements UtilisateurService {
         }
     }
 
-    private void identityModifierUtilisateur(UUID id, UtilisateurWriteDTO payload) {
-        identityGateway.modifierUtilisateur(id, new com.minds.rgpd.business.identity.IdentiteCommande(
-                payload.prenom(),
-                payload.nom(),
-                payload.email(),
-                payload.roles(),
-                payload.groupe(),
-                payload.actif()
-        ));
+    /**
+     * Le groupe Keycloak d'un utilisateur porte le nom de son client : c'est
+     * par lui que le rattachement utilisateur ↔ client est reconstitué.
+     */
+    private UtilisateurDTO toDTO(IdentiteUtilisateur utilisateur, Map<String, Client> clientsParNom) {
+        Client client = clientDuGroupe(utilisateur, clientsParNom);
+        return new UtilisateurDTO(
+                utilisateur.id(),
+                utilisateur.identifiant(),
+                utilisateur.prenom(),
+                utilisateur.nom(),
+                utilisateur.email(),
+                utilisateur.actif(),
+                utilisateur.roles(),
+                client != null ? client.getId() : null,
+                client != null ? client.getNom() : utilisateur.groupe()
+        );
+    }
+
+    private UUID clientIdDuGroupe(IdentiteUtilisateur utilisateur, Map<String, Client> clientsParNom) {
+        Client client = clientDuGroupe(utilisateur, clientsParNom);
+        return client != null ? client.getId() : null;
+    }
+
+    private Client clientDuGroupe(IdentiteUtilisateur utilisateur, Map<String, Client> clientsParNom) {
+        return utilisateur.groupe() != null ? clientsParNom.get(utilisateur.groupe()) : null;
+    }
+
+    private Map<String, Client> clientsParNom() {
+        return clientRepository.findAll().stream()
+                .collect(Collectors.toMap(Client::getNom, client -> client, (premier, second) -> premier));
+    }
+
+    private boolean actifParDefaut(Boolean actif) {
+        return actif == null || actif;
     }
 }

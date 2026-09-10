@@ -4,16 +4,29 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.LinkedMultiValueMap;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.LinkedHashMap;
+import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+/**
+ * Client REST minimal vers l'API d'administration de Keycloak
+ * (https://www.keycloak.org/docs-api/latest/rest-api/).
+ *
+ * <p>Le jeton d'accès est obtenu via le flux {@code client_credentials} puis
+ * transmis dans l'en-tête {@code Authorization} ; il est renouvelé à l'approche
+ * de son expiration, ou après une réponse 401.</p>
+ */
 public class KeycloakAdminClient {
 
     private final KeycloakProperties properties;
@@ -45,24 +58,28 @@ public class KeycloakAdminClient {
         return properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/clients";
     }
 
-    private String clientRoleMappingsUrl(String clientUuid) {
-        return properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/clients/" + clientUuid + "/role-mappings";
+    private String clientRolesUrl(String clientUuid) {
+        return properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/clients/" + clientUuid + "/roles";
     }
 
-    private String roleUsersUrl(String clientUuid, String roleName) {
-        return properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/clients/" + clientUuid + "/roles/" + roleName + "/users";
+    private String groupUrl(UUID groupId) {
+        return properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/groups/" + groupId;
     }
 
     private String groupByNameUrl(String name) {
         return groupsUrl() + "?search=" + encode(name) + "&exact=true";
     }
 
-    private String groupMembersUrl(String groupId) {
+    private String groupMembersUrl(UUID groupId) {
         return properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/groups/" + groupId + "/members";
     }
 
     private String userUrl(UUID userId) {
         return properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/users/" + userId;
+    }
+
+    private String userGroupUrl(UUID userId, UUID groupId) {
+        return properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/users/" + userId + "/groups/" + groupId;
     }
 
     private String userRoleMappingsUrl(UUID userId, String clientUuid) {
@@ -93,36 +110,42 @@ public class KeycloakAdminClient {
         body.add("client_id", properties.getAdminClientId());
         body.add("client_secret", properties.getAdminClientSecret());
 
-        RequestEntity<LinkedMultiValueMap<String, String>> request = RequestEntity.post()
-                .url(tokenUrl())
-                .body(body)
-                .build();
+        RequestEntity<LinkedMultiValueMap<String, String>> request = RequestEntity
+                .post(URI.create(tokenUrl()))
+                .body(body);
 
         ResponseEntity<KeycloakTokenResponse> response = restTemplate.exchange(request, KeycloakTokenResponse.class);
-        this.accessToken = response.getBody().getAccessToken();
-        this.tokenExpiration = Instant.now().plusSeconds(response.getBody().getExpiresIn());
+        KeycloakTokenResponse token = response.getBody();
+        if (token == null || token.getAccessToken() == null) {
+            throw new RestClientException("Réponse invalide du point de jeton Keycloak");
+        }
+        this.accessToken = token.getAccessToken();
+        this.tokenExpiration = Instant.now().plusSeconds(token.getExpiresIn());
     }
 
     private RequestEntity<?> buildRequestEntity(HttpMethod method, String url, Object body) {
-        if (body == null) {
-            return RequestEntity.method(method, URI.create(url)).build();
-        }
-        return RequestEntity.method(method, URI.create(url)).body(body).build();
+        RequestEntity.BodyBuilder builder = RequestEntity.method(method, URI.create(url))
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken);
+        return body != null ? builder.body(body) : builder.build();
     }
 
-    private <T> Optional<T> performRequest(HttpMethod method, String url, Object body, Class<T> responseType) {
+    private <T> ResponseEntity<T> execute(HttpMethod method, String url, Object body, Class<T> responseType) {
         ensureToken();
-        RequestEntity<?> request = buildRequestEntity(method, url, body);
         try {
-            ResponseEntity<T> response = restTemplate.exchange(request, responseType);
-            return Optional.of(response.getBody());
+            return restTemplate.exchange(buildRequestEntity(method, url, body), responseType);
         } catch (RestClientException e) {
             if (e.getMessage() != null && e.getMessage().contains("401")) {
                 fetchToken();
-                request = buildRequestEntity(method, url, body);
-                ResponseEntity<T> response = restTemplate.exchange(request, responseType);
-                return Optional.of(response.getBody());
+                return restTemplate.exchange(buildRequestEntity(method, url, body), responseType);
             }
+            throw e;
+        }
+    }
+
+    private <T> Optional<T> performRequest(HttpMethod method, String url, Object body, Class<T> responseType) {
+        try {
+            return Optional.ofNullable(execute(method, url, body, responseType).getBody());
+        } catch (RestClientException e) {
             return Optional.empty();
         }
     }
@@ -131,133 +154,122 @@ public class KeycloakAdminClient {
         return performRequest(HttpMethod.GET, url, null, responseType);
     }
 
-    public <T> Optional<List<T>> getList(String url, Class<?> componentType) {
-        return get(url, (Class) List.class).map(l -> (List<T>) l);
+    @SuppressWarnings("unchecked")
+    private <T> Optional<List<T>> getList(String url) {
+        return get(url, (Class) List.class).map(list -> (List<T>) list);
+    }
+
+    public List<KeycloakUserRepresentation> getUsers() {
+        return getList(usersUrl() + "?max=" + properties.getPageSize()).orElse(List.of());
     }
 
     public Optional<KeycloakUserRepresentation> getUserById(UUID userId) {
-        String url = userUrl(userId);
-        return get(url, KeycloakUserRepresentation.class);
+        return get(userUrl(userId), KeycloakUserRepresentation.class);
     }
 
     public Optional<KeycloakUserRepresentation> getUserByEmail(String email) {
         String url = usersUrl() + "?email=" + encode(email) + "&exact=true&max=1";
-        return get(url, KeycloakUserRepresentation.class);
+        return getList(url).flatMap(users ->
+                users.isEmpty() ? Optional.empty() : Optional.of(users.getFirst()));
     }
 
     public UUID createUser(Map<String, Object> representation) {
-        RequestEntity<Map<String, Object>> request = RequestEntity.post()
-                .url(usersUrl())
-                .body(representation)
-                .build();
-        ResponseEntity<KeycloakUserRepresentation> response = restTemplate.exchange(request, KeycloakUserRepresentation.class);
-        return response.getBody().getId();
+        ResponseEntity<Void> response = execute(HttpMethod.POST, usersUrl(), representation, Void.class);
+        return uuidFromLocation(response, "de l'utilisateur");
     }
 
     public void deleteUser(UUID userId) {
-        String url = userUrl(userId);
-        restTemplate.delete(URI.create(url));
+        execute(HttpMethod.DELETE, userUrl(userId), null, Void.class);
     }
 
     public void updateUser(UUID userId, Map<String, Object> representation) {
-        String url = userUrl(userId);
-        RequestEntity<Map<String, Object>> request = RequestEntity.put()
-                .url(url)
-                .body(representation)
-                .build();
-        restTemplate.exchange(request, Void.class);
+        execute(HttpMethod.PUT, userUrl(userId), representation, Void.class);
     }
 
     public List<KeycloakRoleRepresentation> getClientRoles(String clientUuid) {
-        String url = clientRoleMappingsUrl(clientUuid);
-        return getList(url, KeycloakRoleRepresentation.class).orElse(List.of());
-    }
-
-    public Set<String> getClientRoleNames(String clientUuid) {
-        List<KeycloakRoleRepresentation> roles = getClientRoles(clientUuid);
-        Set<String> names = java.util.Set.of();
-        for (KeycloakRoleRepresentation role : roles) {
-            names = java.util.Set.copyOf(java.util.stream.Stream.of(role.getName()).collect(java.util.collectors.toSet()));
-        }
-        return names;
+        return getList(clientRolesUrl(clientUuid)).orElse(List.of());
     }
 
     public void assignClientRoles(UUID userId, String clientUuid, List<String> roleNames) {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("roles", roleNames);
-        String url = userRoleMappingsUrl(userId, clientUuid);
-        RequestEntity<Map<String, Object>> request = RequestEntity.post()
-                .url(url)
-                .body(body)
-                .build();
-        restTemplate.exchange(request, Void.class);
+        execute(HttpMethod.POST, userRoleMappingsUrl(userId, clientUuid),
+                roleRepresentations(clientUuid, roleNames), Void.class);
     }
 
     public void removeClientRoles(UUID userId, String clientUuid, List<String> roleNames) {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("roles", roleNames);
-        String url = userRoleMappingsUrl(userId, clientUuid);
-        RequestEntity<Map<String, Object>> request = RequestEntity.delete()
-                .url(url)
-                .body(body)
-                .build();
-        restTemplate.exchange(request, Void.class);
+        execute(HttpMethod.DELETE, userRoleMappingsUrl(userId, clientUuid),
+                roleRepresentations(clientUuid, roleNames), Void.class);
+    }
+
+    /**
+     * Keycloak attend, pour l'affectation comme pour le retrait de rôles client,
+     * un tableau JSON de représentations {@code {"id": ..., "name": ...}}.
+     */
+    private List<Map<String, Object>> roleRepresentations(String clientUuid, List<String> roleNames) {
+        List<Map<String, Object>> representations = new ArrayList<>();
+        for (KeycloakRoleRepresentation role : getClientRoles(clientUuid)) {
+            if (roleNames.contains(role.getName())) {
+                Map<String, Object> representation = new LinkedHashMap<>();
+                representation.put("id", role.getId());
+                representation.put("name", role.getName());
+                representations.add(representation);
+            }
+        }
+        return representations;
     }
 
     public Optional<KeycloakGroupRepresentation> getGroupByName(String name) {
-        String url = groupByNameUrl(name);
-        return get(url, KeycloakGroupRepresentation.class);
+        return getList(groupByNameUrl(name)).flatMap(groups ->
+                groups.isEmpty() ? Optional.empty() : Optional.of(groups.getFirst()));
     }
 
-    public UUID createGroup(String name, String parentPath) {
+    /**
+     * Crée un groupe ; en tant que sous-groupe du groupe parent identifié par
+     * {@code parentId} lorsqu'il est renseigné, sinon comme groupe racine.
+     */
+    public UUID createGroup(String name, UUID parentId) {
+        String url = parentId != null ? groupsUrl() + "/" + parentId + "/children" : groupsUrl();
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("name", name);
-        if (parentPath != null) {
-            body.put("path", parentPath);
-        }
-        RequestEntity<Map<String, Object>> request = RequestEntity.post()
-                .url(groupsUrl())
-                .body(body)
-                .build();
-        ResponseEntity<KeycloakGroupRepresentation> response = restTemplate.exchange(request, KeycloakGroupRepresentation.class);
-        return response.getBody().getId();
+        ResponseEntity<Void> response = execute(HttpMethod.POST, url, body, Void.class);
+        return uuidFromLocation(response, "du groupe");
     }
 
     public void deleteGroup(UUID groupId) {
-        String url = properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/groups/" + groupId;
-        restTemplate.delete(URI.create(url));
+        execute(HttpMethod.DELETE, groupUrl(groupId), null, Void.class);
     }
 
     public void addUserToGroup(UUID userId, UUID groupId) {
-        String url = properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/users/" + userId + "/groups/" + groupId;
-        restTemplate.put(URI.create(url), Void.class);
+        execute(HttpMethod.PUT, userGroupUrl(userId, groupId), null, Void.class);
     }
 
     public void removeUserFromGroup(UUID userId, UUID groupId) {
-        String url = properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/users/" + userId + "/groups/" + groupId;
-        restTemplate.delete(URI.create(url));
+        execute(HttpMethod.DELETE, userGroupUrl(userId, groupId), null, Void.class);
     }
 
     public List<KeycloakUserRepresentation> getGroupMembers(UUID groupId) {
-        String url = groupMembersUrl(groupId);
-        return getList(url, KeycloakUserRepresentation.class).orElse(List.of());
+        return getList(groupMembersUrl(groupId)).orElse(List.of());
     }
 
     public List<KeycloakClientRepresentation> getClientsByResourceId(String resourceId) {
-        String url = clientUrl() + "?clientId=" + resourceId;
-        return getList(url, KeycloakClientRepresentation.class).orElse(List.of());
+        return getList(clientUrl() + "?clientId=" + encode(resourceId)).orElse(List.of());
     }
 
     public String getClientUuidByResourceId(String resourceId) {
         List<KeycloakClientRepresentation> clients = getClientsByResourceId(resourceId);
-        if (clients.isEmpty()) {
-            return null;
-        }
-        return clients.get(0).getId();
+        return clients.isEmpty() ? null : clients.getFirst().getId().toString();
     }
 
-    public List<KeycloakRoleRepresentation> getRoleByName(String clientUuid, String roleName) {
-        String url = roleUsersUrl(clientUuid, roleName);
-        return getList(url, KeycloakRoleRepresentation.class).orElse(List.of());
+    /**
+     * Keycloak ne renvoie pas de corps lors d'une création (201 Created) :
+     * l'identifiant de la ressource créée est extrait de l'en-tête {@code Location}.
+     */
+    private UUID uuidFromLocation(ResponseEntity<?> response, String libelle) {
+        URI location = response.getHeaders().getLocation();
+        if (location == null) {
+            throw new RestClientException("Création " + libelle + " : en-tête Location absent de la réponse Keycloak");
+        }
+        String path = location.getPath();
+        String id = path.substring(path.lastIndexOf('/') + 1);
+        return UUID.fromString(id);
     }
 }
