@@ -16,7 +16,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.formDataContains;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
@@ -61,7 +61,7 @@ class KeycloakAdminClientTest {
     private void attendreJeton(String jeton) {
         server.expect(requestTo(TOKEN_URL))
                 .andExpect(method(HttpMethod.POST))
-                .andExpect(formDataContains(Map.of(
+                .andExpect(content().formDataContains(Map.of(
                         "grant_type", "client_credentials",
                         "client_id", "minds-rgpd-admin",
                         "client_secret", "test-secret")))
