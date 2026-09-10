@@ -266,6 +266,25 @@ class KeycloakAdminClientTest {
         server.verify();
     }
 
+    /** La hiérarchie GET /groups imbrique les sous-groupes : seule lecture universelle. */
+    @Test
+    void getGroupHierarchyImbriqueLesSousGroupes() {
+        attendreJeton("jwt-1");
+        server.expect(requestTo(BASE + "/admin/realms/minds-rgpd/groups"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        [{"id":"11111111-1111-1111-1111-111111111111","name":"clients","path":"/clients","subGroups":[
+                          {"id":"22222222-2222-2222-2222-222222222222","name":"La breteche","path":"/clients/La breteche"}]}]
+                        """, MediaType.APPLICATION_JSON));
+
+        List<KeycloakGroupRepresentation> racine = client.getGroupHierarchy();
+
+        server.verify();
+        assertThat(racine).hasSize(1);
+        assertThat(racine.getFirst().getSubGroups()).hasSize(1);
+        assertThat(racine.getFirst().getSubGroups().getFirst().getName()).isEqualTo("La breteche");
+    }
+
     /** La recherche de groupes par nom est exacte (search + exact=true). */
     @Test
     void getGroupsByNameRechercheExactementParNom() {

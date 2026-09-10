@@ -147,18 +147,22 @@ public class KeycloakIdentityGateway implements IdentityGateway {
     }
 
     /**
-     * Groupe de client : un sous-groupe DIRECT du parent configuré portant ce
-     * nom. Résoudre parmi les enfants du parent écarte les homonymes — le
-     * groupe parent lui-même ne peut jamais être désigné, même si un client
-     * porte son nom.
+     * Groupe de client : le sous-groupe DIRECT du parent configuré portant ce
+     * nom, identifié par son chemin exact ({@code préfixe/nom}). La recherche
+     * par nom peut retourner plusieurs homonymes (un sous-groupe « clients »
+     * sous {@code /clients}) — seul le chemin départage, et le groupe parent
+     * ne peut jamais être désigné. Résolution par recherche + chemin,
+     * compatible avec toutes les versions de Keycloak : l'endpoint
+     * {@code GET /groups/{id}/children} n'existe que sur les versions
+     * récentes (405 sur les anciennes).
      */
     @Override
     public Optional<GroupeIdentite> groupe(String nom) {
-        return groupeParent().flatMap(parent ->
-                adminClient.getGroupChildren(parent.id()).stream()
-                        .filter(groupe -> nom.equals(groupe.getName()))
-                        .findFirst()
-                        .map(groupe -> new GroupeIdentite(groupe.getId(), groupe.getName(), groupe.getPath())));
+        String cheminVise = properties.getGroupPrefix() + "/" + nom;
+        return adminClient.getGroupsByName(nom).stream()
+                .filter(groupe -> cheminVise.equals(groupe.getPath()))
+                .findFirst()
+                .map(groupe -> new GroupeIdentite(groupe.getId(), groupe.getName(), groupe.getPath()));
     }
 
     @Override
@@ -252,17 +256,24 @@ public class KeycloakIdentityGateway implements IdentityGateway {
     }
 
     /**
-     * Groupe de client par utilisateur : parcours des sous-groupes du groupe
-     * parent configuré (ex. {@code /clients}) puis de leurs membres. Le
-     * premier groupe trouvé l'emporte si les données étaient incohérentes.
+     * Groupe de client par utilisateur : parcours de la hiérarchie des
+     * groupes ({@code GET /groups}, sous-groupes imbriqués) puis des membres
+     * de chaque groupe de client. Le premier groupe trouvé l'emporte si les
+     * données étaient incohérentes.
      */
     private Map<UUID, String> groupeParUtilisateur() {
         Map<UUID, String> groupes = new HashMap<>();
-        groupeParent().ifPresent(parent ->
-                adminClient.getGroupChildren(parent.id()).forEach(groupe ->
+        adminClient.getGroupHierarchy().stream()
+                .filter(groupe -> properties.getGroupPrefix().equals(groupe.getPath()))
+                .findFirst()
+                .ifPresent(parent -> sousGroupes(parent).forEach(groupe ->
                         adminClient.getGroupMembers(groupe.getId()).forEach(membre ->
                                 groupes.putIfAbsent(membre.getId(), groupe.getName()))));
         return groupes;
+    }
+
+    private List<KeycloakGroupRepresentation> sousGroupes(KeycloakGroupRepresentation groupe) {
+        return groupe.getSubGroups() == null ? List.of() : groupe.getSubGroups();
     }
 
     /**

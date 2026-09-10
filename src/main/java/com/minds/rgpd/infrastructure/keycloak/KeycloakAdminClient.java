@@ -83,10 +83,6 @@ public class KeycloakAdminClient {
         return properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/groups/" + groupId;
     }
 
-    private String groupChildrenUrl(UUID groupId) {
-        return properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/groups/" + groupId + "/children";
-    }
-
     private String groupByNameUrl(String name) {
         return groupsUrl() + "?search=" + encode(name) + "&exact=true";
     }
@@ -399,11 +395,14 @@ public class KeycloakAdminClient {
     }
 
     /**
-     * Sous-groupes directs d'un groupe ({@code GET /groups/{id}/children}) :
-     * avec le préfixe configuré, ce sont les groupes de clients.
+     * Hiérarchie des groupes racine ({@code GET /groups}) : les sous-groupes
+     * sont imbriqués dans {@code subGroups}. C'est la seule lecture
+     * d'enfants disponible sur toutes les versions de Keycloak —
+     * {@code GET /groups/{id}/children} n'existe que sur les versions
+     * récentes (405 Method Not Allowed sur les anciennes).
      */
-    public List<KeycloakGroupRepresentation> getGroupChildren(UUID groupId) {
-        return getList(groupChildrenUrl(groupId), new ParameterizedTypeReference<List<KeycloakGroupRepresentation>>() {
+    public List<KeycloakGroupRepresentation> getGroupHierarchy() {
+        return getList(groupsUrl(), new ParameterizedTypeReference<List<KeycloakGroupRepresentation>>() {
         }).orElse(List.of());
     }
 

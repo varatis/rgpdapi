@@ -62,6 +62,13 @@ class KeycloakIdentityGatewayTest {
         return groupe;
     }
 
+    private KeycloakGroupRepresentation groupe(UUID id, String nom, String chemin,
+                                               KeycloakGroupRepresentation... sousGroupes) {
+        KeycloakGroupRepresentation groupe = groupe(id, nom, chemin);
+        groupe.setSubGroups(List.of(sousGroupes));
+        return groupe;
+    }
+
     private KeycloakRoleRepresentation role(String id, String nom) {
         KeycloakRoleRepresentation role = new KeycloakRoleRepresentation();
         role.setId(id);
@@ -84,10 +91,9 @@ class KeycloakIdentityGatewayTest {
                 .thenReturn(List.of(utilisateur(ALICE_ID, "alice@alpha.com")));
         when(adminClient.getUsersByClientRole(CLIENT_UUID, "user"))
                 .thenReturn(List.of(utilisateur(ALICE_ID, "alice@alpha.com")));
-        when(adminClient.getGroupsByName("clients"))
-                .thenReturn(List.of(groupe(PARENT_ID, "clients", "/clients")));
-        when(adminClient.getGroupChildren(PARENT_ID))
-                .thenReturn(List.of(groupe(GROUPE_BRETECHE_ID, "La breteche", "/clients/La breteche")));
+        when(adminClient.getGroupHierarchy()).thenReturn(List.of(
+                groupe(PARENT_ID, "clients", "/clients",
+                        groupe(GROUPE_BRETECHE_ID, "La breteche", "/clients/La breteche"))));
         when(adminClient.getGroupMembers(GROUPE_BRETECHE_ID))
                 .thenReturn(List.of(utilisateur(ALICE_ID, "alice@alpha.com")));
         when(adminClient.getUsers())
@@ -111,7 +117,7 @@ class KeycloakIdentityGatewayTest {
         when(properties.getGroupPrefix()).thenReturn("/clients");
         when(adminClient.getClientUuidByResourceId("minds-saas-rgpd")).thenReturn(CLIENT_UUID);
         when(adminClient.getClientRoles(CLIENT_UUID)).thenReturn(List.of());
-        when(adminClient.getGroupsByName("clients")).thenReturn(List.of());
+        when(adminClient.getGroupHierarchy()).thenReturn(List.of());
         when(adminClient.getUsers())
                 .thenReturn(List.of(utilisateur(ALICE_ID, "alice@alpha.com")));
 
@@ -137,7 +143,7 @@ class KeycloakIdentityGatewayTest {
                 .thenReturn(List.of(role("role-admin", "admin")));
         when(adminClient.getUserGroups(ALICE_ID))
                 .thenReturn(List.of(groupe(GROUPE_BRETECHE_ID, "La breteche", "/clients/La breteche")));
-        when(adminClient.getGroupChildren(PARENT_ID))
+        when(adminClient.getGroupsByName("Entreprise Alpha"))
                 .thenReturn(List.of(groupe(GROUPE_ALPHA_ID, "Entreprise Alpha", "/clients/Entreprise Alpha")));
 
         gateway.modifierUtilisateur(ALICE_ID, new IdentiteCommande(
@@ -160,7 +166,7 @@ class KeycloakIdentityGatewayTest {
         when(properties.getGroupPrefix()).thenReturn("/clients");
         when(properties.getResourceClientId()).thenReturn("minds-saas-rgpd");
         when(adminClient.createUser(any())).thenReturn(ALICE_ID);
-        when(adminClient.getGroupChildren(PARENT_ID))
+        when(adminClient.getGroupsByName("Nouveau Client"))
                 .thenReturn(List.of())
                 .thenReturn(List.of(groupe(GROUPE_ALPHA_ID, "Nouveau Client", "/clients/Nouveau Client")));
         when(adminClient.getGroupsByName("clients"))
@@ -186,9 +192,7 @@ class KeycloakIdentityGatewayTest {
         when(properties.getResourceClientId()).thenReturn("minds-saas-rgpd");
         when(adminClient.createUser(any())).thenReturn(ALICE_ID);
         when(properties.getGroupPrefix()).thenReturn("/clients");
-        when(adminClient.getGroupsByName("clients"))
-                .thenReturn(List.of(groupe(PARENT_ID, "clients", "/clients")));
-        when(adminClient.getGroupChildren(PARENT_ID))
+        when(adminClient.getGroupsByName("Entreprise Alpha"))
                 .thenReturn(List.of(groupe(GROUPE_ALPHA_ID, "Entreprise Alpha", "/clients/Entreprise Alpha")));
         when(adminClient.getClientUuidByResourceId("minds-saas-rgpd")).thenReturn(CLIENT_UUID);
 
@@ -255,8 +259,6 @@ class KeycloakIdentityGatewayTest {
         when(adminClient.getGroupsByName("clients")).thenReturn(List.of(
                 groupe(GROUPE_CLIENTS_ID, "clients", "/clients/clients"),
                 groupe(PARENT_ID, "clients", "/clients")));
-        when(adminClient.getGroupChildren(PARENT_ID))
-                .thenReturn(List.of(groupe(GROUPE_CLIENTS_ID, "clients", "/clients/clients")));
 
         Optional<GroupeIdentite> groupe = gateway.groupe("clients");
 
@@ -274,9 +276,7 @@ class KeycloakIdentityGatewayTest {
         when(adminClient.getUserClientRoles(ALICE_ID, CLIENT_UUID)).thenReturn(List.of());
         when(adminClient.getUserGroups(ALICE_ID))
                 .thenReturn(List.of(groupe(PARENT_ID, "clients", "/clients")));
-        when(adminClient.getGroupsByName("clients"))
-                .thenReturn(List.of(groupe(PARENT_ID, "clients", "/clients")));
-        when(adminClient.getGroupChildren(PARENT_ID))
+        when(adminClient.getGroupsByName("La breteche"))
                 .thenReturn(List.of(groupe(GROUPE_BRETECHE_ID, "La breteche", "/clients/La breteche")));
 
         gateway.modifierUtilisateur(ALICE_ID, new IdentiteCommande(
@@ -304,7 +304,7 @@ class KeycloakIdentityGatewayTest {
         when(adminClient.getGroupsByName("clients"))
                 .thenReturn(List.of(groupe(PARENT_ID, "clients", "/clients")));
         when(adminClient.createGroup("Entreprise Alpha", PARENT_ID)).thenReturn(UUID.randomUUID());
-        when(adminClient.getGroupChildren(PARENT_ID))
+        when(adminClient.getGroupsByName("Entreprise Alpha"))
                 .thenReturn(List.of(groupe(GROUPE_ALPHA_ID, "Entreprise Alpha", "/clients/Entreprise Alpha")));
 
         GroupeIdentite cree = gateway.creerGroupe("Entreprise Alpha");
