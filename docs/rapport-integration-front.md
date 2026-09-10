@@ -215,6 +215,7 @@ Conséquences UI recommandées :
 |---|---|---|
 | Ressource inconnue (client, utilisateur, logo…) | `404` | texte brut (message) |
 | Nom de client déjà pris | `409` | texte brut |
+| Identifiant utilisateur déjà pris dans Keycloak (un compte porte déjà cet identifiant) | `409` | texte brut (`Utilisateur existe déjà avec identifiant = '…'`) |
 | Payload invalide (validation Bean) | `400` | **ProblemDetail JSON** (`title`, `detail`) |
 | Argument illégal | `400` | texte brut |
 | Fichier trop volumineux / format refusé | `413` / `400` | ProblemDetail JSON |

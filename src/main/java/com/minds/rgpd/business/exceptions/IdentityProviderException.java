@@ -19,6 +19,15 @@ public class IdentityProviderException extends RuntimeException {
         this.statut = HttpStatus.BAD_GATEWAY;
     }
 
+    /**
+     * Message libre avec cause préservée : permet aux appelants de distinguer
+     * les échecs Keycloak par leur statut (ex. 409 doublon d'identifiant).
+     */
+    public IdentityProviderException(String message, Throwable cause) {
+        super(message, cause);
+        this.statut = HttpStatus.BAD_GATEWAY;
+    }
+
     public HttpStatus getStatut() {
         return statut;
     }

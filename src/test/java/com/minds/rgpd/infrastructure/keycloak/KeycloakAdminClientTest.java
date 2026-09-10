@@ -1,5 +1,6 @@
 package com.minds.rgpd.infrastructure.keycloak;
 
+import com.minds.rgpd.business.exceptions.DuplicateResourceException;
 import com.minds.rgpd.business.exceptions.IdentityProviderException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -152,8 +153,30 @@ class KeycloakAdminClientTest {
     }
 
     /**
+     * Un identifiant déjà pris (409 « User exists with same username ») devient
+     * un doublon explicite côté API — pas un 502 avec un indice « rôles »
+     * qui égarerait le diagnostic.
+     */
+    @Test
+    void createUserEnDoublonTraduitLeConflitKeycloak() {
+        attendreJeton("jwt-1");
+        server.expect(requestTo(USERS_URL))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withStatus(HttpStatus.CONFLICT)
+                        .body("{\"errorMessage\":\"User exists with same username\"}"));
+
+        assertThatThrownBy(() -> client.createUser(Map.of("username", "yo@yoann")))
+                .isInstanceOf(DuplicateResourceException.class)
+                .hasMessageContaining("yo@yoann");
+
+        server.verify();
+    }
+
+    /**
      * Une écriture refusée (403 : compte de service sans rôles
-     * realm-management) remonte une erreur explicite, pas un 500 brut.
+     * realm-management) remonte une erreur explicite, pas un 500 brut —
+     * l'indice « rôles realm-management » reste réservé aux refus
+     * d'autorisation.
      */
     @Test
     void ecritureRefuseeLeveUneErreurExplicite() {
@@ -165,6 +188,22 @@ class KeycloakAdminClientTest {
         assertThatThrownBy(() -> client.createUser(Map.of("username", "alice@alpha.com")))
                 .isInstanceOf(IdentityProviderException.class)
                 .hasMessageContaining("realm-management");
+
+        server.verify();
+    }
+
+    /** Un échec d'écriture sans rapport avec les permissions n'égare pas sur les rôles. */
+    @Test
+    void erreurDecritureSansRefusDAutorisationNeParlePasDeRoles() {
+        attendreJeton("jwt-1");
+        server.expect(requestTo(USERS_URL))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR));
+
+        assertThatThrownBy(() -> client.createUser(Map.of("username", "alice@alpha.com")))
+                .isInstanceOf(IdentityProviderException.class)
+                .hasMessageContaining("appel Keycloak en échec")
+                .hasMessageNotContaining("realm-management");
 
         server.verify();
     }

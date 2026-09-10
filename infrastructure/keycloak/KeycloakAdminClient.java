@@ -11,16 +11,19 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.minds.rgpd.business.exceptions.DuplicateResourceException;
 import com.minds.rgpd.business.exceptions.IdentityProviderException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
 /**
@@ -211,8 +214,23 @@ public class KeycloakAdminClient {
             return e;
         }
         return new IdentityProviderException("appel Keycloak en échec [" + method + " " + url + "] : "
-                + e.getMessage() + " — vérifiez les rôles realm-management du compte de service"
-                + " (view-users, manage-users, view-clients, view-groups, manage-groups…)");
+                + e.getMessage() + indiceRealmManagement(e), e);
+    }
+
+    /**
+     * L'indice « rôles realm-management » n'a de sens que pour un refus
+     * d'autorisation (401/403) : un 409 (doublon d'identifiant) ou un 400
+     * (payload invalide) n'a rien à voir avec les permissions du compte de
+     * service — l'afficher systématiquement égare le diagnostic.
+     */
+    private String indiceRealmManagement(RestClientException e) {
+        if (e instanceof RestClientResponseException reponse
+                && (HttpStatus.UNAUTHORIZED.equals(reponse.getStatusCode())
+                    || HttpStatus.FORBIDDEN.equals(reponse.getStatusCode()))) {
+            return " — vérifiez les rôles realm-management du compte de service"
+                    + " (view-users, manage-users, view-clients, view-groups, manage-groups…)";
+        }
+        return "";
     }
 
     private <T> Optional<T> performRequest(HttpMethod method, String url, Object body, Class<T> responseType) {
@@ -284,9 +302,22 @@ public class KeycloakAdminClient {
                 users.isEmpty() ? Optional.empty() : Optional.of(users.getFirst()));
     }
 
+    /**
+     * Crée l'utilisateur ; un 409 de Keycloak (identifiant déjà pris) est
+     * traduit en doublon explicite (409 côté API) plutôt qu'en échec
+     * technique 502 avec un indice « rôles » sans rapport.
+     */
     public UUID createUser(Map<String, Object> representation) {
-        ResponseEntity<Void> response = execute(HttpMethod.POST, usersUrl(), representation, Void.class);
-        return uuidFromLocation(response, "de l'utilisateur");
+        try {
+            ResponseEntity<Void> response = execute(HttpMethod.POST, usersUrl(), representation, Void.class);
+            return uuidFromLocation(response, "de l'utilisateur");
+        } catch (IdentityProviderException e) {
+            if (e.getCause() instanceof RestClientResponseException reponse
+                    && HttpStatus.CONFLICT.equals(reponse.getStatusCode())) {
+                throw new DuplicateResourceException("Utilisateur", "identifiant", representation.get("username"));
+            }
+            throw e;
+        }
     }
 
     public void deleteUser(UUID userId) {
