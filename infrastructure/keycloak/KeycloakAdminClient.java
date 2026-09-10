@@ -168,9 +168,13 @@ public class KeycloakAdminClient {
         } catch (RestClientException e) {
             if (e.getMessage() != null && e.getMessage().contains("401")) {
                 fetchToken();
-                return restTemplate.exchange(buildRequestEntity(method, url, body), responseType);
+                try {
+                    return restTemplate.exchange(buildRequestEntity(method, url, body), responseType);
+                } catch (RestClientException apresRenouvellement) {
+                    throw echecKeycloak(method, url, apresRenouvellement);
+                }
             }
-            throw e;
+            throw echecKeycloak(method, url, e);
         }
     }
 
@@ -187,10 +191,28 @@ public class KeycloakAdminClient {
         } catch (RestClientException e) {
             if (e.getMessage() != null && e.getMessage().contains("401")) {
                 fetchToken();
-                return restTemplate.exchange(buildRequestEntity(method, url, body), responseType);
+                try {
+                    return restTemplate.exchange(buildRequestEntity(method, url, body), responseType);
+                } catch (RestClientException apresRenouvellement) {
+                    throw echecKeycloak(method, url, apresRenouvellement);
+                }
             }
-            throw e;
+            throw echecKeycloak(method, url, e);
         }
+    }
+
+    /**
+     * Les lectures tolèrent l'échec (résultat vide, journalisé en WARN) ; toute
+     * écriture refusée remonte en revanche une erreur explicite — le cas le
+     * plus courant étant un compte de service sans rôles realm-management.
+     */
+    private RuntimeException echecKeycloak(HttpMethod method, String url, RestClientException e) {
+        if (HttpMethod.GET.equals(method)) {
+            return e;
+        }
+        return new IdentityProviderException("appel Keycloak en échec [" + method + " " + url + "] : "
+                + e.getMessage() + " — vérifiez les rôles realm-management du compte de service"
+                + " (view-users, manage-users, view-clients, view-groups, manage-groups…)");
     }
 
     private <T> Optional<T> performRequest(HttpMethod method, String url, Object body, Class<T> responseType) {

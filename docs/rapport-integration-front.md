@@ -208,7 +208,7 @@ Conséquences UI recommandées :
 | Payload invalide (validation Bean) | `400` | **ProblemDetail JSON** (`title`, `detail`) |
 | Argument illégal | `400` | texte brut |
 | Fichier trop volumineux / format refusé | `413` / `400` | ProblemDetail JSON |
-| Erreur fournisseur d'identité (Keycloak : jeton inaccessible, rôle invalide, client/groupe introuvable…) | `502` | **ProblemDetail JSON** (`title` + `detail` explicites) |
+| Erreur fournisseur d'identité (Keycloak : jeton inaccessible, client/groupe introuvable, écriture refusée/permissions…) | `502` | **ProblemDetail JSON** (`title` + `detail` explicites) |
 | Token absent/expiré | `401` | — |
 | Rôle insuffisant | `403` | — |
 

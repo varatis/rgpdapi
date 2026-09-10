@@ -4,6 +4,7 @@ import com.minds.rgpd.business.exceptions.IdentityProviderException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestTemplate;
@@ -24,6 +25,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withCreatedEntity;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withUnauthorizedRequest;
 
@@ -145,6 +147,24 @@ class KeycloakAdminClientTest {
         assertThatThrownBy(() -> client.getUsers())
                 .isInstanceOf(IdentityProviderException.class)
                 .hasMessageContaining("jeton client_credentials");
+
+        server.verify();
+    }
+
+    /**
+     * Une écriture refusée (403 : compte de service sans rôles
+     * realm-management) remonte une erreur explicite, pas un 500 brut.
+     */
+    @Test
+    void ecritureRefuseeLeveUneErreurExplicite() {
+        attendreJeton("jwt-1");
+        server.expect(requestTo(USERS_URL))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withStatus(HttpStatus.FORBIDDEN));
+
+        assertThatThrownBy(() -> client.createUser(Map.of("username", "alice@alpha.com")))
+                .isInstanceOf(IdentityProviderException.class)
+                .hasMessageContaining("realm-management");
 
         server.verify();
     }

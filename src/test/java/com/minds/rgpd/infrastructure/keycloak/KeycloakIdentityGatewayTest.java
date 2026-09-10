@@ -1,5 +1,6 @@
 package com.minds.rgpd.infrastructure.keycloak;
 
+import com.minds.rgpd.business.exceptions.IdentityProviderException;
 import com.minds.rgpd.business.identity.GroupeIdentite;
 import com.minds.rgpd.business.identity.IdentiteCommande;
 import com.minds.rgpd.business.identity.IdentiteUtilisateur;
@@ -15,6 +16,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -212,6 +214,21 @@ class KeycloakIdentityGatewayTest {
         assertThat(alice).isPresent();
         assertThat(alice.get().roles()).containsExactly("user");
         assertThat(alice.get().groupe()).isEqualTo("La breteche");
+    }
+
+    /**
+     * Si le client OAuth porteur des rôles est introuvable dans Keycloak, le
+     * vocabulaire de rôles est indisponible : erreur explicite plutôt qu'une
+     * liste vide qui ferait dire « Rôle invalide » à la validation.
+     */
+    @Test
+    void rolesDisponiblesEchouentExplicitementSiClientIntrouvable() {
+        when(properties.getResourceClientId()).thenReturn("minds-saas-rgpd");
+        when(adminClient.getClientUuidByResourceId("minds-saas-rgpd")).thenReturn(null);
+
+        assertThatThrownBy(() -> gateway.rolesDisponibles())
+                .isInstanceOf(IdentityProviderException.class)
+                .hasMessageContaining("client Keycloak introuvable");
     }
 
     /** creerGroupe crée sous le parent configuré et reconstitue le groupe créé. */

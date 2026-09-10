@@ -285,10 +285,7 @@ public class KeycloakIdentityGateway implements IdentityGateway {
     }
 
     private Set<String> nomsRolesClient() {
-        String clientUuid = clientUuid();
-        if (clientUuid == null) {
-            return Set.of();
-        }
+        String clientUuid = clientUuidObligatoire();
         return adminClient.getClientRoles(clientUuid).stream()
                 .map(KeycloakRoleRepresentation::getName)
                 .collect(Collectors.toSet());
