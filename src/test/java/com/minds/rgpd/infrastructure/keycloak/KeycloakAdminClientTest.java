@@ -285,22 +285,44 @@ class KeycloakAdminClientTest {
         assertThat(racine.getFirst().getSubGroups().getFirst().getName()).isEqualTo("La breteche");
     }
 
-    /** La recherche de groupes par nom est exacte (search + exact=true). */
+    /** Sous-groupes directs : endpoint des Keycloak récents, utilisé en repli de la hiérarchie. */
     @Test
-    void getGroupsByNameRechercheExactementParNom() {
+    void getGroupChildrenListeLesSousGroupesDirects() {
         attendreJeton("jwt-1");
-        server.expect(requestTo(BASE + "/admin/realms/minds-rgpd/groups?search=clients&exact=true"))
+        server.expect(requestTo(BASE + "/admin/realms/minds-rgpd/groups/"
+                + "11111111-1111-1111-1111-111111111111" + "/children"))
                 .andExpect(method(HttpMethod.GET))
-                .andExpect(header("Authorization", "Bearer jwt-1"))
                 .andRespond(withSuccess("""
-                        [{"id":"11111111-1111-1111-1111-111111111111","name":"clients","path":"/clients"}]
+                        [{"id":"22222222-2222-2222-2222-222222222222","name":"La breteche","path":"/clients/La breteche"}]
                         """, MediaType.APPLICATION_JSON));
 
-        List<KeycloakGroupRepresentation> groupes = client.getGroupsByName("clients");
+        List<KeycloakGroupRepresentation> enfants =
+                client.getGroupChildren(UUID.fromString("11111111-1111-1111-1111-111111111111"));
 
         server.verify();
-        assertThat(groupes).hasSize(1);
-        assertThat(groupes.getFirst().getPath()).isEqualTo("/clients");
+        assertThat(enfants).hasSize(1);
+        assertThat(enfants.getFirst().getName()).isEqualTo("La breteche");
+    }
+
+    /**
+     * Un 409 à la création d'un groupe (sous-groupe homonyme déjà présent,
+     * parfois sous une casse ou avec des espaces différents) devient un
+     * doublon explicite côté API.
+     */
+    @Test
+    void createGroupEnDoublonTraduitLeConflitKeycloak() {
+        attendreJeton("jwt-1");
+        server.expect(requestTo(BASE + "/admin/realms/minds-rgpd/groups/"
+                + "11111111-1111-1111-1111-111111111111" + "/children"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withStatus(HttpStatus.CONFLICT).body("{\"error\":\"unknown_error\"}"));
+
+        assertThatThrownBy(() -> client.createGroup("La breteche",
+                UUID.fromString("11111111-1111-1111-1111-111111111111")))
+                .isInstanceOf(DuplicateResourceException.class)
+                .hasMessageContaining("La breteche");
+
+        server.verify();
     }
 
     /** Un e-mail absent donne un Optional vide, pas d'exception. */

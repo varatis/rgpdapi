@@ -83,8 +83,8 @@ public class KeycloakAdminClient {
         return properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/groups/" + groupId;
     }
 
-    private String groupByNameUrl(String name) {
-        return groupsUrl() + "?search=" + encode(name) + "&exact=true";
+    private String groupChildrenUrl(UUID groupId) {
+        return properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/groups/" + groupId + "/children";
     }
 
     private String groupMembersUrl(UUID groupId) {
@@ -384,13 +384,13 @@ public class KeycloakAdminClient {
     }
 
     /**
-     * Groupes portant exactement ce nom ({@code GET /groups?search=…&exact=true}).
-     * Plusieurs homonymes peuvent être renvoyés — un sous-groupe peut porter le
-     * même nom qu'un groupe racine (ex. {@code /clients} et {@code /clients/clients}) :
-     * seul le chemin départage, jamais l'ordre de la réponse.
+     * Sous-groupes directs d'un groupe ({@code GET /groups/{id}/children}) :
+     * endpoint des Keycloak RÉCENTS, où {@code GET /groups} n'imbrique plus
+     * les sous-groupes. Inexistant sur les versions anciennes (405) — à
+     * n'utiliser qu'en repli de la hiérarchie.
      */
-    public List<KeycloakGroupRepresentation> getGroupsByName(String name) {
-        return getList(groupByNameUrl(name), new ParameterizedTypeReference<List<KeycloakGroupRepresentation>>() {
+    public List<KeycloakGroupRepresentation> getGroupChildren(UUID groupId) {
+        return getList(groupChildrenUrl(groupId), new ParameterizedTypeReference<List<KeycloakGroupRepresentation>>() {
         }).orElse(List.of());
     }
 
@@ -409,13 +409,23 @@ public class KeycloakAdminClient {
     /**
      * Crée un groupe ; en tant que sous-groupe du groupe parent identifié par
      * {@code parentId} lorsqu'il est renseigné, sinon comme groupe racine.
+     * Un 409 (sous-groupe homonyme déjà présent, parfois sous une casse ou
+     * avec des espaces différents) est traduit en doublon explicite.
      */
     public UUID createGroup(String name, UUID parentId) {
         String url = parentId != null ? groupsUrl() + "/" + parentId + "/children" : groupsUrl();
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("name", name);
-        ResponseEntity<Void> response = execute(HttpMethod.POST, url, body, Void.class);
-        return uuidFromLocation(response, "du groupe");
+        try {
+            ResponseEntity<Void> response = execute(HttpMethod.POST, url, body, Void.class);
+            return uuidFromLocation(response, "du groupe");
+        } catch (IdentityProviderException e) {
+            if (e.getCause() instanceof RestClientResponseException reponse
+                    && HttpStatus.CONFLICT.equals(reponse.getStatusCode())) {
+                throw new DuplicateResourceException("Groupe de client", "nom", name);
+            }
+            throw e;
+        }
     }
 
     public void deleteGroup(UUID groupId) {

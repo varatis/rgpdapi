@@ -147,20 +147,17 @@ public class KeycloakIdentityGateway implements IdentityGateway {
     }
 
     /**
-     * Groupe de client : le sous-groupe DIRECT du parent configuré portant ce
-     * nom, identifié par son chemin exact ({@code préfixe/nom}). La recherche
-     * par nom peut retourner plusieurs homonymes (un sous-groupe « clients »
-     * sous {@code /clients}) — seul le chemin départage, et le groupe parent
-     * ne peut jamais être désigné. Résolution par recherche + chemin,
-     * compatible avec toutes les versions de Keycloak : l'endpoint
-     * {@code GET /groups/{id}/children} n'existe que sur les versions
-     * récentes (405 sur les anciennes).
+     * Groupe de client par nom : le sous-groupe DIRECT du parent configuré
+     * portant ce nom, résolu dans la hiérarchie des groupes — sans passer
+     * par la recherche Keycloak, dont l'encodage des espaces et le périmètre
+     * (groupes racine uniquement sur certaines versions) varient selon les
+     * versions. Les noms étant uniques entre frères, la correspondance par
+     * nom est non ambiguë et le parent n'est jamais désignable.
      */
     @Override
     public Optional<GroupeIdentite> groupe(String nom) {
-        String cheminVise = properties.getGroupPrefix() + "/" + nom;
-        return adminClient.getGroupsByName(nom).stream()
-                .filter(groupe -> cheminVise.equals(groupe.getPath()))
+        return groupesClients().stream()
+                .filter(groupe -> nom.equals(groupe.getName()))
                 .findFirst()
                 .map(groupe -> new GroupeIdentite(groupe.getId(), groupe.getName(), groupe.getPath()));
     }
@@ -256,24 +253,36 @@ public class KeycloakIdentityGateway implements IdentityGateway {
     }
 
     /**
-     * Groupe de client par utilisateur : parcours de la hiérarchie des
-     * groupes ({@code GET /groups}, sous-groupes imbriqués) puis des membres
-     * de chaque groupe de client. Le premier groupe trouvé l'emporte si les
-     * données étaient incohérentes.
+     * Groupe de client par utilisateur : parcours des groupes de clients
+     * (hiérarchie) puis des membres de chacun. Le premier groupe trouvé
+     * l'emporte si les données étaient incohérentes.
      */
     private Map<UUID, String> groupeParUtilisateur() {
         Map<UUID, String> groupes = new HashMap<>();
-        adminClient.getGroupHierarchy().stream()
-                .filter(groupe -> properties.getGroupPrefix().equals(groupe.getPath()))
-                .findFirst()
-                .ifPresent(parent -> sousGroupes(parent).forEach(groupe ->
-                        adminClient.getGroupMembers(groupe.getId()).forEach(membre ->
-                                groupes.putIfAbsent(membre.getId(), groupe.getName()))));
+        groupesClients().forEach(groupe ->
+                adminClient.getGroupMembers(groupe.getId()).forEach(membre ->
+                        groupes.putIfAbsent(membre.getId(), groupe.getName())));
         return groupes;
     }
 
-    private List<KeycloakGroupRepresentation> sousGroupes(KeycloakGroupRepresentation groupe) {
-        return groupe.getSubGroups() == null ? List.of() : groupe.getSubGroups();
+    /**
+     * Groupes de clients : sous-groupes DIRECTS du parent configuré. La
+     * hiérarchie {@code GET /groups} les imbrique sur les Keycloak anciens ;
+     * les versions récentes ne les imbriquent plus — d'où le repli sur
+     * {@code GET /groups/{id}/children}, inexistant sur les anciennes (405
+     * toléré, résultat vide).
+     */
+    private List<KeycloakGroupRepresentation> groupesClients() {
+        return groupeParent()
+                .map(this::sousGroupesDu)
+                .orElse(List.of());
+    }
+
+    private List<KeycloakGroupRepresentation> sousGroupesDu(KeycloakGroupRepresentation parent) {
+        if (parent.getSubGroups() != null && !parent.getSubGroups().isEmpty()) {
+            return parent.getSubGroups();
+        }
+        return adminClient.getGroupChildren(parent.getId());
     }
 
     /**
@@ -292,27 +301,15 @@ public class KeycloakIdentityGateway implements IdentityGateway {
     }
 
     /**
-     * Groupe parent des clients : l'unique groupe dont le chemin vaut le
-     * préfixe configuré (ex. {@code /clients}). La recherche par nom peut
-     * retourner plusieurs homonymes (un sous-groupe « clients » sous
-     * {@code /clients}) — seul le chemin départage sans ambiguïté.
+     * Groupe parent des clients : le groupe racine dont le chemin vaut le
+     * préfixe configuré (ex. {@code /clients}), lu dans la hiérarchie
+     * {@code GET /groups}.
      */
     private Optional<GroupeIdentite> groupeParent() {
-        return adminClient.getGroupsByName(nomGroupeParent()).stream()
+        return adminClient.getGroupHierarchy().stream()
                 .filter(groupe -> properties.getGroupPrefix().equals(groupe.getPath()))
                 .findFirst()
                 .map(groupe -> new GroupeIdentite(groupe.getId(), groupe.getName(), groupe.getPath()));
-    }
-
-    /**
-     * Nom du groupe parent des groupes de clients : le préfixe configuré
-     * ({@code keycloak.group-prefix}, ex. {@code /clients}) désigne un
-     * chemin ; le groupe racine correspondant porte le même nom sans le
-     * slash initial.
-     */
-    private String nomGroupeParent() {
-        String prefix = properties.getGroupPrefix();
-        return prefix.startsWith("/") ? prefix.substring(1) : prefix;
     }
 
     /**
