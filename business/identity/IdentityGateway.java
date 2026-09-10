@@ -1,0 +1,33 @@
+package com.minds.rgpd.business.identity;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+public interface IdentityGateway {
+    List<IdentiteUtilisateur> utilisateurs();
+
+    Optional<IdentiteUtilisateur> utilisateur(UUID id);
+
+    Optional<IdentiteUtilisateur> parEmail(String email);
+
+    UUID creerUtilisateur(IdentiteCommande commande);
+
+    void modifierUtilisateur(UUID id, IdentiteCommande commande);
+
+    void supprimerUtilisateur(UUID id);
+
+    List<String> rolesDisponibles();
+
+    void affecterRole(UUID id, String role);
+
+    Optional<GroupeIdentite> groupe(String nom);
+
+    GroupeIdentite creerGroupe(String nom);
+
+    void supprimerGroupe(String nom);
+
+    List<UUID> membresGroupe(String nom);
+
+    void supprimerUtilisateursDeGroupe(String nom);
+}

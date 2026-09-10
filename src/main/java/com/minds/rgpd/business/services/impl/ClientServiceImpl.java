@@ -3,28 +3,32 @@ package com.minds.rgpd.business.services.impl;
 import com.minds.rgpd.business.dtos.ClientDTO;
 import com.minds.rgpd.business.dtos.ClientWriteDTO;
 import com.minds.rgpd.business.exceptions.DuplicateResourceException;
+import com.minds.rgpd.business.exceptions.IdentityProviderException;
 import com.minds.rgpd.business.exceptions.ResourceNotFoundException;
 import com.minds.rgpd.business.services.ClientService;
 import com.minds.rgpd.business.utilities.mappers.ClientMapper;
 import com.minds.rgpd.persistence.entities.Client;
 import com.minds.rgpd.persistence.repositories.ClientRepository;
+import com.minds.rgpd.infrastructure.keycloak.KeycloakAdminClient;
+import com.minds.rgpd.infrastructure.keycloak.KeycloakProperties;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import lombok.extern.log4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.util.Set;
 import java.util.UUID;
-
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@Transactional(readOnly = true)
 public class ClientServiceImpl implements ClientService {
 
     private final ClientMapper clientMapper;
     private final ClientRepository clientRepository;
+    private final KeycloakAdminClient keycloak;
+    private final KeycloakProperties keycloakProps;
 
     @Override
     public List<ClientDTO> getClients() {
@@ -61,6 +65,8 @@ public class ClientServiceImpl implements ClientService {
         Client cree = clientRepository.save(client);
         log.info("Client créé : {} ({})", cree.getNom(), cree.getId());
 
+        synchroniserGroupeClient(cree.getNom());
+
         return clientMapper.map(cree);
     }
 
@@ -77,7 +83,59 @@ public class ClientServiceImpl implements ClientService {
         client.setVersion(payload.version());
         client.setDateVersion(payload.dateVersion());
 
-        return clientMapper.map(clientRepository.save(client));
+        Client sauvegarde = clientRepository.save(client);
+        synchroniserGroupeClient(sauvegarde.getNom());
+
+        return clientMapper.map(sauvegarde);
+    }
+
+    @Override
+    @Transactional
+    public void deleteClient(UUID id) {
+        Client client = clientRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Client", "id", id));
+
+        String clientNom = client.getNom();
+
+        supprimerUtilisateursDuGroupeKeycloak(clientNom);
+
+        keycloak.supprimerGroupe(clientNom);
+
+        clientRepository.delete(client);
+        log.info("Client supprimé : {} ({})", client.getNom(), id);
+    }
+
+    private void synchroniserGroupeClient(String clientNom) {
+        Optional<UUID> groupId = trouverGroupeParNom(clientNom);
+        if (groupId.isPresent()) {
+            List<UUID> utilisateurs = keycloak.membresGroupe(clientNom);
+            for (UUID userId : utilisateurs) {
+                keycloak.supprimerUtilisateur(userId);
+            }
+            keycloak.supprimerGroupe(clientNom);
+        }
+        keycloak.creerGroupe(clientNom, keycloakProps.getGroupPrefix());
+    }
+
+    private Optional<UUID> trouverGroupeParNom(String clientNom) {
+        List<KeycloakClientRepresentation> clients = keycloak.getClientsByResourceId("minds-saas-rgpd");
+        for (KeycloakClientRepresentation c : clients) {
+            if (c.getClientId().equals(clientNom)) {
+                return Optional.of(c.getId());
+            }
+        }
+        return Optional.empty();
+    }
+
+    private void supprimerUtilisateursDuGroupeKeycloak(String clientNom) {
+        List<UUID> utilisateurs = keycloak.membresGroupe(clientNom);
+        for (UUID userId : utilisateurs) {
+            try {
+                keycloak.supprimerUtilisateur(userId);
+            } catch (Exception e) {
+                log.warn("Impossible de supprimer l'utilisateur {} de Keycloak: {}", userId, e.getMessage());
+            }
+        }
     }
 
     private void verifierNomDisponible(String nom, UUID idCourant) {

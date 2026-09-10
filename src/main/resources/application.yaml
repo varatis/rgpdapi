@@ -2,6 +2,18 @@ application:
   version: @project.version@
   fichier.upload.dir: ${UPLOAD_DIR}
 
+# Configuration Keycloak pour la gestion des utilisateurs et des rôles
+keycloak:
+  enabled: ${KEYCLOAK_SYNC_ENABLED:true}
+  base-url: ${KEYCLOAK_BASE_URL}
+  realm: ${KEYCLOAK_REALM:minds-rgpd}
+  admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:minds-rgpd-admin}
+  admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+  resource-client-id: ${KEYCLOAK_RESOURCE_CLIENT_ID:minds-saas-rgpd}
+  group-prefix: ${KEYCLOAK_GROUP_PREFIX:/clients}
+  page-size: 200
+  token-expiration-marge: 300000
+
 # Configuration Actuator
 management:
   endpoints:
@@ -43,7 +55,6 @@ spring:
         jwt:
           issuer-uri: ${JWT_ISSUER_URI}
           jwk-set-uri: ${JWT_JWK_SET_URI}
-
 otel:
   sdk:
     disabled: true
@@ -51,7 +62,6 @@ otel:
 server:
   forward-header-strategy: NATIVE
   port: 8080
-
 
 # Enhanced JWT and OpenTelemetry debugging
 logging:

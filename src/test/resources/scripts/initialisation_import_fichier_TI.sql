@@ -1,4 +1,4 @@
-TRUNCATE TABLE definition, traitement_etablissement, utilisateur_etablissement, profil, client, utilisateur, etablissement, traitement CASCADE;
+TRUNCATE TABLE definition, traitement_etablissement, profil, client, etablissement, traitement CASCADE;
 -- ============================================
 -- Données factices
 -- ============================================
@@ -15,23 +15,11 @@ VALUES ('0e4bf889-fea0-46ac-894d-ca39cbf00359', 'La breteche', 'actif'),
        ('82e99259-1bbd-4c1a-b013-7602e27168f3', 'Entreprise Alpha', 'actif'),
        ('e0aa8d87-69ca-4e64-9c39-d47aecaf38ed', 'Entreprise Beta', 'inactif');
 
--- UTILISATEURS
-INSERT INTO utilisateur (id, prenom, nom, email, password, fonction, id_profil, id_client)
-VALUES ('d6dfd117-8047-4a9a-afca-f5268a38bfcf', 'Alice', 'Dupont', 'alice@alpha.com', 'hashedpwd1', 'Responsable IT', 'ff2b79c3-c2a6-4f7f-b3dc-f78e090ba8f9', '0e4bf889-fea0-46ac-894d-ca39cbf00359'),
-       ('6a04222b-60f8-434b-bdff-c01ce36fde2f', 'Bob', 'Martin', 'bob@alpha.com', 'hashedpwd2', 'Employé', 'b4d32179-04d2-44e6-9f91-524e4dc1818a', '0e4bf889-fea0-46ac-894d-ca39cbf00359'),
-       ('e9048a22-e73d-4b35-b08a-0540c58e7a6f', 'Claire', 'Durand', 'claire@beta.com', 'hashedpwd3', 'DPO', '32d2807f-2540-443e-8f85-ffc6975e746f', '82e99259-1bbd-4c1a-b013-7602e27168f3');
-
 -- ETABLISSEMENTS
 INSERT INTO etablissement (id, nom, id_client)
 VALUES ('590687e6-f6e9-4668-aae0-a0f0e32982ff', 'Siège Paris', '0e4bf889-fea0-46ac-894d-ca39cbf00359'),
        ('bf10040d-c95f-42bb-8298-514fe45d84c1', 'Agence Lyon', '0e4bf889-fea0-46ac-894d-ca39cbf00359'),
        ('cb5b0cd7-8551-4808-b3a2-fc5e745b25d2', 'Siège Marseille', '82e99259-1bbd-4c1a-b013-7602e27168f3');
-
--- LIENS UTILISATEUR ↔ ETABLISSEMENT
-INSERT INTO utilisateur_etablissement (id_utilisateur, id_etablissement)
-VALUES ('d6dfd117-8047-4a9a-afca-f5268a38bfcf', '590687e6-f6e9-4668-aae0-a0f0e32982ff'), -- Alice ↔ Siège Paris
-       ('6a04222b-60f8-434b-bdff-c01ce36fde2f', 'bf10040d-c95f-42bb-8298-514fe45d84c1'), -- Bob ↔ Agence Lyon
-       ('e9048a22-e73d-4b35-b08a-0540c58e7a6f', 'cb5b0cd7-8551-4808-b3a2-fc5e745b25d2'); -- Claire ↔ Siège Marseille
 
 -- DEFINITIONS (finalités principales référencées par les traitements)
 INSERT INTO definition (id, type, valeur, client_id)
