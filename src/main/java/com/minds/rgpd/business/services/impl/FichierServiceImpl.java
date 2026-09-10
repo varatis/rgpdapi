@@ -20,10 +20,13 @@ import com.minds.rgpd.persistence.specifications.TraitementSpecifications;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +36,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -172,6 +178,9 @@ public class FichierServiceImpl implements FichierService {
     private final ViolationRepository violationRepository;
     private final TraitementMapper traitementMapper;
     private final HistorisationService historisationService;
+
+    @Value("${application.fichier.upload.dir:}")
+    private String uploadDir;
 
     // @Transactional explicite pour les méthodes d'écriture
     @Override
@@ -471,17 +480,48 @@ public class FichierServiceImpl implements FichierService {
 
     @Override
     public byte[] generationExcelRegistreTraitements(ClientDTO client, String fileName) throws IOException {
+        InputStream template = resolveTemplateStream(fileName);
+        if (template != null) {
+            try {
+                return generationExcelRegistreTraitements(client, fileName, template);
+            } catch (Exception e) {
+                log.warn("Export impossible à partir du modèle {} : {}. Repli sur la génération standard.",
+                        fileName, e.getMessage());
+            } finally {
+                fermerSilencieusement(template);
+            }
+        }
+        return generationExcelRegistreTraitements(client, fileName, null);
+    }
+
+    byte[] generationExcelRegistreTraitements(ClientDTO client, String fileName, InputStream template)
+            throws IOException {
 
         // Récupération des traitements
         Specification<Traitement> spec = TraitementSpecifications.search(client.nom(), null,  null, null);
         List<TraitementDTO> traitementList = traitementMapper.mapToDTOList(traitementRepository.findAll(spec));
 
-        try (Workbook workbook = new XSSFWorkbook();
+        boolean depuisTemplate = template != null;
+        try (Workbook workbook = depuisTemplate ? new XSSFWorkbook(template) : new XSSFWorkbook();
              ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
 
-            Sheet sheet = workbook.createSheet(SHEET_REGISTRE);
+            ecrireRegistre(workbook, client, traitementList, depuisTemplate);
 
-            // Ligne de titre, comme dans le modèle, puis l'en-tête en ligne 6.
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        }
+    }
+
+    private void ecrireRegistre(Workbook workbook, ClientDTO client,
+                                List<TraitementDTO> traitementList, boolean depuisTemplate) {
+        Sheet sheet = workbook.getSheet(SHEET_REGISTRE);
+        if (sheet == null) {
+            sheet = workbook.createSheet(SHEET_REGISTRE);
+        }
+
+        if (depuisTemplate) {
+            purgerLignesDonnees(sheet, traitementList.size());
+        } else {
             sheet.createRow(0).createCell(FIRST_COLUMN)
                     .setCellValue("Grille de collecte / Registre des activités de traitement - " + client.nom());
 
@@ -489,18 +529,82 @@ public class FichierServiceImpl implements FichierService {
             for (int i = 0; i < EXPORT_HEADERS.length; i++) {
                 headerRow.createCell(FIRST_COLUMN + i).setCellValue(EXPORT_HEADERS[i]);
             }
+        }
 
-            int rowIndex = HEADER_ROW_INDEX + 1;
-            for (TraitementDTO traitement : traitementList) {
-                ecrireLigneTraitement(sheet.createRow(rowIndex++), traitement);
+        int rowIndex = HEADER_ROW_INDEX + 1;
+        for (TraitementDTO traitement : traitementList) {
+            Row row = sheet.getRow(rowIndex);
+            if (row == null) {
+                row = sheet.createRow(rowIndex);
             }
+            ecrireLigneTraitement(row, traitement);
+            rowIndex++;
+        }
 
-            for (int i = 0; i < EXPORT_HEADERS.length; i++) {
-                sheet.autoSizeColumn(FIRST_COLUMN + i);
+        if (depuisTemplate) {
+            mettreAJourFiltreRegistre(sheet, rowIndex - 1);
+        } else {
+            try {
+                for (int i = 0; i < EXPORT_HEADERS.length; i++) {
+                    sheet.autoSizeColumn(FIRST_COLUMN + i);
+                }
+            } catch (Throwable t) {
+                log.debug("Auto-dimensionnement des colonnes impossible (environnement sans polices) : {}",
+                        t.getMessage());
             }
+        }
+    }
 
-            workbook.write(outputStream);
-            return outputStream.toByteArray();
+    private void purgerLignesDonnees(Sheet sheet, int nombreLignes) {
+        int premiereDonnee = HEADER_ROW_INDEX + 1;
+        int derniereExistante = sheet.getLastRowNum();
+        for (int idx = premiereDonnee; idx <= derniereExistante; idx++) {
+            Row row = sheet.getRow(idx);
+            if (row == null) {
+                continue;
+            }
+            for (int c = FIRST_COLUMN; c <= FIRST_COLUMN + EXPORT_HEADERS.length - 1; c++) {
+                Cell cell = row.getCell(c, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+                if (cell != null) {
+                    cell.setBlank();
+                }
+            }
+        }
+    }
+
+    private void mettreAJourFiltreRegistre(Sheet sheet, int derniereLigneDonnees) {
+        try {
+            if (derniereLigneDonnees < HEADER_ROW_INDEX + 1) {
+                return;
+            }
+            int derniereLigne = derniereLigneDonnees + 1;
+            CellRangeAddress filterRange = CellRangeAddress.valueOf("A6:HK" + derniereLigne);
+            sheet.setAutoFilter(filterRange);
+        } catch (Exception e) {
+            log.warn("Mise à jour du filtre automatique impossible : {}", e.getMessage());
+        }
+    }
+
+    private InputStream resolveTemplateStream(String fileName) {
+        if (uploadDir == null || uploadDir.isBlank()) {
+            return null;
+        }
+        Path path = Paths.get(uploadDir).resolve(fileName + ".xlsx");
+        if (!Files.isRegularFile(path)) {
+            return null;
+        }
+        try {
+            return Files.newInputStream(path);
+        } catch (IOException e) {
+            log.warn("Lecture du modèle d'export impossible ({}): {}", path, e.getMessage());
+            return null;
+        }
+    }
+
+    private void fermerSilencieusement(InputStream stream) {
+        try {
+            stream.close();
+        } catch (IOException ignored) {
         }
     }
 
@@ -588,21 +692,25 @@ public class FichierServiceImpl implements FichierService {
     }
 
     private void ecrire(Row row, int colonne, Object valeur) {
-        row.createCell(colonne).setCellValue(Objects.isNull(valeur) ? "" : String.valueOf(valeur));
+        Cell cell = row.getCell(colonne, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+        cell.setCellValue(Objects.isNull(valeur) ? "" : String.valueOf(valeur));
     }
 
     /** Les dates sont réécrites au format jj/MM/aaaa attendu par l'import. */
     private void ecrireDate(Row row, int colonne, LocalDate date) {
-        row.createCell(colonne).setCellValue(Objects.isNull(date) ? "" : date.format(EXPORT_DATE_FORMAT));
+        Cell cell = row.getCell(colonne, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+        cell.setCellValue(Objects.isNull(date) ? "" : date.format(EXPORT_DATE_FORMAT));
     }
 
     private void ecrireOuiNon(Row row, int colonne, Boolean valeur) {
         String texte = Objects.isNull(valeur) ? "" : (Boolean.TRUE.equals(valeur) ? "Oui" : "Non");
-        row.createCell(colonne).setCellValue(texte);
+        Cell cell = row.getCell(colonne, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+        cell.setCellValue(texte);
     }
 
     private void ecrireCroix(Row row, int colonne, Boolean valeur) {
-        row.createCell(colonne).setCellValue(Boolean.TRUE.equals(valeur) ? "X" : "");
+        Cell cell = row.getCell(colonne, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+        cell.setCellValue(Boolean.TRUE.equals(valeur) ? "X" : "");
     }
 
     private String valeurDe(DefinitionDTO definition) {
