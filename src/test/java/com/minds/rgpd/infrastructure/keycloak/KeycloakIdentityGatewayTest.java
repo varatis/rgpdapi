@@ -155,6 +155,7 @@ class KeycloakIdentityGatewayTest {
     @Test
     void creerUtilisateurCreeLeGroupeManquant() {
         when(properties.getGroupPrefix()).thenReturn("/clients");
+        when(properties.getResourceClientId()).thenReturn("minds-saas-rgpd");
         when(adminClient.createUser(any())).thenReturn(ALICE_ID);
         when(adminClient.getGroupByName("Nouveau Client"))
                 .thenReturn(Optional.empty())
@@ -162,6 +163,7 @@ class KeycloakIdentityGatewayTest {
         when(adminClient.getGroupByName("clients"))
                 .thenReturn(Optional.of(groupe(PARENT_ID, "clients", "/clients")));
         when(adminClient.createGroup("Nouveau Client", PARENT_ID)).thenReturn(UUID.randomUUID());
+        when(adminClient.getClientUuidByResourceId("minds-saas-rgpd")).thenReturn(CLIENT_UUID);
 
         UUID id = gateway.creerUtilisateur(new IdentiteCommande(
                 "Alice", "Dupont", "alice@alpha.com", List.of("user"), "Nouveau Client", true));
@@ -169,6 +171,27 @@ class KeycloakIdentityGatewayTest {
         assertThat(id).isEqualTo(ALICE_ID);
         verify(adminClient).createGroup("Nouveau Client", PARENT_ID);
         verify(adminClient).addUserToGroup(ALICE_ID, GROUPE_ALPHA_ID);
+        verify(adminClient).assignClientRoles(ALICE_ID, CLIENT_UUID, List.of("user"));
+    }
+
+    /**
+     * La création attribue les rôles : sans eux, le compte serait inutilisable
+     * côté autorisations malgré un POST affichant des rôles.
+     */
+    @Test
+    void creerUtilisateurAffecteLesRoles() {
+        when(properties.getResourceClientId()).thenReturn("minds-saas-rgpd");
+        when(adminClient.createUser(any())).thenReturn(ALICE_ID);
+        when(adminClient.getGroupByName("Entreprise Alpha"))
+                .thenReturn(Optional.of(groupe(GROUPE_ALPHA_ID, "Entreprise Alpha", "/clients/Entreprise Alpha")));
+        when(adminClient.getClientUuidByResourceId("minds-saas-rgpd")).thenReturn(CLIENT_UUID);
+
+        UUID id = gateway.creerUtilisateur(new IdentiteCommande(
+                "Alice", "Dupont", "alice@alpha.com", List.of("admin", "user"), "Entreprise Alpha", true));
+
+        assertThat(id).isEqualTo(ALICE_ID);
+        verify(adminClient).addUserToGroup(ALICE_ID, GROUPE_ALPHA_ID);
+        verify(adminClient).assignClientRoles(ALICE_ID, CLIENT_UUID, List.of("admin", "user"));
     }
 
     /** Le détail d'un utilisateur interroge les endpoints dédiés rôles et groupes. */

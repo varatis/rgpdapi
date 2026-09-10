@@ -11,6 +11,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.minds.rgpd.business.exceptions.IdentityProviderException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -29,6 +32,8 @@ import org.springframework.web.client.RestTemplate;
  * de son expiration, ou après une réponse 401.</p>
  */
 public class KeycloakAdminClient {
+
+    private static final Logger logger = LoggerFactory.getLogger(KeycloakAdminClient.class);
 
     /** Garde-fou contre les boucles de pagination si le serveur renvoyait toujours des pages pleines. */
     private static final int MAX_PAGES = 100;
@@ -132,10 +137,19 @@ public class KeycloakAdminClient {
                 .post(URI.create(tokenUrl()))
                 .body(body);
 
-        ResponseEntity<KeycloakTokenResponse> response = restTemplate.exchange(request, KeycloakTokenResponse.class);
+        ResponseEntity<KeycloakTokenResponse> response;
+        try {
+            response = restTemplate.exchange(request, KeycloakTokenResponse.class);
+        } catch (RestClientException e) {
+            throw new IdentityProviderException("obtention du jeton client_credentials (client_id="
+                    + properties.getAdminClientId() + ") : " + e.getMessage()
+                    + " — vérifiez KEYCLOAK_ADMIN_CLIENT_SECRET, le type confidentiel du client"
+                    + " et l'activation de son compte de service");
+        }
         KeycloakTokenResponse token = response.getBody();
         if (token == null || token.getAccessToken() == null) {
-            throw new RestClientException("Réponse invalide du point de jeton Keycloak");
+            throw new IdentityProviderException("réponse invalide du point de jeton Keycloak"
+                    + " (client_id=" + properties.getAdminClientId() + ")");
         }
         this.accessToken = token.getAccessToken();
         this.tokenExpiration = Instant.now().plusSeconds(token.getExpiresIn());
@@ -183,6 +197,7 @@ public class KeycloakAdminClient {
         try {
             return Optional.ofNullable(execute(method, url, body, responseType).getBody());
         } catch (RestClientException e) {
+            logger.warn("Appel Keycloak en échec [{} {}] : {}", method, url, e.getMessage());
             return Optional.empty();
         }
     }
@@ -191,6 +206,7 @@ public class KeycloakAdminClient {
         try {
             return Optional.ofNullable(execute(HttpMethod.GET, url, null, responseType).getBody());
         } catch (RestClientException e) {
+            logger.warn("Appel Keycloak en échec [GET {}] : {}", url, e.getMessage());
             return Optional.empty();
         }
     }

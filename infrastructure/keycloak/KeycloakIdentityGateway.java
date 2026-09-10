@@ -72,6 +72,11 @@ public class KeycloakIdentityGateway implements IdentityGateway {
                 .flatMap(user -> utilisateur(user.getId()));
     }
 
+    /**
+     * Crée l'utilisateur, l'affecte à son groupe de client puis lui attribue
+     * ses rôles : sans cette dernière étape, le compte serait inutilisable
+     * côté autorisations malgré un POST affichant des rôles.
+     */
     @Override
     public UUID creerUtilisateur(IdentiteCommande commande) {
         Map<String, Object> representation = new LinkedHashMap<>();
@@ -86,6 +91,10 @@ public class KeycloakIdentityGateway implements IdentityGateway {
 
         if (commande.groupe() != null && !commande.groupe().isEmpty()) {
             affecterAuGroupe(userId, commande.groupe());
+        }
+
+        if (commande.roles() != null && !commande.roles().isEmpty()) {
+            adminClient.assignClientRoles(userId, clientUuidObligatoire(), commande.roles());
         }
 
         return userId;

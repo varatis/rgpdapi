@@ -1,5 +1,6 @@
 package com.minds.rgpd.infrastructure.keycloak;
 
+import com.minds.rgpd.business.exceptions.IdentityProviderException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
@@ -14,6 +15,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
@@ -128,6 +130,23 @@ class KeycloakAdminClientTest {
 
         server.verify();
         assertThat(users).isEmpty();
+    }
+
+    /**
+     * Un jeton inaccessible doit remonter une erreur explicite (502 côté API)
+     * plutôt qu'un échec silencieux qui masque la cause.
+     */
+    @Test
+    void jetonInaccessibleLeveUneErreurExplicite() {
+        server.expect(requestTo(TOKEN_URL))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withUnauthorizedRequest());
+
+        assertThatThrownBy(() -> client.getUsers())
+                .isInstanceOf(IdentityProviderException.class)
+                .hasMessageContaining("jeton client_credentials");
+
+        server.verify();
     }
 
     /** Keycloak ne renvoie pas de corps à la création : l'UUID vient de l'en-tête Location. */

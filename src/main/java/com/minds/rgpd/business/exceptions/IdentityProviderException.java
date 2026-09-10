@@ -13,6 +13,12 @@ public class IdentityProviderException extends RuntimeException {
         this.statut = HttpStatus.BAD_GATEWAY;
     }
 
+    /** Message libre, pour les échecs techniques (jeton inaccessible, réponse invalide…). */
+    public IdentityProviderException(String message) {
+        super(message);
+        this.statut = HttpStatus.BAD_GATEWAY;
+    }
+
     public HttpStatus getStatut() {
         return statut;
     }
