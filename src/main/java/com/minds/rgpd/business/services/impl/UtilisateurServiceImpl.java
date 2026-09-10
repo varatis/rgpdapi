@@ -54,7 +54,7 @@ public class UtilisateurServiceImpl implements UtilisateurService {
                 payload.nom(),
                 payload.email(),
                 payload.roles(),
-                payload.groupe(),
+                groupeEffectif(payload, client),
                 actifParDefaut(payload.actif())
         );
         UUID userId = identityGateway.creerUtilisateur(commande);
@@ -74,7 +74,7 @@ public class UtilisateurServiceImpl implements UtilisateurService {
                 payload.nom(),
                 payload.email(),
                 payload.roles(),
-                payload.groupe(),
+                groupeEffectif(payload, client),
                 actifParDefaut(payload.actif())
         ));
         if (payload.motDePasse() != null && !payload.motDePasse().isBlank()) {
@@ -100,6 +100,17 @@ public class UtilisateurServiceImpl implements UtilisateurService {
     @Override
     public List<String> listerRolesDisponibles() {
         return identityGateway.rolesDisponibles();
+    }
+
+    /**
+     * Le groupe à affecter porte le nom du client désigné : lorsqu'un
+     * clientId est fourni, c'est le nom du client en base qui fait foi —
+     * le champ « groupe » du payload n'est plus qu'une indication. On évite
+     * ainsi les désynchronisations (ex. « clients » au lieu de « La
+     * breteche », qui plaçait l'utilisateur dans le groupe parent).
+     */
+    private String groupeEffectif(UtilisateurWriteDTO payload, Client client) {
+        return client != null ? client.getNom() : payload.groupe();
     }
 
     /**

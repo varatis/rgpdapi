@@ -8,6 +8,7 @@ import com.minds.rgpd.business.identity.IdentityGateway;
 import com.minds.rgpd.persistence.entities.Client;
 import com.minds.rgpd.persistence.repositories.ClientRepository;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -88,6 +89,29 @@ class UtilisateurServiceImplTest {
         utilisateurService.creer(payload);
 
         verify(identityGateway).definirMotDePasse(userId, "MotDePasse123!");
+    }
+
+    /**
+     * Le groupe affecté vient du NOM du client (base), pas du champ groupe
+     * du payload : « clients » (le préfixe) ne doit plus placer l'utilisateur
+     * dans le groupe parent.
+     */
+    @Test
+    void leGroupeVientDuNomDuClientPasDuChampGroupe() {
+        UUID clientId = UUID.randomUUID();
+        Client client = Client.builder().id(clientId).nom("La breteche").build();
+        UtilisateurWriteDTO payload = new UtilisateurWriteDTO(
+                "Lolo", "Du69", "lolo@du69.com", List.of("user"), clientId, "clients", true, null);
+
+        when(identityGateway.rolesDisponibles()).thenReturn(List.of("user", "admin"));
+        when(clientRepository.findById(clientId)).thenReturn(Optional.of(client));
+        when(identityGateway.creerUtilisateur(any(IdentiteCommande.class))).thenReturn(UUID.randomUUID());
+
+        utilisateurService.creer(payload);
+
+        ArgumentCaptor<IdentiteCommande> capteur = ArgumentCaptor.forClass(IdentiteCommande.class);
+        verify(identityGateway).creerUtilisateur(capteur.capture());
+        assertThat(capteur.getValue().groupe()).isEqualTo("La breteche");
     }
 
     /** Création avec client renseigné : la réponse porte clientId et clientNom. */

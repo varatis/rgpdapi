@@ -147,9 +147,10 @@ Le convertisseur back (`JwtAuthConverter`) lit **deux claims** :
   connexion. Taille 8–128 caractères ; jamais renvoyé dans les réponses.
 
 - Validation : `prenom`/`nom`/`email` obligatoires (taille max 100/100/255), `roles` **non vide**.
-- **`clientId` et `groupe` doivent être cohérents** entre eux : `groupe` (nom du client, ex.
-  `"Dupont"`) pilote l'affectation Keycloak ; `clientId` sert à la réponse et à la validation.
-  **Les deux peuvent être `null`** : cas légal « utilisateur sans client » (ex. superadmin),
+- **Le rattachement se fait par `clientId`** : dès qu'un `clientId` est fourni, le back affecte
+  le groupe **portant le nom du client** (source de vérité : la table CLIENT) — le champ `groupe`
+  du payload devient **optionnel et ignoré** (plus besoin de l'envoyer).
+  **`clientId` peut être `null`** : cas légal « utilisateur sans client » (ex. superadmin),
   la réponse renvoie alors `clientId` et `clientNom` à `null`.
 - `actif` optionnel, défaut `true`.
 - `roles` : minuscules, valeurs issues de `GET /utilisateurs/roles`.
@@ -239,8 +240,8 @@ Conséquences UI recommandées :
    portant la cause exacte (jeton inaccessible — vérifiez `KEYCLOAK_ADMIN_CLIENT_SECRET` —,
    rôle invalide, client/groupe introuvable). Le parsing ProblemDetail du front le couvre déjà.
 3. **Pagination ignorée** sur `GET /utilisateurs` (paramètre non branché).
-4. **Double contrat `clientId`/`groupe`** dans `UtilisateurWriteDTO` : les deux champs doivent
-   désigner le même client. Le back pourrait à terme déduire `groupe` de `clientId`.
+4. **Double contrat `clientId`/`groupe` — résolu** : le back déduit désormais le groupe du nom du
+   client (`clientId`) ; le champ `groupe` du payload est ignoré quand un client est désigné.
 5. **`keycloak.enabled: false` (profil test) n'a pas d'effet** : c'est le profil Spring qui
    substitue une passerelle factice (`NoopIdentityGateway`), pas ce flag.
 6. Le nom d'utilisateur Keycloak (`identifiant`) est **figé à l'email de création** : un `PUT`
