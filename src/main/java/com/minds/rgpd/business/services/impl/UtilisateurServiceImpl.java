@@ -118,12 +118,21 @@ public class UtilisateurServiceImpl implements UtilisateurService {
         return identityGateway.rolesDisponibles();
     }
 
+    /**
+     * Les rôles acceptés sont ceux que le fournisseur d'identité expose
+     * réellement (cf. {@link IdentityGateway#rolesDisponibles()}) : côté
+     * Keycloak ils sont en minuscules (« admin », « user ») et le
+     * JwtAuthConverter les normalise en ROLE_ADMIN, ROLE_USER pour
+     * hasAnyRole(...).
+     */
     private void validateRoles(List<String> roles) {
-        if (roles != null && !roles.isEmpty()) {
-            for (String role : roles) {
-                if (!role.equals("admin") && !role.equals("user")) {
-                    throw new IdentityProviderException("Rôle invalide", "role", role);
-                }
+        if (roles == null || roles.isEmpty()) {
+            return;
+        }
+        List<String> disponibles = identityGateway.rolesDisponibles();
+        for (String role : roles) {
+            if (!disponibles.contains(role)) {
+                throw new IdentityProviderException("Rôle invalide", "role", role);
             }
         }
     }

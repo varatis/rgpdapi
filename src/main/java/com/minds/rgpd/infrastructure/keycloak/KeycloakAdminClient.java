@@ -29,6 +29,9 @@ import org.springframework.web.client.RestTemplate;
  */
 public class KeycloakAdminClient {
 
+    /** Garde-fou contre les boucles de pagination si le serveur renvoyait toujours des pages pleines. */
+    private static final int MAX_PAGES = 100;
+
     private final KeycloakProperties properties;
 
     private final RestTemplate restTemplate;
@@ -62,8 +65,17 @@ public class KeycloakAdminClient {
         return properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/clients/" + clientUuid + "/roles";
     }
 
+    private String roleUsersUrl(String clientUuid, String roleName) {
+        return properties.getBaseUrl() + "/admin/realms/" + properties.getRealm()
+                + "/clients/" + clientUuid + "/roles/" + encode(roleName) + "/users";
+    }
+
     private String groupUrl(UUID groupId) {
         return properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/groups/" + groupId;
+    }
+
+    private String groupChildrenUrl(UUID groupId) {
+        return properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/groups/" + groupId + "/children";
     }
 
     private String groupByNameUrl(String name) {
@@ -78,12 +90,17 @@ public class KeycloakAdminClient {
         return properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/users/" + userId;
     }
 
+    private String userGroupsUrl(UUID userId) {
+        return properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/users/" + userId + "/groups";
+    }
+
     private String userGroupUrl(UUID userId, UUID groupId) {
         return properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/users/" + userId + "/groups/" + groupId;
     }
 
     private String userRoleMappingsUrl(UUID userId, String clientUuid) {
-        return properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/users/" + userId + "/role-mappings/clients/" + clientUuid;
+        return properties.getBaseUrl() + "/admin/realms/" + properties.getRealm()
+                + "/users/" + userId + "/role-mappings/clients/" + clientUuid;
     }
 
     private String encode(String value) {
@@ -159,8 +176,36 @@ public class KeycloakAdminClient {
         return get(url, (Class) List.class).map(list -> (List<T>) list);
     }
 
+    /**
+     * Parcourt une ressource paginée (paramètres {@code first}/{@code max})
+     * jusqu'à épuisement.
+     */
+    private <T> List<T> getAllPages(String url) {
+        List<T> result = new ArrayList<>();
+        int pageSize = properties.getPageSize();
+        int first = 0;
+        for (int page = 0; page < MAX_PAGES; page++) {
+            String separator = url.contains("?") ? "&" : "?";
+            List<T> chunk = getList(url + separator + "first=" + first + "&max=" + pageSize).orElse(List.of());
+            result.addAll(chunk);
+            if (chunk.size() < pageSize) {
+                break;
+            }
+            first += chunk.size();
+        }
+        return result;
+    }
+
     public List<KeycloakUserRepresentation> getUsers() {
-        return getList(usersUrl() + "?max=" + properties.getPageSize()).orElse(List.of());
+        return getAllPages(usersUrl());
+    }
+
+    /**
+     * Titulaires d'un rôle client donné (sens inverse de l'affectation :
+     * une requête par rôle plutôt qu'une par utilisateur).
+     */
+    public List<KeycloakUserRepresentation> getUsersByClientRole(String clientUuid, String roleName) {
+        return getAllPages(roleUsersUrl(clientUuid, roleName));
     }
 
     public Optional<KeycloakUserRepresentation> getUserById(UUID userId) {
@@ -186,8 +231,20 @@ public class KeycloakAdminClient {
         execute(HttpMethod.PUT, userUrl(userId), representation, Void.class);
     }
 
+    public List<KeycloakGroupRepresentation> getUserGroups(UUID userId) {
+        return getList(userGroupsUrl(userId)).orElse(List.of());
+    }
+
     public List<KeycloakRoleRepresentation> getClientRoles(String clientUuid) {
         return getList(clientRolesUrl(clientUuid)).orElse(List.of());
+    }
+
+    /**
+     * Rôles client effectivement affectés à un utilisateur
+     * ({@code GET /users/{id}/role-mappings/clients/{uuid}}).
+     */
+    public List<KeycloakRoleRepresentation> getUserClientRoles(UUID userId, String clientUuid) {
+        return getList(userRoleMappingsUrl(userId, clientUuid)).orElse(List.of());
     }
 
     public void assignClientRoles(UUID userId, String clientUuid, List<String> roleNames) {
@@ -223,6 +280,14 @@ public class KeycloakAdminClient {
     }
 
     /**
+     * Sous-groupes directs d'un groupe ({@code GET /groups/{id}/children}) :
+     * avec le préfixe configuré, ce sont les groupes de clients.
+     */
+    public List<KeycloakGroupRepresentation> getGroupChildren(UUID groupId) {
+        return getList(groupChildrenUrl(groupId)).orElse(List.of());
+    }
+
+    /**
      * Crée un groupe ; en tant que sous-groupe du groupe parent identifié par
      * {@code parentId} lorsqu'il est renseigné, sinon comme groupe racine.
      */
@@ -247,7 +312,7 @@ public class KeycloakAdminClient {
     }
 
     public List<KeycloakUserRepresentation> getGroupMembers(UUID groupId) {
-        return getList(groupMembersUrl(groupId)).orElse(List.of());
+        return getAllPages(groupMembersUrl(groupId));
     }
 
     public List<KeycloakClientRepresentation> getClientsByResourceId(String resourceId) {
