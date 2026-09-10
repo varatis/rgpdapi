@@ -544,8 +544,13 @@ public class FichierServiceImpl implements FichierService {
         if (depuisTemplate) {
             mettreAJourFiltreRegistre(sheet, rowIndex - 1);
         } else {
-            for (int i = 0; i < EXPORT_HEADERS.length; i++) {
-                sheet.autoSizeColumn(FIRST_COLUMN + i);
+            try {
+                for (int i = 0; i < EXPORT_HEADERS.length; i++) {
+                    sheet.autoSizeColumn(FIRST_COLUMN + i);
+                }
+            } catch (Throwable t) {
+                log.debug("Auto-dimensionnement des colonnes impossible (environnement sans polices) : {}",
+                        t.getMessage());
             }
         }
     }
