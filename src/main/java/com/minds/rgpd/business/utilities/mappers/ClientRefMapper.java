@@ -28,5 +28,6 @@ public interface ClientRefMapper {
     @Mapping(target = "durees", ignore = true)
     @Mapping(target = "definitions", ignore = true)
     @Mapping(target = "responsablesTraitement", ignore = true)
+    @Mapping(target = "historiqueTraitement", ignore = true)
     Client map(ClientDTO clientDTO);
 }

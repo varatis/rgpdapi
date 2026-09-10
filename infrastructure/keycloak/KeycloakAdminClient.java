@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.RequestEntity;
@@ -159,9 +160,36 @@ public class KeycloakAdminClient {
         }
     }
 
+    /**
+     * Variante pour les types génériques (listes) : le {@link ParameterizedTypeReference}
+     * préserve le type d'élément à l'exécution, ce que {@code List.class} ne permet pas
+     * (Jackson produirait des {@code LinkedHashMap} au lieu des représentations typées).
+     */
+    private <T> ResponseEntity<T> execute(HttpMethod method, String url, Object body,
+                                          ParameterizedTypeReference<T> responseType) {
+        ensureToken();
+        try {
+            return restTemplate.exchange(buildRequestEntity(method, url, body), responseType);
+        } catch (RestClientException e) {
+            if (e.getMessage() != null && e.getMessage().contains("401")) {
+                fetchToken();
+                return restTemplate.exchange(buildRequestEntity(method, url, body), responseType);
+            }
+            throw e;
+        }
+    }
+
     private <T> Optional<T> performRequest(HttpMethod method, String url, Object body, Class<T> responseType) {
         try {
             return Optional.ofNullable(execute(method, url, body, responseType).getBody());
+        } catch (RestClientException e) {
+            return Optional.empty();
+        }
+    }
+
+    private <T> Optional<List<T>> getList(String url, ParameterizedTypeReference<List<T>> responseType) {
+        try {
+            return Optional.ofNullable(execute(HttpMethod.GET, url, null, responseType).getBody());
         } catch (RestClientException e) {
             return Optional.empty();
         }
@@ -171,22 +199,18 @@ public class KeycloakAdminClient {
         return performRequest(HttpMethod.GET, url, null, responseType);
     }
 
-    @SuppressWarnings("unchecked")
-    private <T> Optional<List<T>> getList(String url) {
-        return get(url, (Class) List.class).map(list -> (List<T>) list);
-    }
-
     /**
      * Parcourt une ressource paginée (paramètres {@code first}/{@code max})
      * jusqu'à épuisement.
      */
-    private <T> List<T> getAllPages(String url) {
+    private <T> List<T> getAllPages(String url, ParameterizedTypeReference<List<T>> responseType) {
         List<T> result = new ArrayList<>();
         int pageSize = properties.getPageSize();
         int first = 0;
         for (int page = 0; page < MAX_PAGES; page++) {
             String separator = url.contains("?") ? "&" : "?";
-            List<T> chunk = getList(url + separator + "first=" + first + "&max=" + pageSize).orElse(List.of());
+            List<T> chunk = getList(url + separator + "first=" + first + "&max=" + pageSize, responseType)
+                    .orElse(List.of());
             result.addAll(chunk);
             if (chunk.size() < pageSize) {
                 break;
@@ -197,7 +221,8 @@ public class KeycloakAdminClient {
     }
 
     public List<KeycloakUserRepresentation> getUsers() {
-        return getAllPages(usersUrl());
+        return getAllPages(usersUrl(), new ParameterizedTypeReference<List<KeycloakUserRepresentation>>() {
+        });
     }
 
     /**
@@ -205,7 +230,9 @@ public class KeycloakAdminClient {
      * une requête par rôle plutôt qu'une par utilisateur).
      */
     public List<KeycloakUserRepresentation> getUsersByClientRole(String clientUuid, String roleName) {
-        return getAllPages(roleUsersUrl(clientUuid, roleName));
+        return getAllPages(roleUsersUrl(clientUuid, roleName),
+                new ParameterizedTypeReference<List<KeycloakUserRepresentation>>() {
+                });
     }
 
     public Optional<KeycloakUserRepresentation> getUserById(UUID userId) {
@@ -214,7 +241,8 @@ public class KeycloakAdminClient {
 
     public Optional<KeycloakUserRepresentation> getUserByEmail(String email) {
         String url = usersUrl() + "?email=" + encode(email) + "&exact=true&max=1";
-        return getList(url).flatMap(users ->
+        return getList(url, new ParameterizedTypeReference<List<KeycloakUserRepresentation>>() {
+                }).flatMap(users ->
                 users.isEmpty() ? Optional.empty() : Optional.of(users.getFirst()));
     }
 
@@ -232,11 +260,13 @@ public class KeycloakAdminClient {
     }
 
     public List<KeycloakGroupRepresentation> getUserGroups(UUID userId) {
-        return getList(userGroupsUrl(userId)).orElse(List.of());
+        return getList(userGroupsUrl(userId), new ParameterizedTypeReference<List<KeycloakGroupRepresentation>>() {
+        }).orElse(List.of());
     }
 
     public List<KeycloakRoleRepresentation> getClientRoles(String clientUuid) {
-        return getList(clientRolesUrl(clientUuid)).orElse(List.of());
+        return getList(clientRolesUrl(clientUuid), new ParameterizedTypeReference<List<KeycloakRoleRepresentation>>() {
+        }).orElse(List.of());
     }
 
     /**
@@ -244,7 +274,9 @@ public class KeycloakAdminClient {
      * ({@code GET /users/{id}/role-mappings/clients/{uuid}}).
      */
     public List<KeycloakRoleRepresentation> getUserClientRoles(UUID userId, String clientUuid) {
-        return getList(userRoleMappingsUrl(userId, clientUuid)).orElse(List.of());
+        return getList(userRoleMappingsUrl(userId, clientUuid),
+                new ParameterizedTypeReference<List<KeycloakRoleRepresentation>>() {
+                }).orElse(List.of());
     }
 
     public void assignClientRoles(UUID userId, String clientUuid, List<String> roleNames) {
@@ -275,7 +307,8 @@ public class KeycloakAdminClient {
     }
 
     public Optional<KeycloakGroupRepresentation> getGroupByName(String name) {
-        return getList(groupByNameUrl(name)).flatMap(groups ->
+        return getList(groupByNameUrl(name), new ParameterizedTypeReference<List<KeycloakGroupRepresentation>>() {
+        }).flatMap(groups ->
                 groups.isEmpty() ? Optional.empty() : Optional.of(groups.getFirst()));
     }
 
@@ -284,7 +317,8 @@ public class KeycloakAdminClient {
      * avec le préfixe configuré, ce sont les groupes de clients.
      */
     public List<KeycloakGroupRepresentation> getGroupChildren(UUID groupId) {
-        return getList(groupChildrenUrl(groupId)).orElse(List.of());
+        return getList(groupChildrenUrl(groupId), new ParameterizedTypeReference<List<KeycloakGroupRepresentation>>() {
+        }).orElse(List.of());
     }
 
     /**
@@ -312,11 +346,15 @@ public class KeycloakAdminClient {
     }
 
     public List<KeycloakUserRepresentation> getGroupMembers(UUID groupId) {
-        return getAllPages(groupMembersUrl(groupId));
+        return getAllPages(groupMembersUrl(groupId),
+                new ParameterizedTypeReference<List<KeycloakUserRepresentation>>() {
+                });
     }
 
     public List<KeycloakClientRepresentation> getClientsByResourceId(String resourceId) {
-        return getList(clientUrl() + "?clientId=" + encode(resourceId)).orElse(List.of());
+        return getList(clientUrl() + "?clientId=" + encode(resourceId),
+                new ParameterizedTypeReference<List<KeycloakClientRepresentation>>() {
+                }).orElse(List.of());
     }
 
     public String getClientUuidByResourceId(String resourceId) {
