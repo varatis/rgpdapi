@@ -1,4 +1,4 @@
-TRUNCATE TABLE traitement_etablissement, utilisateur_etablissement, profil, client, utilisateur, etablissement, traitement CASCADE;
+TRUNCATE TABLE definition, traitement_etablissement, utilisateur_etablissement, profil, client, utilisateur, etablissement, traitement CASCADE;
 -- ============================================
 -- Données factices
 -- ============================================
@@ -31,14 +31,19 @@ VALUES ('590687e6-f6e9-4668-aae0-a0f0e32982ff', 'Siège Paris', '0e4bf889-fea0-4
 INSERT INTO utilisateur_etablissement (id_utilisateur, id_etablissement)
 VALUES ('d6dfd117-8047-4a9a-afca-f5268a38bfcf', '590687e6-f6e9-4668-aae0-a0f0e32982ff'), -- Alice ↔ Siège Paris
        ('6a04222b-60f8-434b-bdff-c01ce36fde2f', 'bf10040d-c95f-42bb-8298-514fe45d84c1'), -- Bob ↔ Agence Lyon
-       ('e9048a22-e73d-4b35-b08a-0540c58e7a6f', 'cb5b0cd7-8551-4808-b3a2-fc5e745b25d2');
--- Claire ↔ Siège Marseille
+       ('e9048a22-e73d-4b35-b08a-0540c58e7a6f', 'cb5b0cd7-8551-4808-b3a2-fc5e745b25d2'); -- Claire ↔ Siège Marseille
+
+-- DEFINITIONS (finalités principales référencées par les traitements)
+INSERT INTO definition (id, type, valeur, client_id)
+VALUES (901, 'Finalité Principale', 'Administration RH', '0e4bf889-fea0-46ac-894d-ca39cbf00359'),
+       (902, 'Finalité Principale', 'Analyse commerciale', '0e4bf889-fea0-46ac-894d-ca39cbf00359'),
+       (903, 'Finalité Principale', 'Protection des données', '82e99259-1bbd-4c1a-b013-7602e27168f3');
 
 -- TRAITEMENTS
-INSERT INTO traitement (identifiant, id_fonctionnel, nom, gestionnaire_mise_en_oeuvre, date_identification, finalite_principale, id_client)
-VALUES ('31b8d234-2346-4761-89fb-92d24f49bb96', 1,'Gestion des salariés', 'Alice Dupont', '2026-01-01' ,'Administration RH', '0e4bf889-fea0-46ac-894d-ca39cbf00359'),
-       ('acc27fd1-58ea-4333-b300-b4a32bef6a63', 2, 'Suivi des ventes', 'Bob Martin', '2026-01-01','Analyse commerciale', '0e4bf889-fea0-46ac-894d-ca39cbf00359'),
-       ('5aed6dd1-d164-41f7-a786-f1be625333ae', 3, 'Conformité RGPD', 'Claire Durand','2026-01-01' ,'Protection des données', '82e99259-1bbd-4c1a-b013-7602e27168f3');
+INSERT INTO traitement (identifiant, id_fonctionnel, nom, gestionnaire_mise_en_oeuvre, date_identification, finalite_principale_id, id_client)
+VALUES ('31b8d234-2346-4761-89fb-92d24f49bb96', 1,'Gestion des salariés', 'Alice Dupont', '2026-01-01' ,901, '0e4bf889-fea0-46ac-894d-ca39cbf00359'),
+       ('acc27fd1-58ea-4333-b300-b4a32bef6a63', 2, 'Suivi des ventes', 'Bob Martin', '2026-01-01',902, '0e4bf889-fea0-46ac-894d-ca39cbf00359'),
+       ('5aed6dd1-d164-41f7-a786-f1be625333ae', 3, 'Conformité RGPD', 'Claire Durand','2026-01-01' ,903, '82e99259-1bbd-4c1a-b013-7602e27168f3');
 
 -- LIENS TRAITEMENT ↔ ETABLISSEMENT
 INSERT INTO traitement_etablissement (id_traitement, id_etablissement)
