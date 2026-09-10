@@ -48,8 +48,7 @@ public class UtilisateurServiceImpl implements UtilisateurService {
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public UtilisateurDTO creer(UtilisateurWriteDTO payload) {
         validateRoles(payload.roles());
-        Client client = clientRepository.findById(payload.clientId())
-                .orElseThrow(() -> new IdentityProviderException("Client introuvable", "id", payload.clientId().toString()));
+        Client client = client(payload.clientId());
         IdentiteCommande commande = new IdentiteCommande(
                 payload.prenom(),
                 payload.nom(),
@@ -59,23 +58,14 @@ public class UtilisateurServiceImpl implements UtilisateurService {
                 actifParDefaut(payload.actif())
         );
         UUID userId = identityGateway.creerUtilisateur(commande);
-        return new UtilisateurDTO(
-                userId,
-                payload.email(),
-                payload.prenom(),
-                payload.nom(),
-                payload.email(),
-                actifParDefaut(payload.actif()),
-                payload.roles(),
-                payload.clientId(),
-                client.getNom()
-        );
+        return toDTO(userId, payload, client);
     }
 
     @Override
     @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public UtilisateurDTO modifier(UUID id, UtilisateurWriteDTO payload) {
         validateRoles(payload.roles());
+        Client client = client(payload.clientId());
         identityGateway.modifierUtilisateur(id, new IdentiteCommande(
                 payload.prenom(),
                 payload.nom(),
@@ -84,19 +74,7 @@ public class UtilisateurServiceImpl implements UtilisateurService {
                 payload.groupe(),
                 actifParDefaut(payload.actif())
         ));
-        Client client = clientRepository.findById(payload.clientId())
-                .orElseThrow(() -> new IdentityProviderException("Client introuvable", "id", payload.clientId().toString()));
-        return new UtilisateurDTO(
-                id,
-                payload.email(),
-                payload.prenom(),
-                payload.nom(),
-                payload.email(),
-                actifParDefaut(payload.actif()),
-                payload.roles(),
-                payload.clientId(),
-                client.getNom()
-        );
+        return toDTO(id, payload, client);
     }
 
     @Override
@@ -116,6 +94,33 @@ public class UtilisateurServiceImpl implements UtilisateurService {
     @Override
     public List<String> listerRolesDisponibles() {
         return identityGateway.rolesDisponibles();
+    }
+
+    /**
+     * Un utilisateur peut ne dépendre d'aucun client (ex. superadmin) :
+     * {@code clientId} null est légal — {@code findById(null)} étant de plus
+     * rejeté par Spring Data, il ne faut l'appeler que si l'identifiant existe.
+     */
+    private Client client(UUID clientId) {
+        if (clientId == null) {
+            return null;
+        }
+        return clientRepository.findById(clientId)
+                .orElseThrow(() -> new IdentityProviderException("Client introuvable", "id", clientId.toString()));
+    }
+
+    private UtilisateurDTO toDTO(UUID id, UtilisateurWriteDTO payload, Client client) {
+        return new UtilisateurDTO(
+                id,
+                payload.email(),
+                payload.prenom(),
+                payload.nom(),
+                payload.email(),
+                actifParDefaut(payload.actif()),
+                payload.roles(),
+                client != null ? client.getId() : null,
+                client != null ? client.getNom() : payload.groupe()
+        );
     }
 
     /**

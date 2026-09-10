@@ -77,6 +77,7 @@ Le convertisseur back (`JwtAuthConverter`) lit **deux claims** :
 |---|---|
 | Identifiant utilisateur | = email (le `username` Keycloak est l'email) |
 | Rattachement client | un groupe Keycloak `/clients/{nom du client}` ; **un seul client par utilisateur** |
+| Utilisateur sans client | **légal** (ex. superadmin) : `clientId` et `groupe` à `null` dans les payloads |
 | Changement de client | `PUT /utilisateurs/{id}` : le back **retire l'ancien groupe** avant d'affecter le nouveau |
 | Rôles à la modification | **remplacés intégralement** (anciens retirés, nouveaux affectés) — envoyer la liste complète |
 | `actif: false` | utilisateur désactivé dans Keycloak : il ne peut plus se connecter, mais reste listé |
@@ -139,9 +140,10 @@ Le convertisseur back (`JwtAuthConverter`) lit **deux claims** :
 ```
 
 - Validation : `prenom`/`nom`/`email` obligatoires (taille max 100/100/255), `roles` **non vide**.
-- **`clientId` ET `groupe` sont attendus** : `groupe` (nom du client, ex. `"Dupont"`) pilote
-  l'affectation Keycloak ; `clientId` sert à la réponse et à la validation. Ils doivent être
-  **cohérents** (le groupe du client portant cet id).
+- **`clientId` et `groupe` doivent être cohérents** entre eux : `groupe` (nom du client, ex.
+  `"Dupont"`) pilote l'affectation Keycloak ; `clientId` sert à la réponse et à la validation.
+  **Les deux peuvent être `null`** : cas légal « utilisateur sans client » (ex. superadmin),
+  la réponse renvoie alors `clientId` et `clientNom` à `null`.
 - `actif` optionnel, défaut `true`.
 - `roles` : minuscules, valeurs issues de `GET /utilisateurs/roles`.
 
