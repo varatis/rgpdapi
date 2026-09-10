@@ -20,6 +20,7 @@ public record UtilisateurWriteDTO(
         @NotEmpty(message = "doit contenir au moins un rôle")
         List<String> roles,
         UUID clientId,
+        String groupe,
         Boolean actif
 ) {
 }
