@@ -293,6 +293,18 @@ public class KeycloakAdminClient {
         execute(HttpMethod.DELETE, userUrl(userId), null, Void.class);
     }
 
+    /**
+     * Définit (ou réinitialise) le mot de passe d'un utilisateur ; posé en
+     * temporaire, Keycloak exige son remplacement à la prochaine connexion.
+     */
+    public void resetPassword(UUID userId, String motDePasse, boolean temporaire) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("type", "password");
+        body.put("value", motDePasse);
+        body.put("temporary", temporaire);
+        execute(HttpMethod.PUT, userUrl(userId) + "/reset-password", body, Void.class);
+    }
+
     public void updateUser(UUID userId, Map<String, Object> representation) {
         execute(HttpMethod.PUT, userUrl(userId), representation, Void.class);
     }

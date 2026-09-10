@@ -211,6 +211,22 @@ class KeycloakAdminClientTest {
         server.verify();
     }
 
+    /** Le mot de passe initial passe par reset-password, en temporaire. */
+    @Test
+    void resetPasswordEnvoieUnMotDePasseTemporaire() {
+        attendreJeton("jwt-1");
+        server.expect(requestTo(USERS_URL + "/" + ALICE_ID + "/reset-password"))
+                .andExpect(method(HttpMethod.PUT))
+                .andExpect(jsonPath("$.type").value("password"))
+                .andExpect(jsonPath("$.value").value("MotDePasse123!"))
+                .andExpect(jsonPath("$.temporary").value(true))
+                .andRespond(withSuccess());
+
+        client.resetPassword(UUID.fromString(ALICE_ID), "MotDePasse123!", true);
+
+        server.verify();
+    }
+
     /** Un e-mail absent donne un Optional vide, pas d'exception. */
     @Test
     void getUserByEmailAbsentDonneOptionalVide() {

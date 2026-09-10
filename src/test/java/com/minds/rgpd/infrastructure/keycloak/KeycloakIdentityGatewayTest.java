@@ -231,6 +231,14 @@ class KeycloakIdentityGatewayTest {
                 .hasMessageContaining("client Keycloak introuvable");
     }
 
+    /** Le mot de passe est posé en temporaire : remplacement requis à la première connexion. */
+    @Test
+    void definirMotDePassePasseParResetPasswordTemporaire() {
+        gateway.definirMotDePasse(ALICE_ID, "MotDePasse123!");
+
+        verify(adminClient).resetPassword(ALICE_ID, "MotDePasse123!", true);
+    }
+
     /** creerGroupe crée sous le parent configuré et reconstitue le groupe créé. */
     @Test
     void creerGroupeCreeSousLeParentConfigure() {

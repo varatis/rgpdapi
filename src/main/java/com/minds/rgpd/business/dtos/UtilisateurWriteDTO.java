@@ -22,6 +22,14 @@ public record UtilisateurWriteDTO(
         List<String> roles,
         UUID clientId,
         String groupe,
-        Boolean actif
+        Boolean actif,
+
+        /**
+         * Mot de passe initial (création) ou de réinitialisation (modification) :
+         * optionnel — null laisse le mot de passe inchangé. Posé en temporaire,
+         * il impose son remplacement à la première connexion.
+         */
+        @Size(min = 8, max = 128, message = "doit contenir entre 8 et 128 caractères")
+        String motDePasse
 ) {
 }

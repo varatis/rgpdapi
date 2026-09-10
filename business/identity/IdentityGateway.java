@@ -17,6 +17,12 @@ public interface IdentityGateway {
 
     void supprimerUtilisateur(UUID id);
 
+    /**
+     * Définit un mot de passe temporaire : l'utilisateur devra le remplacer
+     * lors de sa première connexion.
+     */
+    void definirMotDePasse(UUID utilisateurId, String motDePasse);
+
     List<String> rolesDisponibles();
 
     void affecterRole(UUID id, String role);

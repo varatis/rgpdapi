@@ -82,6 +82,7 @@ Le convertisseur back (`JwtAuthConverter`) lit **deux claims** :
 | Rôles à la modification | **remplacés intégralement** (anciens retirés, nouveaux affectés) — envoyer la liste complète |
 | `actif: false` | utilisateur désactivé dans Keycloak : il ne peut plus se connecter, mais reste listé |
 | Suppression utilisateur | définitive côté Keycloak (pas de corbeille) |
+| Mot de passe | `motDePasse` **optionnel** dans les payloads (8–128 car.) : posé en **temporaire**, changement forcé à la première connexion ; en `PUT` il **réinitialise** le mot de passe |
 | Client ↔ groupe | créer un client crée son groupe ; supprimer un client supprime le groupe **et ses membres** |
 
 ---
@@ -135,9 +136,15 @@ Le convertisseur back (`JwtAuthConverter`) lit **deux claims** :
   "roles": ["user"],
   "clientId": "3f0f5b2e-…",
   "groupe": "Dupont",
-  "actif": true
+  "actif": true,
+  "motDePasse": "Initial123!"
 }
 ```
+
+- `motDePasse` : **optionnel** (null = inchangé). À la création, il permet la première
+  connexion ; en modification, il réinitialise le mot de passe. Dans les deux cas il est posé
+  en **temporaire** : Keycloak force l'utilisateur à en choisir un nouveau à la première
+  connexion. Taille 8–128 caractères ; jamais renvoyé dans les réponses.
 
 - Validation : `prenom`/`nom`/`email` obligatoires (taille max 100/100/255), `roles` **non vide**.
 - **`clientId` et `groupe` doivent être cohérents** entre eux : `groupe` (nom du client, ex.
@@ -265,6 +272,7 @@ Conséquences UI recommandées :
 - [ ] Suppression utilisateur : disparition de la liste (source Keycloak).
 - [ ] CRUD client : `409` sur doublon de nom ; confirmation renforcée sur la suppression
       (utilisateurs du groupe supprimés).
+- [ ] Création utilisateur : `motDePasse` initial fourni (ou généré) → l'utilisateur peut se connecter et doit changer son mot de passe.
 - [ ] Habillage : upload logo (PNG/JPEG/WebP), affichage avec `ETag`/304.
 - [ ] Parcours `ROLE_USER` : endpoints lecture seuls ; `403` propres sur les actions admin.
 - [ ] Gestion `401` → refresh/redirection SSO ; affichage des erreurs 400/409/500 hétérogènes.

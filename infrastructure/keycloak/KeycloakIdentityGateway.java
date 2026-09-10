@@ -132,6 +132,11 @@ public class KeycloakIdentityGateway implements IdentityGateway {
     }
 
     @Override
+    public void definirMotDePasse(UUID id, String motDePasse) {
+        adminClient.resetPassword(id, motDePasse, true);
+    }
+
+    @Override
     public List<String> rolesDisponibles() {
         return List.copyOf(nomsRolesClient());
     }

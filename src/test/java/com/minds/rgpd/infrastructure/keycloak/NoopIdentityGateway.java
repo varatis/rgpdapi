@@ -87,6 +87,11 @@ public class NoopIdentityGateway implements IdentityGateway {
     }
 
     @Override
+    public void definirMotDePasse(UUID id, String motDePasse) {
+        // sans effet en test
+    }
+
+    @Override
     public List<String> rolesDisponibles() {
         return List.of("admin", "user");
     }

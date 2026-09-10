@@ -46,7 +46,7 @@ class UtilisateurServiceImplTest {
     @Test
     void modifierUnUtilisateurSansClientPasse() {
         UtilisateurWriteDTO payload =
-                new UtilisateurWriteDTO("Prénom", "Nom", "admin@alpha.com", List.of("user"), null, null, true);
+                new UtilisateurWriteDTO("Prénom", "Nom", "admin@alpha.com", List.of("user"), null, null, true, null);
 
         when(identityGateway.rolesDisponibles()).thenReturn(List.of("user", "admin"));
 
@@ -63,7 +63,7 @@ class UtilisateurServiceImplTest {
     void modifierAvecClientIdInconnuEchoueAvantTouteMutation() {
         UUID clientId = UUID.randomUUID();
         UtilisateurWriteDTO payload =
-                new UtilisateurWriteDTO("Prénom", "Nom", "admin@alpha.com", List.of("user"), clientId, "Inconnu", true);
+                new UtilisateurWriteDTO("Prénom", "Nom", "admin@alpha.com", List.of("user"), clientId, "Inconnu", true, null);
 
         when(identityGateway.rolesDisponibles()).thenReturn(List.of("user", "admin"));
         when(clientRepository.findById(clientId)).thenReturn(Optional.empty());
@@ -75,13 +75,28 @@ class UtilisateurServiceImplTest {
         verify(identityGateway, never()).modifierUtilisateur(any(UUID.class), any(IdentiteCommande.class));
     }
 
+    /** Un mot de passe fourni à la création est transmis à la passerelle (temporaire). */
+    @Test
+    void creerAvecMotDePasseLeTransmetALaPasserelle() {
+        UUID userId = UUID.randomUUID();
+        UtilisateurWriteDTO payload = new UtilisateurWriteDTO(
+                "Lolo", "Du69", "lolo@du69.com", List.of("user"), null, null, true, "MotDePasse123!");
+
+        when(identityGateway.rolesDisponibles()).thenReturn(List.of("user", "admin"));
+        when(identityGateway.creerUtilisateur(any(IdentiteCommande.class))).thenReturn(userId);
+
+        utilisateurService.creer(payload);
+
+        verify(identityGateway).definirMotDePasse(userId, "MotDePasse123!");
+    }
+
     /** Création avec client renseigné : la réponse porte clientId et clientNom. */
     @Test
     void creerAvecClientRenseigneRenvoieLeClient() {
         UUID clientId = UUID.randomUUID();
         Client client = Client.builder().id(clientId).nom("Dupont").build();
         UtilisateurWriteDTO payload =
-                new UtilisateurWriteDTO("Alice", "Dupont", "alice@alpha.com", List.of("user"), clientId, "Dupont", true);
+                new UtilisateurWriteDTO("Alice", "Dupont", "alice@alpha.com", List.of("user"), clientId, "Dupont", true, null);
 
         when(identityGateway.rolesDisponibles()).thenReturn(List.of("user", "admin"));
         when(clientRepository.findById(clientId)).thenReturn(Optional.of(client));

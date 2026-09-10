@@ -58,6 +58,9 @@ public class UtilisateurServiceImpl implements UtilisateurService {
                 actifParDefaut(payload.actif())
         );
         UUID userId = identityGateway.creerUtilisateur(commande);
+        if (payload.motDePasse() != null && !payload.motDePasse().isBlank()) {
+            identityGateway.definirMotDePasse(userId, payload.motDePasse());
+        }
         return toDTO(userId, payload, client);
     }
 
@@ -74,6 +77,9 @@ public class UtilisateurServiceImpl implements UtilisateurService {
                 payload.groupe(),
                 actifParDefaut(payload.actif())
         ));
+        if (payload.motDePasse() != null && !payload.motDePasse().isBlank()) {
+            identityGateway.definirMotDePasse(id, payload.motDePasse());
+        }
         return toDTO(id, payload, client);
     }
 
