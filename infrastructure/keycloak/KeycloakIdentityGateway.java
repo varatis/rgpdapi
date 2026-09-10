@@ -273,7 +273,7 @@ public class KeycloakIdentityGateway implements IdentityGateway {
      * toléré, résultat vide).
      */
     private List<KeycloakGroupRepresentation> groupesClients() {
-        return groupeParent()
+        return groupeParentBrut()
                 .map(this::sousGroupesDu)
                 .orElse(List.of());
     }
@@ -305,10 +305,14 @@ public class KeycloakIdentityGateway implements IdentityGateway {
      * préfixe configuré (ex. {@code /clients}), lu dans la hiérarchie
      * {@code GET /groups}.
      */
-    private Optional<GroupeIdentite> groupeParent() {
+    private Optional<KeycloakGroupRepresentation> groupeParentBrut() {
         return adminClient.getGroupHierarchy().stream()
                 .filter(groupe -> properties.getGroupPrefix().equals(groupe.getPath()))
-                .findFirst()
+                .findFirst();
+    }
+
+    private Optional<GroupeIdentite> groupeParent() {
+        return groupeParentBrut()
                 .map(groupe -> new GroupeIdentite(groupe.getId(), groupe.getName(), groupe.getPath()));
     }
 
