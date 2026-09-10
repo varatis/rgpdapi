@@ -122,6 +122,22 @@ l'API ne stocke plus les utilisateurs en base, elle interroge le realm Keycloak 
 
 Un utilisateur appartient à **au plus un** sous-groupe client : la modification d'un utilisateur retire
 son ancien groupe client avant de l'affecter au nouveau, et remplace ses rôles clients.
+
+#### Provisionnement initial du realm
+
+La connexion d'administration suppose trois éléments créés une fois dans le realm `minds-rgpd` :
+
+1. **Le client d'administration** `minds-rgpd-admin` (Clients → Create client) :
+   - Client authentication **ON**, Service accounts **ON**, Standard flow et Direct access grants **OFF** ;
+   - Credentials → copier le *Client secret* → variable d'environnement `KEYCLOAK_ADMIN_CLIENT_SECRET` de l'API ;
+   - Service accounts → *Assign role* → filtrer sur `realm-management` → attribuer au minimum
+     `view-users`, `manage-users`, `view-clients`, `view-groups`, `manage-groups`
+     (ainsi que `query-users`, `query-groups`, `query-clients` si disponibles).
+2. **Le client applicatif** `minds-saas-rgpd` : ses rôles clients — en minuscules, ex. `admin`, `user` —
+   constituent le vocabulaire exposé par `GET /utilisateurs/roles` et attendu dans les payloads.
+3. **Le groupe parent** `clients` à la racine du realm (Groups → Create group) : l'API crée les groupes
+   clients dessous (`/clients/{nom}`) ; un utilisateur n'est rattaché à son client que si son groupe
+   est sous ce préfixe.
 Les rôles et groupes ne sont jamais inclus dans les réponses de l'API d'administration Keycloak : la passerelle
 les reconstitue par requêtes inverses (rôles du client → utilisateurs par rôle, parent → sous-groupes → membres).
 
