@@ -33,6 +33,7 @@ class KeycloakIdentityGatewayTest {
     private static final UUID PARENT_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final UUID GROUPE_BRETECHE_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
     private static final UUID GROUPE_ALPHA_ID = UUID.fromString("33333333-3333-3333-3333-333333333333");
+    private static final UUID GROUPE_CLIENTS_ID = UUID.fromString("44444444-4444-4444-4444-444444444444");
     private static final String CLIENT_UUID = "uuid-interne-du-client";
 
     @Mock
@@ -83,8 +84,8 @@ class KeycloakIdentityGatewayTest {
                 .thenReturn(List.of(utilisateur(ALICE_ID, "alice@alpha.com")));
         when(adminClient.getUsersByClientRole(CLIENT_UUID, "user"))
                 .thenReturn(List.of(utilisateur(ALICE_ID, "alice@alpha.com")));
-        when(adminClient.getGroupByName("clients"))
-                .thenReturn(Optional.of(groupe(PARENT_ID, "clients", "/clients")));
+        when(adminClient.getGroupsByName("clients"))
+                .thenReturn(List.of(groupe(PARENT_ID, "clients", "/clients")));
         when(adminClient.getGroupChildren(PARENT_ID))
                 .thenReturn(List.of(groupe(GROUPE_BRETECHE_ID, "La breteche", "/clients/La breteche")));
         when(adminClient.getGroupMembers(GROUPE_BRETECHE_ID))
@@ -110,7 +111,7 @@ class KeycloakIdentityGatewayTest {
         when(properties.getGroupPrefix()).thenReturn("/clients");
         when(adminClient.getClientUuidByResourceId("minds-saas-rgpd")).thenReturn(CLIENT_UUID);
         when(adminClient.getClientRoles(CLIENT_UUID)).thenReturn(List.of());
-        when(adminClient.getGroupByName("clients")).thenReturn(Optional.empty());
+        when(adminClient.getGroupsByName("clients")).thenReturn(List.of());
         when(adminClient.getUsers())
                 .thenReturn(List.of(utilisateur(ALICE_ID, "alice@alpha.com")));
 
@@ -136,8 +137,8 @@ class KeycloakIdentityGatewayTest {
                 .thenReturn(List.of(role("role-admin", "admin")));
         when(adminClient.getUserGroups(ALICE_ID))
                 .thenReturn(List.of(groupe(GROUPE_BRETECHE_ID, "La breteche", "/clients/La breteche")));
-        when(adminClient.getGroupByName("Entreprise Alpha"))
-                .thenReturn(Optional.of(groupe(GROUPE_ALPHA_ID, "Entreprise Alpha", "/clients/Entreprise Alpha")));
+        when(adminClient.getGroupChildren(PARENT_ID))
+                .thenReturn(List.of(groupe(GROUPE_ALPHA_ID, "Entreprise Alpha", "/clients/Entreprise Alpha")));
 
         gateway.modifierUtilisateur(ALICE_ID, new IdentiteCommande(
                 "Alice", "Dupont", "alice@alpha.com", List.of("user"), "Entreprise Alpha", true));
@@ -159,11 +160,11 @@ class KeycloakIdentityGatewayTest {
         when(properties.getGroupPrefix()).thenReturn("/clients");
         when(properties.getResourceClientId()).thenReturn("minds-saas-rgpd");
         when(adminClient.createUser(any())).thenReturn(ALICE_ID);
-        when(adminClient.getGroupByName("Nouveau Client"))
-                .thenReturn(Optional.empty())
-                .thenReturn(Optional.of(groupe(GROUPE_ALPHA_ID, "Nouveau Client", "/clients/Nouveau Client")));
-        when(adminClient.getGroupByName("clients"))
-                .thenReturn(Optional.of(groupe(PARENT_ID, "clients", "/clients")));
+        when(adminClient.getGroupChildren(PARENT_ID))
+                .thenReturn(List.of())
+                .thenReturn(List.of(groupe(GROUPE_ALPHA_ID, "Nouveau Client", "/clients/Nouveau Client")));
+        when(adminClient.getGroupsByName("clients"))
+                .thenReturn(List.of(groupe(PARENT_ID, "clients", "/clients")));
         when(adminClient.createGroup("Nouveau Client", PARENT_ID)).thenReturn(UUID.randomUUID());
         when(adminClient.getClientUuidByResourceId("minds-saas-rgpd")).thenReturn(CLIENT_UUID);
 
@@ -184,8 +185,11 @@ class KeycloakIdentityGatewayTest {
     void creerUtilisateurAffecteLesRoles() {
         when(properties.getResourceClientId()).thenReturn("minds-saas-rgpd");
         when(adminClient.createUser(any())).thenReturn(ALICE_ID);
-        when(adminClient.getGroupByName("Entreprise Alpha"))
-                .thenReturn(Optional.of(groupe(GROUPE_ALPHA_ID, "Entreprise Alpha", "/clients/Entreprise Alpha")));
+        when(properties.getGroupPrefix()).thenReturn("/clients");
+        when(adminClient.getGroupsByName("clients"))
+                .thenReturn(List.of(groupe(PARENT_ID, "clients", "/clients")));
+        when(adminClient.getGroupChildren(PARENT_ID))
+                .thenReturn(List.of(groupe(GROUPE_ALPHA_ID, "Entreprise Alpha", "/clients/Entreprise Alpha")));
         when(adminClient.getClientUuidByResourceId("minds-saas-rgpd")).thenReturn(CLIENT_UUID);
 
         UUID id = gateway.creerUtilisateur(new IdentiteCommande(
@@ -239,15 +243,69 @@ class KeycloakIdentityGatewayTest {
         verify(adminClient).resetPassword(ALICE_ID, "MotDePasse123!", true);
     }
 
+    /**
+     * Un client nommé comme le groupe parent (« clients ») doit mapper sur le
+     * sous-groupe homonyme, jamais sur le parent : la recherche par nom
+     * retourne les deux — ici avec l'homonyme en premier — seul le chemin
+     * départage.
+     */
+    @Test
+    void groupeNeConfondPasUnClientHomonymeDuParentAvecLeParent() {
+        when(properties.getGroupPrefix()).thenReturn("/clients");
+        when(adminClient.getGroupsByName("clients")).thenReturn(List.of(
+                groupe(GROUPE_CLIENTS_ID, "clients", "/clients/clients"),
+                groupe(PARENT_ID, "clients", "/clients")));
+        when(adminClient.getGroupChildren(PARENT_ID))
+                .thenReturn(List.of(groupe(GROUPE_CLIENTS_ID, "clients", "/clients/clients")));
+
+        Optional<GroupeIdentite> groupe = gateway.groupe("clients");
+
+        assertThat(groupe).contains(new GroupeIdentite(GROUPE_CLIENTS_ID, "clients", "/clients/clients"));
+    }
+
+    /** Le groupe parent n'est pas un groupe de client : on en est toujours retiré. */
+    @Test
+    void modifierUtilisateurRetireAussiLAppartenanceAuGroupeParent() {
+        when(properties.getResourceClientId()).thenReturn("minds-saas-rgpd");
+        when(properties.getGroupPrefix()).thenReturn("/clients");
+        when(adminClient.getClientUuidByResourceId("minds-saas-rgpd")).thenReturn(CLIENT_UUID);
+        when(adminClient.getUserById(ALICE_ID))
+                .thenReturn(Optional.of(utilisateur(ALICE_ID, "alice@alpha.com")));
+        when(adminClient.getUserClientRoles(ALICE_ID, CLIENT_UUID)).thenReturn(List.of());
+        when(adminClient.getUserGroups(ALICE_ID))
+                .thenReturn(List.of(groupe(PARENT_ID, "clients", "/clients")));
+        when(adminClient.getGroupsByName("clients"))
+                .thenReturn(List.of(groupe(PARENT_ID, "clients", "/clients")));
+        when(adminClient.getGroupChildren(PARENT_ID))
+                .thenReturn(List.of(groupe(GROUPE_BRETECHE_ID, "La breteche", "/clients/La breteche")));
+
+        gateway.modifierUtilisateur(ALICE_ID, new IdentiteCommande(
+                "Alice", "Dupont", "alice@alpha.com", List.of("user"), "La breteche", true));
+
+        verify(adminClient).removeUserFromGroup(ALICE_ID, PARENT_ID);
+        verify(adminClient).addUserToGroup(ALICE_ID, GROUPE_BRETECHE_ID);
+    }
+
+    /** Sans groupe parent provisionné, la création échoue explicitement. */
+    @Test
+    void creerGroupeEchoueExplicitementSiLeParentEstAbsent() {
+        when(properties.getGroupPrefix()).thenReturn("/clients");
+        when(adminClient.getGroupsByName("clients")).thenReturn(List.of());
+
+        assertThatThrownBy(() -> gateway.creerGroupe("Entreprise Alpha"))
+                .isInstanceOf(IdentityProviderException.class)
+                .hasMessageContaining("groupe parent des clients introuvable");
+    }
+
     /** creerGroupe crée sous le parent configuré et reconstitue le groupe créé. */
     @Test
     void creerGroupeCreeSousLeParentConfigure() {
         when(properties.getGroupPrefix()).thenReturn("/clients");
-        when(adminClient.getGroupByName("clients"))
-                .thenReturn(Optional.of(groupe(PARENT_ID, "clients", "/clients")));
+        when(adminClient.getGroupsByName("clients"))
+                .thenReturn(List.of(groupe(PARENT_ID, "clients", "/clients")));
         when(adminClient.createGroup("Entreprise Alpha", PARENT_ID)).thenReturn(UUID.randomUUID());
-        when(adminClient.getGroupByName("Entreprise Alpha"))
-                .thenReturn(Optional.of(groupe(GROUPE_ALPHA_ID, "Entreprise Alpha", "/clients/Entreprise Alpha")));
+        when(adminClient.getGroupChildren(PARENT_ID))
+                .thenReturn(List.of(groupe(GROUPE_ALPHA_ID, "Entreprise Alpha", "/clients/Entreprise Alpha")));
 
         GroupeIdentite cree = gateway.creerGroupe("Entreprise Alpha");
 

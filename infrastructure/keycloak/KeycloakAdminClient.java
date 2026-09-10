@@ -356,10 +356,15 @@ public class KeycloakAdminClient {
         return representations;
     }
 
-    public Optional<KeycloakGroupRepresentation> getGroupByName(String name) {
+    /**
+     * Groupes portant exactement ce nom ({@code GET /groups?search=…&exact=true}).
+     * Plusieurs homonymes peuvent être renvoyés — un sous-groupe peut porter le
+     * même nom qu'un groupe racine (ex. {@code /clients} et {@code /clients/clients}) :
+     * seul le chemin départage, jamais l'ordre de la réponse.
+     */
+    public List<KeycloakGroupRepresentation> getGroupsByName(String name) {
         return getList(groupByNameUrl(name), new ParameterizedTypeReference<List<KeycloakGroupRepresentation>>() {
-        }).flatMap(groups ->
-                groups.isEmpty() ? Optional.empty() : Optional.of(groups.getFirst()));
+        }).orElse(List.of());
     }
 
     /**

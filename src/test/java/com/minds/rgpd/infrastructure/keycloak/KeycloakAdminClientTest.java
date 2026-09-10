@@ -227,6 +227,24 @@ class KeycloakAdminClientTest {
         server.verify();
     }
 
+    /** La recherche de groupes par nom est exacte (search + exact=true). */
+    @Test
+    void getGroupsByNameRechercheExactementParNom() {
+        attendreJeton("jwt-1");
+        server.expect(requestTo(BASE + "/admin/realms/minds-rgpd/groups?search=clients&exact=true"))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(header("Authorization", "Bearer jwt-1"))
+                .andRespond(withSuccess("""
+                        [{"id":"11111111-1111-1111-1111-111111111111","name":"clients","path":"/clients"}]
+                        """, MediaType.APPLICATION_JSON));
+
+        List<KeycloakGroupRepresentation> groupes = client.getGroupsByName("clients");
+
+        server.verify();
+        assertThat(groupes).hasSize(1);
+        assertThat(groupes.getFirst().getPath()).isEqualTo("/clients");
+    }
+
     /** Un e-mail absent donne un Optional vide, pas d'exception. */
     @Test
     void getUserByEmailAbsentDonneOptionalVide() {

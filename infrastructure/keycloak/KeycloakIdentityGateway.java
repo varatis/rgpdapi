@@ -146,17 +146,27 @@ public class KeycloakIdentityGateway implements IdentityGateway {
         adminClient.assignClientRoles(id, clientUuidObligatoire(), List.of(role));
     }
 
+    /**
+     * Groupe de client : un sous-groupe DIRECT du parent configuré portant ce
+     * nom. Résoudre parmi les enfants du parent écarte les homonymes — le
+     * groupe parent lui-même ne peut jamais être désigné, même si un client
+     * porte son nom.
+     */
     @Override
     public Optional<GroupeIdentite> groupe(String nom) {
-        return adminClient.getGroupByName(nom)
-                .map(groupe -> new GroupeIdentite(groupe.getId(), groupe.getName(), groupe.getPath()));
+        return groupeParent().flatMap(parent ->
+                adminClient.getGroupChildren(parent.id()).stream()
+                        .filter(groupe -> nom.equals(groupe.getName()))
+                        .findFirst()
+                        .map(groupe -> new GroupeIdentite(groupe.getId(), groupe.getName(), groupe.getPath())));
     }
 
     @Override
     public GroupeIdentite creerGroupe(String nom) {
-        UUID parentId = groupe(nomGroupeParent())
+        UUID parentId = groupeParent()
                 .map(GroupeIdentite::id)
-                .orElse(null);
+                .orElseThrow(() -> new IdentityProviderException("groupe parent des clients introuvable",
+                        "chemin attendu", properties.getGroupPrefix()));
         adminClient.createGroup(nom, parentId);
         return groupe(nom)
                 .orElseThrow(() -> new IdentityProviderException("création du groupe", "nom", nom));
@@ -195,13 +205,16 @@ public class KeycloakIdentityGateway implements IdentityGateway {
 
     /**
      * Retire l'utilisateur de ses groupes de clients autres que celui visé :
-     * un utilisateur appartient à un seul client à la fois.
+     * un utilisateur appartient à un seul client à la fois. La cible est
+     * identifiée par son chemin (préfixe + nom) : un homonyme du groupe visé —
+     * ou le groupe parent lui-même — est systématiquement retiré.
      */
     private void retirerDesAutresGroupesClients(UUID userId, String nomGroupeConserve) {
+        String cheminConserve = properties.getGroupPrefix() + "/" + nomGroupeConserve;
         for (KeycloakGroupRepresentation groupe : adminClient.getUserGroups(userId)) {
             if (groupe.getPath() != null
                     && groupe.getPath().startsWith(properties.getGroupPrefix())
-                    && !groupe.getName().equals(nomGroupeConserve)) {
+                    && !groupe.getPath().equals(cheminConserve)) {
                 adminClient.removeUserFromGroup(userId, groupe.getId());
             }
         }
@@ -245,20 +258,39 @@ public class KeycloakIdentityGateway implements IdentityGateway {
      */
     private Map<UUID, String> groupeParUtilisateur() {
         Map<UUID, String> groupes = new HashMap<>();
-        groupe(nomGroupeParent()).ifPresent(parent ->
+        groupeParent().ifPresent(parent ->
                 adminClient.getGroupChildren(parent.id()).forEach(groupe ->
                         adminClient.getGroupMembers(groupe.getId()).forEach(membre ->
                                 groupes.putIfAbsent(membre.getId(), groupe.getName()))));
         return groupes;
     }
 
+    /**
+     * Groupe de client affiché pour un utilisateur : le premier trouvé sous
+     * le préfixe, hors groupe parent — celui-ci n'est pas un client.
+     */
     private String groupePrincipal(List<KeycloakGroupRepresentation> groupes) {
         for (KeycloakGroupRepresentation groupe : groupes) {
-            if (groupe.getPath() != null && groupe.getPath().startsWith(properties.getGroupPrefix())) {
+            if (groupe.getPath() != null
+                    && groupe.getPath().startsWith(properties.getGroupPrefix())
+                    && !groupe.getPath().equals(properties.getGroupPrefix())) {
                 return groupe.getName();
             }
         }
         return null;
+    }
+
+    /**
+     * Groupe parent des clients : l'unique groupe dont le chemin vaut le
+     * préfixe configuré (ex. {@code /clients}). La recherche par nom peut
+     * retourner plusieurs homonymes (un sous-groupe « clients » sous
+     * {@code /clients}) — seul le chemin départage sans ambiguïté.
+     */
+    private Optional<GroupeIdentite> groupeParent() {
+        return adminClient.getGroupsByName(nomGroupeParent()).stream()
+                .filter(groupe -> properties.getGroupPrefix().equals(groupe.getPath()))
+                .findFirst()
+                .map(groupe -> new GroupeIdentite(groupe.getId(), groupe.getName(), groupe.getPath()));
     }
 
     /**
