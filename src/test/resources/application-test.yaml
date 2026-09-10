@@ -22,6 +22,13 @@ application:
     upload:
       dir: "src/test/resources/rgpdFile"
   allowed-origins: "*"
+  keycloak:
+    enabled: false
+    base-url: http://localhost:8443
+    realm: minds-rgpd
+    admin-client-id: minds-saas-rgpd-admin
+    admin-client-secret: secret_test
+    resource-client-id: minds-saas-rgpd
 
 management:
   tracing:

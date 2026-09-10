@@ -1,13 +1,13 @@
 package com.minds.rgpd.integrationtest;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.minds.rgpd.AbstractITSpring;
 import com.minds.rgpd.business.dtos.ClientDTO;
 import com.minds.rgpd.business.dtos.EtablissementDTO;
 import com.minds.rgpd.business.dtos.ProfilDTO;
-import com.minds.rgpd.business.dtos.UtilisateurDTO;
 import com.nimbusds.jose.shaded.gson.JsonElement;
 import com.nimbusds.jose.shaded.gson.JsonParser;
 import org.junit.jupiter.api.BeforeEach;
@@ -80,16 +80,16 @@ public class ControllersIT extends AbstractITSpring {
     }
 
     @Test
-    void getUtilisateurs() throws Exception {
+    void getUtilisateursRenvoieUnePageVideSansSynchronisationKeycloak() throws Exception {
         // GIVEN
 
         // WHEN
         String result = mockMvc.perform(get("/utilisateurs")).andReturn().getResponse().getContentAsString();
 
         // THEN
-        assertThat(result).isNotNull().isNotBlank();
-        List<UtilisateurDTO> utilisateursList = stringToList(result, UtilisateurDTO.class);
-        assertThat(utilisateursList).isNotNull().isNotEmpty().hasSize(3);
+        JsonNode page = new ObjectMapper().readTree(result);
+        assertThat(page.get("totalElements").asInt()).isZero();
+        assertThat(page.get("content").isEmpty()).isTrue();
     }
 
     @Test

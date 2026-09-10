@@ -70,6 +70,42 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.back.name }}
                   key: DB_PASSWORD
+            - name: KEYCLOAK_SYNC_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: {{.Values.back.name}}
+                  key: application.keycloak.enabled
+            - name: KEYCLOAK_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{.Values.back.name}}
+                  key: application.keycloak.base-url
+            - name: KEYCLOAK_REALM
+              valueFrom:
+                configMapKeyRef:
+                  name: {{.Values.back.name}}
+                  key: application.keycloak.realm
+            - name: KEYCLOAK_ADMIN_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: {{.Values.back.name}}
+                  key: application.keycloak.admin-client-id
+            - name: KEYCLOAK_RESOURCE_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: {{.Values.back.name}}
+                  key: application.keycloak.resource-client-id
+            - name: KEYCLOAK_DESACTIVER_VERIFICATION_SSL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{.Values.back.name}}
+                  key: application.keycloak.desactiver-verification-ssl
+            - name: KEYCLOAK_ADMIN_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.back.name }}
+                  key: KEYCLOAK_ADMIN_CLIENT_SECRET
+                  optional: true
             - name: UPLOAD_DIR
               valueFrom:
                 configMapKeyRef:

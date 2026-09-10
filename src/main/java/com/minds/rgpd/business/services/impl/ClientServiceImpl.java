@@ -4,7 +4,9 @@ import com.minds.rgpd.business.dtos.ClientDTO;
 import com.minds.rgpd.business.dtos.ClientWriteDTO;
 import com.minds.rgpd.business.exceptions.DuplicateResourceException;
 import com.minds.rgpd.business.exceptions.ResourceNotFoundException;
+import com.minds.rgpd.business.identity.IdentityGateway;
 import com.minds.rgpd.business.services.ClientService;
+import com.minds.rgpd.business.utilities.NormaliseurTexte;
 import com.minds.rgpd.business.utilities.mappers.ClientMapper;
 import com.minds.rgpd.persistence.entities.Client;
 import com.minds.rgpd.persistence.repositories.ClientRepository;
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 
@@ -25,6 +28,7 @@ public class ClientServiceImpl implements ClientService {
 
     private final ClientMapper clientMapper;
     private final ClientRepository clientRepository;
+    private final IdentityGateway identityGateway;
 
     @Override
     public List<ClientDTO> getClients() {
@@ -59,6 +63,7 @@ public class ClientServiceImpl implements ClientService {
                 .build();
 
         Client cree = clientRepository.save(client);
+        identityGateway.creerGroupe(cree.getNom());
         log.info("Client créé : {} ({})", cree.getNom(), cree.getId());
 
         return clientMapper.map(cree);
@@ -72,12 +77,34 @@ public class ClientServiceImpl implements ClientService {
 
         verifierNomDisponible(payload.nom(), id);
 
+        String ancienNom = client.getNom();
         client.setNom(payload.nom());
         client.setStatut(payload.statut());
         client.setVersion(payload.version());
         client.setDateVersion(payload.dateVersion());
 
-        return clientMapper.map(clientRepository.save(client));
+        Client enregistre = clientRepository.save(client);
+        if (!Objects.equals(NormaliseurTexte.normaliser(ancienNom), NormaliseurTexte.normaliser(payload.nom()))) {
+            identityGateway.renommerGroupe(ancienNom, payload.nom());
+        }
+
+        return clientMapper.map(enregistre);
+    }
+
+    @Override
+    @Transactional
+    public void deleteClient(UUID id) {
+        Client client = clientRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Client", "id", id));
+
+        clientRepository.supprimerParId(id);
+
+        List<UUID> membres = identityGateway.membresDuGroupe(client.getNom());
+        membres.forEach(identityGateway::supprimerUtilisateur);
+        identityGateway.supprimerGroupe(client.getNom());
+
+        log.info("Client supprimé : {} ({}) — {} utilisateur(s) Keycloak et le groupe associés",
+                client.getNom(), id, membres.size());
     }
 
     private void verifierNomDisponible(String nom, UUID idCourant) {

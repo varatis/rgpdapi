@@ -72,6 +72,14 @@ public class ClientController {
         return ResponseEntity.ok(clientService.updateClient(id, payload));
     }
 
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPERADMIN')")
+    @Operation(summary = "Supprime un client, son groupe Keycloak et les utilisateurs qui y sont rattachés")
+    public ResponseEntity<Void> deleteClient(@PathVariable UUID id) {
+        clientService.deleteClient(id);
+        return ResponseEntity.noContent().build();
+    }
+
     /**
      * Renvoie les octets du logo.
      * <p>

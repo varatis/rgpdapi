@@ -1,9 +1,9 @@
-package com.minds.rgpd.business.dtos;
+package com.minds.rgpd.business.identity;
 
 import java.util.List;
 import java.util.UUID;
 
-public record UtilisateurDTO(
+public record IdentiteUtilisateur(
         UUID id,
         String identifiant,
         String prenom,
@@ -11,11 +11,10 @@ public record UtilisateurDTO(
         String email,
         boolean actif,
         List<String> roles,
-        UUID clientId,
-        String clientNom
+        String groupe
 ) {
 
-    public UtilisateurDTO {
+    public IdentiteUtilisateur {
         roles = roles == null ? List.of() : List.copyOf(roles);
     }
 }

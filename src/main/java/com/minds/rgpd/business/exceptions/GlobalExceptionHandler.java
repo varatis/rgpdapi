@@ -24,9 +24,33 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(DuplicateResourceException.class)
-    public ResponseEntity<String> handleDuplicate(DuplicateResourceException e) {
+    public ResponseEntity<ProblemDetail> handleDuplicate(DuplicateResourceException e) {
         log.warn("Doublon : {}", e.getMessage());
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.CONFLICT);
+        pd.setTitle("Ressource déjà existante");
+        pd.setDetail(e.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(pd);
+    }
+
+    @ExceptionHandler(IdentityProviderException.class)
+    public ResponseEntity<ProblemDetail> handleIdentityProvider(IdentityProviderException e) {
+        log.error("Synchronisation Keycloak en échec : {}", e.getMessage());
+        HttpStatus statut = e.getStatut() == HttpStatus.CONFLICT.value()
+                ? HttpStatus.CONFLICT
+                : HttpStatus.BAD_GATEWAY;
+        ProblemDetail pd = ProblemDetail.forStatus(statut);
+        pd.setTitle("Synchronisation Keycloak en échec");
+        pd.setDetail(e.getMessage());
+        return ResponseEntity.status(statut).body(pd);
+    }
+
+    @ExceptionHandler(IdentityProviderIndisponibleException.class)
+    public ResponseEntity<ProblemDetail> handleIdentityProviderIndisponible(IdentityProviderIndisponibleException e) {
+        log.warn("{}", e.getMessage());
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.SERVICE_UNAVAILABLE);
+        pd.setTitle("Synchronisation Keycloak désactivée");
+        pd.setDetail(e.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(pd);
     }
 
     @ExceptionHandler(InvalidFileException.class)

@@ -4,6 +4,7 @@ import com.minds.rgpd.business.dtos.ClientDTO;
 import com.minds.rgpd.business.dtos.ClientWriteDTO;
 import com.minds.rgpd.business.exceptions.DuplicateResourceException;
 import com.minds.rgpd.business.exceptions.ResourceNotFoundException;
+import com.minds.rgpd.business.identity.IdentityGateway;
 import com.minds.rgpd.business.utilities.mappers.ClientMapper;
 import com.minds.rgpd.persistence.entities.Client;
 import com.minds.rgpd.persistence.repositories.ClientRepository;
@@ -32,6 +33,9 @@ class ClientServiceImplTest {
 
     @Mock
     private ClientRepository clientRepository;
+
+    @Mock
+    private IdentityGateway identityGateway;
 
     @InjectMocks
     private ClientServiceImpl clientService;
@@ -184,5 +188,119 @@ class ClientServiceImplTest {
 
         // WHEN / THEN
         assertThrows(ResourceNotFoundException.class, () -> clientService.updateClient(uuid, payload));
+    }
+
+    @Test
+    void creerClientDeclareLeGroupeDansKeycloak() {
+        ClientWriteDTO payload = new ClientWriteDTO("Durand", "ACTIF", null, null);
+
+        when(clientRepository.findByNom("Durand")).thenReturn(Optional.empty());
+
+        when(clientRepository.save(any(Client.class))).thenAnswer(invocation -> {
+            Client passe = invocation.getArgument(0);
+            passe.setId(UUID.fromString("0e4bf889-fea0-46ac-894d-ca39cbf00359"));
+            return passe;
+        });
+
+        when(clientMapper.map(any(Client.class))).thenReturn(ClientDTO.builder().nom("Durand").build());
+
+        clientService.createClient(payload);
+
+        verify(identityGateway).creerGroupe("Durand");
+    }
+
+    @Test
+    void modifierClientRenommeSeulementLeGroupeSiLeNomChange() {
+
+        UUID uuid = UUID.randomUUID();
+        Client client = Client.builder().id(uuid).nom("Dupont").statut("ACTIF").build();
+        ClientWriteDTO payload = new ClientWriteDTO("DUPONT", "ARCHIVE", null, null);
+
+        when(clientRepository.findById(uuid)).thenReturn(Optional.of(client));
+
+        when(clientRepository.findByNom("DUPONT")).thenReturn(Optional.empty());
+
+        when(clientRepository.save(any(Client.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        when(clientMapper.map(any(Client.class))).thenReturn(ClientDTO.builder().nom("DUPONT").build());
+
+        clientService.updateClient(uuid, payload);
+
+        verify(identityGateway, never()).renommerGroupe(any(), any());
+    }
+
+    @Test
+    void modifierClientRenommeLeGroupeKeycloak() {
+
+        UUID uuid = UUID.randomUUID();
+        Client client = Client.builder().id(uuid).nom("Dupont").build();
+        ClientWriteDTO payload = new ClientWriteDTO("Durand", "ACTIF", null, null);
+
+        when(clientRepository.findById(uuid)).thenReturn(Optional.of(client));
+
+        when(clientRepository.findByNom("Durand")).thenReturn(Optional.empty());
+
+        when(clientRepository.save(any(Client.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        when(clientMapper.map(any(Client.class))).thenReturn(ClientDTO.builder().nom("Durand").build());
+
+        clientService.updateClient(uuid, payload);
+
+        verify(identityGateway).renommerGroupe("Dupont", "Durand");
+    }
+
+    @Test
+    void supprimerClientEmporteLeGroupeEtSesUtilisateurs() {
+
+        UUID uuid = UUID.fromString("0e4bf889-fea0-46ac-894d-ca39cbf00359");
+
+        UUID unUtilisateur = UUID.fromString("d6dfd117-8047-4a9a-afca-f5268a38bfcf");
+
+        UUID autreUtilisateur = UUID.fromString("6a04222b-60f8-434b-bdff-c01ce36fde2f");
+        Client client = Client.builder().id(uuid).nom("La breteche").build();
+
+        when(clientRepository.findById(uuid)).thenReturn(Optional.of(client));
+
+        when(identityGateway.membresDuGroupe("La breteche")).thenReturn(List.of(unUtilisateur, autreUtilisateur));
+
+        clientService.deleteClient(uuid);
+
+        verify(clientRepository).supprimerParId(uuid);
+
+        verify(identityGateway).supprimerUtilisateur(unUtilisateur);
+
+        verify(identityGateway).supprimerUtilisateur(autreUtilisateur);
+
+        verify(identityGateway).supprimerGroupe("La breteche");
+    }
+
+    @Test
+    void supprimerClientSansGroupeKeycloak() {
+
+        UUID uuid = UUID.randomUUID();
+        Client client = Client.builder().id(uuid).nom("Entreprise Zeta").build();
+
+        when(clientRepository.findById(uuid)).thenReturn(Optional.of(client));
+
+        when(identityGateway.membresDuGroupe("Entreprise Zeta")).thenReturn(List.of());
+
+        clientService.deleteClient(uuid);
+
+        verify(identityGateway, never()).supprimerUtilisateur(any());
+
+        verify(identityGateway).supprimerGroupe("Entreprise Zeta");
+    }
+
+    @Test
+    void supprimerClientInconnu() {
+
+        UUID uuid = UUID.randomUUID();
+
+        when(clientRepository.findById(uuid)).thenReturn(Optional.empty());
+        assertThrows(ResourceNotFoundException.class, () -> clientService.deleteClient(uuid));
+
+        verify(clientRepository, never()).supprimerParId(any());
+
+        verify(identityGateway, never()).supprimerGroupe(any());
     }
 }

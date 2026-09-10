@@ -45,6 +45,13 @@ back:
   security:
     issuer_uri: xxx
     jwk_set_uri: xxx
+  keycloak:
+    enabled: true
+    base_url: xxx
+    realm: minds-rgpd
+    admin_client_id: minds-saas-rgpd-admin
+    resource_client_id: minds-saas-rgpd
+    desactiver_verification_ssl: false
   tracing:
     endpoint: "http://jaeger-collector.outillage.svc.cluster.local:4317"
     sampler: "always_on"

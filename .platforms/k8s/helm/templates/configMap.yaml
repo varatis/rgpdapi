@@ -1,3 +1,4 @@
+{{- $keycloak := .Values.back.keycloak | default dict }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -16,3 +17,9 @@ data:
   {{- end }}
   {{- end }}
   application.fichier.upload.dir: "/app/upload_directory"
+  application.keycloak.enabled: "{{ $keycloak.enabled | default true }}"
+  application.keycloak.base-url: {{ $keycloak.base_url | default "xxx" }}
+  application.keycloak.realm: {{ $keycloak.realm | default "minds-rgpd" }}
+  application.keycloak.admin-client-id: {{ $keycloak.admin_client_id | default "minds-saas-rgpd-admin" }}
+  application.keycloak.resource-client-id: {{ $keycloak.resource_client_id | default "minds-saas-rgpd" }}
+  application.keycloak.desactiver-verification-ssl: "{{ $keycloak.desactiver_verification_ssl | default false }}"

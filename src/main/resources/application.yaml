@@ -1,6 +1,16 @@
 application:
   version: @project.version@
   fichier.upload.dir: ${UPLOAD_DIR}
+  keycloak:
+    enabled: ${KEYCLOAK_SYNC_ENABLED:true}
+    base-url: ${KEYCLOAK_BASE_URL:https://sso.minds.k8s/auth}
+    realm: ${KEYCLOAK_REALM:minds-rgpd}
+    admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:minds-saas-rgpd-admin}
+    admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET:}
+    resource-client-id: ${KEYCLOAK_RESOURCE_CLIENT_ID:minds-saas-rgpd}
+    taille-page: 100
+    nombre-max-resultats: 2000
+    desactiver-verification-ssl: ${KEYCLOAK_DESACTIVER_VERIFICATION_SSL:false}
 
 # Configuration Actuator
 management:

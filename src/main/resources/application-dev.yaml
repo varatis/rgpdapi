@@ -17,6 +17,14 @@ spring:
 application:
   allowed-origins: "http://localhost:4200"
   fichier.upload.dir: "."
+  keycloak:
+    enabled: true
+    base-url: https://sso.minds.k8s/auth
+    realm: minds-rgpd
+    admin-client-id: minds-saas-rgpd-admin
+    admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET:}
+    resource-client-id: minds-saas-rgpd
+    desactiver-verification-ssl: true
 
 management:
   tracing:

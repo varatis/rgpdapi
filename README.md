@@ -99,9 +99,41 @@ La liste des variables et leurs valeurs par défaut sont dans `docs/parametrage.
 
 ### Configurer les droits applicatifs
 
-Les droits applicatifs sont attribués à des royaumes (realms) gérés par [Keycloack](https://sso.minds.k8s/auth/realms/creative/account/applications).
+Les droits applicatifs sont attribués à des royaumes (realms) gérés par [Keycloack](https://sso.minds.k8s/auth/realms/minds-rgpd/account/applications).
 
-**Note :** Ajouter explication de la gestion des droits utilisateurs.
+#### Utilisateurs, rôles et clients : Keycloak est le référentiel
+
+L'API ne stocke plus les utilisateurs en base. `GET`, `POST`, `PUT` et `DELETE /utilisateurs` parlent directement à
+l'**Admin REST API** de Keycloak (`/admin/realms/{realm}/...`), authentifiée par un client de service en
+`client_credentials`. Concrètement :
+
+| Besoin | Ce qui se passe |
+|---|---|
+| Créer un utilisateur (nom, prénom, email, rôles) | `POST /admin/realms/{realm}/users` (username = email, mot de passe temporaire + action forcée `UPDATE_PASSWORD`), puis affectation des **client roles** du client `minds-saas-rgpd`, puis rattachement au groupe du client métier |
+| Supprimer un utilisateur | `DELETE /admin/realms/{realm}/users/{id}` |
+| Filtrer par nom / prénom / client | liste des utilisateurs Keycloak paginée, filtrage insensible à la casse et aux accents, puis filtrage sur les membres du groupe Keycloak du client |
+| Supprimer un client | suppression de la ligne `CLIENT` (cascade PostgreSQL sur les données RGPD), puis suppression dans Keycloak des utilisateurs membres du groupe, puis suppression du groupe |
+
+Le rattachement client ↔ utilisateur est porté par un **groupe Keycloak racine nommé exactement comme `CLIENT.nom`** :
+c'est ce que lit `FichierController` via la claim `client_groups` du jeton. Créer ou renommer un client crée ou renomme
+donc le groupe correspondant. Les rôles `admin` / `user` sont des **client roles** du resource client, ce que
+`JwtAuthConverter` traduit en autorités `ROLE_ADMIN` / `ROLE_USER` pour les `@PreAuthorize`.
+
+Endpoints exposés pour l'IHM d'administration :
+
+| Méthode | Chemin | Rôle requis | Usage |
+|---|---|---|---|
+| `GET` | `/utilisateurs?nom=&prenom=&clientId=&page=&size=&sort=` | authentifié | recherche paginée (tri : `nom`, `prenom`, `email`, `identifiant`, `clientNom`) |
+| `GET` | `/utilisateurs/{id}` | authentifié | détail d'un utilisateur |
+| `GET` | `/utilisateurs/roles` | authentifié | rôles affectables, lus dans Keycloak |
+| `POST` | `/utilisateurs` | `ADMIN` ou `SUPERADMIN` | création, répercutée dans Keycloak |
+| `PUT` | `/utilisateurs/{id}` | `ADMIN` ou `SUPERADMIN` | modification (identité, rôles, client) |
+| `DELETE` | `/utilisateurs/{id}` | `ADMIN` ou `SUPERADMIN` | suppression dans Keycloak |
+| `DELETE` | `/clients/{id}` | `ADMIN` ou `SUPERADMIN` | suppression du client, de son groupe et de ses utilisateurs |
+
+Le paramétrage (URL, realm, client de service, variables d'environnement) et les prérequis côté Keycloak sont décrits
+dans [`docs/parametrage.md`](docs/parametrage.md). Avec `application.keycloak.enabled=false` — cas des tests — la
+synchronisation est neutre : les lectures renvoient des listes vides et les écritures répondent `503`.
 
 ## Run the app locally
 

@@ -19,4 +19,6 @@ public interface ClientService {
     ClientDTO createClient(ClientWriteDTO payload);
 
     ClientDTO updateClient(UUID id, ClientWriteDTO payload);
+
+    void deleteClient(UUID id);
 }
