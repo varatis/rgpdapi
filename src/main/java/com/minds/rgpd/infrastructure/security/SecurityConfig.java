@@ -1,5 +1,6 @@
 package com.minds.rgpd.infrastructure.security;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -24,9 +25,12 @@ import java.security.cert.X509Certificate;
 public class SecurityConfig {
 
     private final JwtAuthConverter jwtAuthConverter;
+    private final String jwkSetUri;
 
-    public SecurityConfig(JwtAuthConverter jwtAuthConverter) {
+    public SecurityConfig(JwtAuthConverter jwtAuthConverter,
+                          @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri:}") String jwkSetUri) {
         this.jwtAuthConverter = jwtAuthConverter;
+        this.jwkSetUri = jwkSetUri;
     }
 
     @Bean
@@ -56,7 +60,7 @@ public class SecurityConfig {
 
         RestTemplate restTemplate = new RestTemplate();
 
-        return NimbusJwtDecoder.withJwkSetUri("https://sso.minds.k8s/auth/realms/minds-rgpd/protocol/openid-connect/certs")
+        return NimbusJwtDecoder.withJwkSetUri(jwkSetUri)
                 .restOperations(restTemplate)
                 .build();
     }

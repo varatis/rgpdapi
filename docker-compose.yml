@@ -34,6 +34,21 @@ services:
       - "8888:80"
     networks:
       - network_minds_rgpd_api
+  sso:
+    image: quay.io/keycloak/keycloak:25.0
+    container_name: rgpd-keycloak
+    profiles: [ "sso" ]
+    command: [ "start-dev", "--import-realm" ]
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./docs/keycloak:/opt/keycloak/data/import:ro
+    networks:
+      - network_minds_rgpd_api
 networks:
   network_minds_rgpd_api:
 volumes:

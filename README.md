@@ -56,6 +56,7 @@
 - Java 21
 - Maven 3.6+
 - Docker (pour TestContainers et Docker Compose auto-start)
+- Keycloak 25+ (`docker compose --profile sso up -d` pour un Keycloak local préconfiguré)
 
 ## Getting started
 
@@ -134,6 +135,24 @@ Endpoints exposés pour l'IHM d'administration :
 Le paramétrage (URL, realm, client de service, variables d'environnement) et les prérequis côté Keycloak sont décrits
 dans [`docs/parametrage.md`](docs/parametrage.md). Avec `application.keycloak.enabled=false` — cas des tests — la
 synchronisation est neutre : les lectures renvoient des listes vides et les écritures répondent `503`.
+
+#### Keycloak local pour développer
+
+```bash
+docker compose --profile sso up -d          # Keycloak sur http://localhost:8081 (console admin : admin/admin)
+
+export KEYCLOAK_BASE_URL=http://localhost:8081
+export KEYCLOAK_ADMIN_CLIENT_SECRET=minds-saas-rgpd-admin
+export KEYCLOAK_DESACTIVER_VERIFICATION_SSL=false
+export JWT_ISSUER_URI=http://localhost:8081/realms/minds-rgpd
+export JWT_JWK_SET_URI=http://localhost:8081/realms/minds-rgpd/protocol/openid-connect/certs
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
+```
+
+Le realm `minds-rgpd` est importé au démarrage depuis `docs/keycloak/minds-rgpd-realm.json` : resource client public
+`minds-saas-rgpd` (rôles clients `admin`, `user`, `superadmin`, scope `rgpd-groups` qui publie les noms de groupes dans la claim
+`client_groups`), client de service `minds-saas-rgpd-admin` portant les rôles `realm-management` nécessaires, et un utilisateur de
+test `admin.rgpd@exemple.fr` / `Admin.2026!`. Les clients métier (donc les groupes) se créent ensuite via `POST /clients`.
 
 ## Run the app locally
 

@@ -43,8 +43,8 @@ direct dans Keycloak via son Admin REST API. Le seul référentiel de ces donné
 | application.keycloak.resource-client-id          | KEYCLOAK_RESOURCE_CLIENT_ID         | String  | `minds-saas-rgpd`       | Client porteur des rôles applicatifs lus dans `resource_access` par le jeton.       |
 | application.keycloak.taille-page                 | APPLICATION_KEYCLOAK_TAILLE_PAGE        | int     | `100`                   | Taille des pages de l'Admin REST API lors des listes.                              |
 | application.keycloak.nombre-max-resultats        | APPLICATION_KEYCLOAK_NOMBRE_MAX_RESULTATS | int | `2000`                  | Garde-fou de récupération : au-delà, la liste est tronquée et un WARNING est tracé. |
-| application.keycloak.desactiver-verification-ssl | KEYCLOAK_DESACTIVER_VERIFICATION_SSL | boolean | `false`                 | Désactive uniquement la vérification du certificat pour les appels d'administration. |
-| application.security.jwt.resource-id             | APPLICATION_SECURITY_JWT_RESOURCE_ID | String  | `minds-saas-rgpd`       | Client dont les rôles sont relus dans le jeton (déjà utilisé par `JwtAuthConverter`). |
+| application.keycloak.desactiver-verification-ssl | KEYCLOAK_DESACTIVER_VERIFICATION_SSL | boolean | `false` (`true` en `dev`) | Désactive uniquement la vérification du certificat pour les appels d'administration. |
+| application.security.jwt.resource-id             | APPLICATION_SECURITY_JWT_RESOURCE_ID | String  | `minds-saas-rgpd`       | Client dont les rôles sont lus dans le jeton (déjà utilisé par `JwtAuthConverter`). |
 
 ### Prérequis côté Keycloak
 
@@ -59,3 +59,35 @@ Le realm doit exposer :
 
 Un groupe racine par client métier porte exactement le `nom` de la ligne `CLIENT` : créer, renommer ou supprimer un
 client crée, renomme ou supprime donc ce groupe, et la suppression emporte les utilisateurs qui en sont membres.
+
+### Keycloak local (profile `dev`)
+
+Toutes les valeurs du profil `dev` sont surchargeables par variables d'environnement, y compris celles du jeton
+(`JWT_ISSUER_URI`, `JWT_JWK_SET_URI`) : aucun fichier n'est à modifier pour pointer une autre instance.
+
+```bash
+docker compose --profile sso up -d          # Keycloak 25 sur http://localhost:8081, console admin admin/admin
+
+export KEYCLOAK_BASE_URL=http://localhost:8081
+export KEYCLOAK_ADMIN_CLIENT_SECRET=minds-saas-rgpd-admin
+export KEYCLOAK_DESACTIVER_VERIFICATION_SSL=false
+export JWT_ISSUER_URI=http://localhost:8081/realms/minds-rgpd
+export JWT_JWK_SET_URI=http://localhost:8081/realms/minds-rgpd/protocol/openid-connect/certs
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
+```
+
+Le service `sso` de `docker-compose.yml` importe `docs/keycloak/minds-rgpd-realm.json` au démarrage, qui fournit :
+
+| Élément importé | Contenu |
+|---|---|
+| client `minds-saas-rgpd` | public, `directAccessGrantsEnabled`, rôles clients `admin`, `user`, `superadmin`, redirect URIs localhost |
+| scope `rgpd-groups` | mapper `client_groups` de type `oidc-group-membership-mapper` avec `full.path=false`, ajouté aux scopes par défaut du client |
+| client `minds-saas-rgpd-admin` | confidentiel, `serviceAccountsEnabled`, secret `minds-saas-rgpd-admin` (à changer hors développement) |
+| utilisateur de service | `service-account-minds-saas-rgpd-admin` avec les six rôles `realm-management` requis |
+| utilisateur de test | `admin.rgpd@exemple.fr` / `Admin.2026!`, rôles clients `admin` et `superadmin` |
+
+Les groupes (donc les clients métier) ne sont pas importés : ils sont créés par l'API via `POST /clients`, ou
+`PUT /clients/{uuid}/groups` pour rattacher un client existant à un groupe.
+
+Ce Keycloak local sert aux parcours manuels et à l'IHM. Les tests d'intégration n'en ont pas besoin : le profile `test`
+désactive la synchronisation et injecte un `IdentityGateway` fictif en mémoire.

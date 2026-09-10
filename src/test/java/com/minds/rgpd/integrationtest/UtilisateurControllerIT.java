@@ -89,7 +89,10 @@ class UtilisateurControllerIT extends AbstractITSpring {
 
         mockMvc.perform(get("/utilisateurs").param("prenom", "ali"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalElements").value(2));
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.content[0].prenom").value("Alice"))
+                .andExpect(jsonPath("$.content[1].prenom").value("Aliénor"));
     }
 
     @Test

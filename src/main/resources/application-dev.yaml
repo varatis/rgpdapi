@@ -12,19 +12,19 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: https://sso.minds.k8s/auth/realms/minds-rgpd
-          jwk-set-uri: https://sso.minds.k8s/auth/realms/minds-rgpd/protocol/openid-connect/certs
+          issuer-uri: ${JWT_ISSUER_URI:https://sso.minds.k8s/auth/realms/minds-rgpd}
+          jwk-set-uri: ${JWT_JWK_SET_URI:https://sso.minds.k8s/auth/realms/minds-rgpd/protocol/openid-connect/certs}
 application:
   allowed-origins: "http://localhost:4200"
   fichier.upload.dir: "."
   keycloak:
-    enabled: true
-    base-url: https://sso.minds.k8s/auth
-    realm: minds-rgpd
-    admin-client-id: minds-saas-rgpd-admin
+    enabled: ${KEYCLOAK_SYNC_ENABLED:true}
+    base-url: ${KEYCLOAK_BASE_URL:https://sso.minds.k8s/auth}
+    realm: ${KEYCLOAK_REALM:minds-rgpd}
+    admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:minds-saas-rgpd-admin}
     admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET:}
-    resource-client-id: minds-saas-rgpd
-    desactiver-verification-ssl: true
+    resource-client-id: ${KEYCLOAK_RESOURCE_CLIENT_ID:minds-saas-rgpd}
+    desactiver-verification-ssl: ${KEYCLOAK_DESACTIVER_VERIFICATION_SSL:true}
 
 management:
   tracing:

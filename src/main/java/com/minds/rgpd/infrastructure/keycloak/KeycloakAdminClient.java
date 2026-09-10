@@ -49,7 +49,7 @@ public class KeycloakAdminClient {
     }
 
     public static String encoder(String valeur) {
-        return URLEncoder.encode(valeur, StandardCharsets.UTF_8).replace("+", "%20");
+        return valeur == null ? "" : URLEncoder.encode(valeur, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
     public <T> Optional<T> lire(String chemin, ParameterizedTypeReference<T> type) {

@@ -1,0 +1,175 @@
+{
+  "realm": "minds-rgpd",
+  "enabled": true,
+  "protocol": "openid-connect",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "accessTokenLifetime": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "frontendUrl": "http://localhost:8081",
+  "adminEventsDetailsEnabled": true,
+  "adminEventsEnabled": true,
+  "eventsEnabled": true,
+  "eventsListeners": [
+    "jboss-logging"
+  ],
+  "clientScopes": [
+    {
+      "name": "rgpd-groups",
+      "description": "Expose les noms de groupes (clients metier) dans la claim client_groups",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "false",
+        "display.on.consent.screen": "false",
+        "gui.order": "",
+        "protocol.mapper.openid-connect.config": ""
+      },
+      "protocolMappers": [
+        {
+          "name": "client_groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "client_groups",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "minds-saas-rgpd",
+      "name": "Minds SaaS RGPD",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "fullScopeAllowed": true,
+      "frontchannelLogout": true,
+      "redirectUris": [
+        "http://localhost:4200/*",
+        "http://localhost:8080/*"
+      ],
+      "webOrigins": [
+        "http://localhost:4200",
+        "http://localhost:8080"
+      ],
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "roles",
+        "profile",
+        "email",
+        "rgpd-groups"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ],
+      "roles": {
+        "client": [
+          {
+            "name": "admin",
+            "description": "Administrateur fonctionnel du SaaS RGPD",
+            "composite": false,
+            "clientRole": true
+          },
+          {
+            "name": "user",
+            "description": "Utilisateur standard du SaaS RGPD",
+            "composite": false,
+            "clientRole": true
+          },
+          {
+            "name": "superadmin",
+            "description": "Super administrateur (referentiels et clients)",
+            "composite": false,
+            "clientRole": true
+          }
+        ]
+      }
+    },
+    {
+      "clientId": "minds-saas-rgpd-admin",
+      "name": "Minds SaaS RGPD - administration",
+      "description": "Client de service utilise par l'API pour l'Admin REST API de Keycloak",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "minds-saas-rgpd-admin",
+      "fullScopeAllowed": false,
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "roles",
+        "profile",
+        "email"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "service-account-minds-saas-rgpd-admin",
+      "enabled": true,
+      "serviceAccountClientId": "minds-saas-rgpd-admin",
+      "clientRoles": {
+        "realm-management": [
+          "view-users",
+          "manage-users",
+          "view-clients",
+          "manage-client-roles",
+          "view-groups",
+          "manage-groups"
+        ]
+      }
+    },
+    {
+      "username": "admin.rgpd@exemple.fr",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "RGPD",
+      "email": "admin.rgpd@exemple.fr",
+      "requiredActions": [],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Admin.2026!",
+          "temporary": false
+        }
+      ],
+      "clientRoles": {
+        "minds-saas-rgpd": [
+          "admin",
+          "superadmin"
+        ]
+      }
+    }
+  ],
+  "groups": [],
+  "browserSecurityHeaders": {
+    "contentSecurityPolicy": "frame-src 'self'; frame-ancestors 'self'; object-src 'none';",
+    "xFrameOptions": "SAMEORIGIN",
+    "strictTransportSecurity": "max-age=31536000; includeSubDomains"
+  }
+}
