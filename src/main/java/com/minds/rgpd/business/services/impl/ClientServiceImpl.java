@@ -29,12 +29,14 @@ public class ClientServiceImpl implements ClientService {
     private final IdentityGateway identityGateway;
 
     @Override
+    @Transactional(readOnly = true)
     public List<ClientDTO> getClients() {
         List<Client> clients = clientRepository.findAll();
         return clientMapper.mapToDTOList(clients);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ClientDTO getClientByNom(String nom) {
         Client client = clientRepository.findByNom(nom)
                 .orElseThrow(() -> new ResourceNotFoundException("Client", "nom", nom));
@@ -42,6 +44,7 @@ public class ClientServiceImpl implements ClientService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ClientDTO getClientById(UUID id) {
         Client client = clientRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Client", "uuid", id));
