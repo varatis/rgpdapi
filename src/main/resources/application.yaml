@@ -53,8 +53,14 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${JWT_ISSUER_URI}
-          jwk-set-uri: ${JWT_JWK_SET_URI}
+          # Valeurs par défaut pour les environnements sans variables d'env
+          # (CI / profil test, exécutions locales sans profil) : sans elles,
+          # l'auto-configuration Spring Boot échoue à résoudre ${JWT_*_URI}
+          # au chargement du contexte ("Could not resolve placeholder").
+          # En k8s, JWT_ISSUER_URI et JWT_JWK_SET_URI sont injectées par la
+          # configMap et écrasent ces défauts.
+          issuer-uri: ${JWT_ISSUER_URI:https://sso.minds.k8s/auth/realms/minds-rgpd}
+          jwk-set-uri: ${JWT_JWK_SET_URI:https://sso.minds.k8s/auth/realms/minds-rgpd/protocol/openid-connect/certs}
 otel:
   sdk:
     disabled: true
