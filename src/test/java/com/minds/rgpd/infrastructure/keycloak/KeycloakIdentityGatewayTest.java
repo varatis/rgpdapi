@@ -114,7 +114,6 @@ class KeycloakIdentityGatewayTest {
     @Test
     void utilisateurSansRoleNiGroupeResteListe() {
         when(properties.getResourceClientId()).thenReturn("minds-saas-rgpd");
-        when(properties.getGroupPrefix()).thenReturn("/clients");
         when(adminClient.getClientUuidByResourceId("minds-saas-rgpd")).thenReturn(CLIENT_UUID);
         when(adminClient.getClientRoles(CLIENT_UUID)).thenReturn(List.of());
         when(adminClient.getGroupHierarchy()).thenReturn(List.of());
