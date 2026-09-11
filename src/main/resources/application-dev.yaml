@@ -26,10 +26,17 @@ otel:
   sdk:
     disabled: true
 
-
-#server:
-#  ssl:
-#    trust-store-type: NONE
+# Configuration Keycloak pour le développement (sync vers le Keycloak distant)
+keycloak:
+  enabled: true
+  base-url: https://sso.minds.k8s/auth
+  realm: minds-rgpd
+  admin-client-id: minds-rgpd-admin
+  admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+  resource-client-id: minds-saas-rgpd
+  group-prefix: /clients
+  page-size: 200
+  token-expiration-marge: 300000
 
 # Optional: For debugging
 logging:

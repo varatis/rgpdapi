@@ -4,6 +4,7 @@ import com.minds.rgpd.business.dtos.ClientDTO;
 import com.minds.rgpd.business.dtos.ClientWriteDTO;
 import com.minds.rgpd.business.exceptions.DuplicateResourceException;
 import com.minds.rgpd.business.exceptions.ResourceNotFoundException;
+import com.minds.rgpd.business.identity.IdentityGateway;
 import com.minds.rgpd.business.services.ClientService;
 import com.minds.rgpd.business.utilities.mappers.ClientMapper;
 import com.minds.rgpd.persistence.entities.Client;
@@ -16,23 +17,26 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.UUID;
 
-
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@Transactional(readOnly = true)
 public class ClientServiceImpl implements ClientService {
 
     private final ClientMapper clientMapper;
+
     private final ClientRepository clientRepository;
 
+    private final IdentityGateway identityGateway;
+
     @Override
+    @Transactional(readOnly = true)
     public List<ClientDTO> getClients() {
         List<Client> clients = clientRepository.findAll();
         return clientMapper.mapToDTOList(clients);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ClientDTO getClientByNom(String nom) {
         Client client = clientRepository.findByNom(nom)
                 .orElseThrow(() -> new ResourceNotFoundException("Client", "nom", nom));
@@ -40,6 +44,7 @@ public class ClientServiceImpl implements ClientService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ClientDTO getClientById(UUID id) {
         Client client = clientRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Client", "uuid", id));
@@ -61,6 +66,8 @@ public class ClientServiceImpl implements ClientService {
         Client cree = clientRepository.save(client);
         log.info("Client créé : {} ({})", cree.getNom(), cree.getId());
 
+        synchroniserGroupeClient(cree.getNom());
+
         return clientMapper.map(cree);
     }
 
@@ -77,7 +84,48 @@ public class ClientServiceImpl implements ClientService {
         client.setVersion(payload.version());
         client.setDateVersion(payload.dateVersion());
 
-        return clientMapper.map(clientRepository.save(client));
+        Client sauvegarde = clientRepository.save(client);
+        synchroniserGroupeClient(sauvegarde.getNom());
+
+        return clientMapper.map(sauvegarde);
+    }
+
+    @Override
+    @Transactional
+    public void deleteClient(UUID id) {
+        Client client = clientRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Client", "id", id));
+
+        String clientNom = client.getNom();
+
+        supprimerUtilisateursDuGroupeKeycloak(clientNom);
+
+        identityGateway.supprimerGroupe(clientNom);
+
+        clientRepository.delete(client);
+        log.info("Client supprimé : {} ({})", client.getNom(), id);
+    }
+
+    /**
+     * Recrée le groupe Keycloak du client : s'il existe déjà, ses membres sont
+     * supprimés et le groupe est détruit avant d'être recréé vide.
+     */
+    private void synchroniserGroupeClient(String clientNom) {
+        identityGateway.groupe(clientNom).ifPresent(groupe -> {
+            supprimerUtilisateursDuGroupeKeycloak(clientNom);
+            identityGateway.supprimerGroupe(clientNom);
+        });
+        identityGateway.creerGroupe(clientNom);
+    }
+
+    private void supprimerUtilisateursDuGroupeKeycloak(String clientNom) {
+        for (UUID userId : identityGateway.membresGroupe(clientNom)) {
+            try {
+                identityGateway.supprimerUtilisateur(userId);
+            } catch (Exception e) {
+                log.warn("Impossible de supprimer l'utilisateur {} de Keycloak : {}", userId, e.getMessage());
+            }
+        }
     }
 
     private void verifierNomDisponible(String nom, UUID idCourant) {
