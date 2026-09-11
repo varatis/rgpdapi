@@ -2,6 +2,7 @@ package com.minds.rgpd.business.services;
 
 import com.minds.rgpd.business.dtos.UtilisateurDTO;
 import com.minds.rgpd.business.dtos.UtilisateurFilterCriteria;
+import com.minds.rgpd.business.dtos.UtilisateurWriteDTO;
 import java.util.List;
 import java.util.UUID;
 

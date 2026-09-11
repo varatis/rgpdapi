@@ -23,6 +23,7 @@ public interface ClientMapper {
      * MapStruct ne saurait de toute facon pas l'instancier.
      */
     @Mapping(target = "definitions", ignore = true)
+    @Mapping(target = "historiqueTraitement", ignore = true)
     Client map(ClientDTO clientDTO);
 
     List<Client> mapToClientList(List<ClientDTO> clientsDTO);

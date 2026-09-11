@@ -3,21 +3,18 @@ package com.minds.rgpd.business.services.impl;
 import com.minds.rgpd.business.dtos.ClientDTO;
 import com.minds.rgpd.business.dtos.ClientWriteDTO;
 import com.minds.rgpd.business.exceptions.DuplicateResourceException;
-import com.minds.rgpd.business.exceptions.IdentityProviderException;
 import com.minds.rgpd.business.exceptions.ResourceNotFoundException;
+import com.minds.rgpd.business.identity.IdentityGateway;
 import com.minds.rgpd.business.services.ClientService;
 import com.minds.rgpd.business.utilities.mappers.ClientMapper;
 import com.minds.rgpd.persistence.entities.Client;
 import com.minds.rgpd.persistence.repositories.ClientRepository;
-import com.minds.rgpd.infrastructure.keycloak.KeycloakAdminClient;
-import com.minds.rgpd.infrastructure.keycloak.KeycloakProperties;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.log4j.Slf4j;
-import org.springframework.http.HttpStatus;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Set;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -26,17 +23,20 @@ import java.util.UUID;
 public class ClientServiceImpl implements ClientService {
 
     private final ClientMapper clientMapper;
+
     private final ClientRepository clientRepository;
-    private final KeycloakAdminClient keycloak;
-    private final KeycloakProperties keycloakProps;
+
+    private final IdentityGateway identityGateway;
 
     @Override
+    @Transactional(readOnly = true)
     public List<ClientDTO> getClients() {
         List<Client> clients = clientRepository.findAll();
         return clientMapper.mapToDTOList(clients);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ClientDTO getClientByNom(String nom) {
         Client client = clientRepository.findByNom(nom)
                 .orElseThrow(() -> new ResourceNotFoundException("Client", "nom", nom));
@@ -44,6 +44,7 @@ public class ClientServiceImpl implements ClientService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ClientDTO getClientById(UUID id) {
         Client client = clientRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Client", "uuid", id));
@@ -99,41 +100,30 @@ public class ClientServiceImpl implements ClientService {
 
         supprimerUtilisateursDuGroupeKeycloak(clientNom);
 
-        keycloak.supprimerGroupe(clientNom);
+        identityGateway.supprimerGroupe(clientNom);
 
         clientRepository.delete(client);
         log.info("Client supprimé : {} ({})", client.getNom(), id);
     }
 
+    /**
+     * Recrée le groupe Keycloak du client : s'il existe déjà, ses membres sont
+     * supprimés et le groupe est détruit avant d'être recréé vide.
+     */
     private void synchroniserGroupeClient(String clientNom) {
-        Optional<UUID> groupId = trouverGroupeParNom(clientNom);
-        if (groupId.isPresent()) {
-            List<UUID> utilisateurs = keycloak.membresGroupe(clientNom);
-            for (UUID userId : utilisateurs) {
-                keycloak.supprimerUtilisateur(userId);
-            }
-            keycloak.supprimerGroupe(clientNom);
-        }
-        keycloak.creerGroupe(clientNom, keycloakProps.getGroupPrefix());
-    }
-
-    private Optional<UUID> trouverGroupeParNom(String clientNom) {
-        List<KeycloakClientRepresentation> clients = keycloak.getClientsByResourceId("minds-saas-rgpd");
-        for (KeycloakClientRepresentation c : clients) {
-            if (c.getClientId().equals(clientNom)) {
-                return Optional.of(c.getId());
-            }
-        }
-        return Optional.empty();
+        identityGateway.groupe(clientNom).ifPresent(groupe -> {
+            supprimerUtilisateursDuGroupeKeycloak(clientNom);
+            identityGateway.supprimerGroupe(clientNom);
+        });
+        identityGateway.creerGroupe(clientNom);
     }
 
     private void supprimerUtilisateursDuGroupeKeycloak(String clientNom) {
-        List<UUID> utilisateurs = keycloak.membresGroupe(clientNom);
-        for (UUID userId : utilisateurs) {
+        for (UUID userId : identityGateway.membresGroupe(clientNom)) {
             try {
-                keycloak.supprimerUtilisateur(userId);
+                identityGateway.supprimerUtilisateur(userId);
             } catch (Exception e) {
-                log.warn("Impossible de supprimer l'utilisateur {} de Keycloak: {}", userId, e.getMessage());
+                log.warn("Impossible de supprimer l'utilisateur {} de Keycloak : {}", userId, e.getMessage());
             }
         }
     }

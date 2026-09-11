@@ -76,7 +76,7 @@ public class ClientController {
     @Operation(summary = "Logo du client (image binaire)")
     public ResponseEntity<byte[]> getLogo(
             @PathVariable UUID id,
-            @RequestHeader(value = jakarta.servlet.http.HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch) {
+            @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch) {
 
         String etag = clientLogoService.getEtag(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Logo", "client", id));
@@ -90,7 +90,7 @@ public class ClientController {
         return ResponseEntity.ok()
                 .eTag(enteteEtag)
                 .cacheControl(org.springframework.http.CacheControl.maxAge(Duration.ofHours(1)).cachePrivate())
-                .contentType(javax.media.MediaType.parseMediaType(logo.contentType()))
+                .contentType(MediaType.parseMediaType(logo.contentType()))
                 .body(logo.content());
     }
 

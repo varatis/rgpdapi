@@ -17,12 +17,20 @@ public interface IdentityGateway {
 
     void supprimerUtilisateur(UUID id);
 
+    /**
+     * Définit un mot de passe temporaire : l'utilisateur devra le remplacer
+     * lors de sa première connexion.
+     */
+    void definirMotDePasse(UUID utilisateurId, String motDePasse);
+
     List<String> rolesDisponibles();
 
     void affecterRole(UUID id, String role);
 
+    /** Groupe de client par nom : sous-groupe direct du parent configuré. */
     Optional<GroupeIdentite> groupe(String nom);
 
+    /** Crée le groupe de client sous le parent configuré (jamais à la racine). */
     GroupeIdentite creerGroupe(String nom);
 
     void supprimerGroupe(String nom);
