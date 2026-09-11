@@ -1,22 +1,15 @@
 # TestContainers configuration - database connection is automatically configured
 # through @ServiceConnection annotation in TestContainersConfiguration
+# No need to specify datasource URL, username, or password
 
 spring:
   # Database configuration is handled by TestContainers @ServiceConnection
   # No need to specify datasource URL, username, or password
-  
+
   # Flyway will use the same TestContainers database automatically
   flyway:
-    # User and password will be set automatically by TestContainers
     enabled: true
-    
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: http://sso.minds.k8s/auth/realms/minds-rgpd
-          jwk-set-uri: http://sso.minds.k8s/auth/realms/minds-rgpd/protocol/openid-connect/certs
-          
+
 application:
   fichier:
     upload:
@@ -30,6 +23,19 @@ management:
 otel:
   sdk:
     disabled: true
+
+# Keycloak disabled for tests - use no-op gateway
+keycloak:
+  enabled: false
+  base-url: https://sso.minds.k8s/auth
+  realm: minds-rgpd
+  admin-client-id: minds-rgpd-admin
+  admin-client-secret: test-secret
+  resource-client-id: minds-saas-rgpd
+  group-prefix: /clients
+  page-size: 200
+  token-expiration-marge: 300000
+
 # Enable TestContainers logging for debugging (optional)
 logging:
   level:

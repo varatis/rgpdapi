@@ -97,4 +97,18 @@ public class GlobalExceptionHandler {
     public ResponseEntity<String> handleIOException(IOException ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ex.getMessage());
     }
+
+    /**
+     * Erreurs de la passerelle d'identité (Keycloak) : 502 avec un ProblemDetail
+     * exploitable par le front, plutôt qu'un corps vide. Le message porte la
+     * cause exacte (jeton inaccessible, rôle invalide, groupe/client introuvable…).
+     */
+    @ExceptionHandler(IdentityProviderException.class)
+    public ResponseEntity<ProblemDetail> handleIdentityProvider(IdentityProviderException e) {
+        log.error("Fournisseur d'identité : {}", e.getMessage());
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_GATEWAY);
+        pd.setTitle("Erreur du fournisseur d'identité (Keycloak)");
+        pd.setDetail(e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(pd);
+    }
 }

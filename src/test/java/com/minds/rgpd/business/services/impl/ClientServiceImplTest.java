@@ -4,6 +4,7 @@ import com.minds.rgpd.business.dtos.ClientDTO;
 import com.minds.rgpd.business.dtos.ClientWriteDTO;
 import com.minds.rgpd.business.exceptions.DuplicateResourceException;
 import com.minds.rgpd.business.exceptions.ResourceNotFoundException;
+import com.minds.rgpd.business.identity.IdentityGateway;
 import com.minds.rgpd.business.utilities.mappers.ClientMapper;
 import com.minds.rgpd.persistence.entities.Client;
 import com.minds.rgpd.persistence.repositories.ClientRepository;
@@ -32,6 +33,9 @@ class ClientServiceImplTest {
 
     @Mock
     private ClientRepository clientRepository;
+
+    @Mock
+    private IdentityGateway identityGateway;
 
     @InjectMocks
     private ClientServiceImpl clientService;
@@ -138,6 +142,7 @@ class ClientServiceImplTest {
     @Test
     void majClientConserveSonPropreNom() {
 
+
         // GIVEN
         UUID uuid = UUID.randomUUID();
         Client client = Client.builder().id(uuid).nom("Dupont").statut("ACTIF").build();
@@ -184,5 +189,72 @@ class ClientServiceImplTest {
 
         // WHEN / THEN
         assertThrows(ResourceNotFoundException.class, () -> clientService.updateClient(uuid, payload));
+    }
+
+    /** La création d'un client crée son groupe Keycloak (pas de suppression si le groupe n'existe pas). */
+    @Test
+    void creerClientCreeLeGroupeKeycloak() {
+
+        // GIVEN
+        ClientWriteDTO payload = new ClientWriteDTO("Dupont", "ACTIF", null, null);
+
+        when(clientRepository.findByNom("Dupont")).thenReturn(Optional.empty());
+        when(clientRepository.save(any(Client.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(clientMapper.map(any(Client.class))).thenReturn(ClientDTO.builder().nom("Dupont").build());
+        when(identityGateway.groupe("Dupont")).thenReturn(Optional.empty());
+
+        // WHEN
+        clientService.createClient(payload);
+
+        // THEN
+        verify(identityGateway).groupe("Dupont");
+        verify(identityGateway).creerGroupe("Dupont");
+        verify(identityGateway, never()).supprimerGroupe(any());
+    }
+
+    /** Un groupe Keycloak préexistant est purgé (membres supprimés) puis recréé vide. */
+    @Test
+    void creerClientReinitialiseUnGroupePreexistant() {
+
+        // GIVEN
+        UUID groupeId = UUID.randomUUID();
+        ClientWriteDTO payload = new ClientWriteDTO("Dupont", "ACTIF", null, null);
+        com.minds.rgpd.business.identity.GroupeIdentite groupe =
+                new com.minds.rgpd.business.identity.GroupeIdentite(groupeId, "Dupont", "/clients/Dupont");
+
+        when(clientRepository.findByNom("Dupont")).thenReturn(Optional.empty());
+        when(clientRepository.save(any(Client.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(clientMapper.map(any(Client.class))).thenReturn(ClientDTO.builder().nom("Dupont").build());
+        when(identityGateway.groupe("Dupont")).thenReturn(Optional.of(groupe));
+        when(identityGateway.membresGroupe("Dupont")).thenReturn(List.of(UUID.randomUUID(), UUID.randomUUID()));
+
+        // WHEN
+        clientService.createClient(payload);
+
+        // THEN
+        verify(identityGateway, times(2)).supprimerUtilisateur(any(UUID.class));
+        verify(identityGateway).supprimerGroupe("Dupont");
+        verify(identityGateway).creerGroupe("Dupont");
+    }
+
+    /** La suppression d'un client supprime d'abord ses utilisateurs Keycloak, puis son groupe. */
+    @Test
+    void supprimerClientSupprimeUtilisateursPuisGroupeKeycloak() {
+
+        // GIVEN
+        UUID uuid = UUID.randomUUID();
+        UUID utilisateurId = UUID.randomUUID();
+        Client client = Client.builder().id(uuid).nom("Dupont").build();
+
+        when(clientRepository.findById(uuid)).thenReturn(Optional.of(client));
+        when(identityGateway.membresGroupe("Dupont")).thenReturn(List.of(utilisateurId));
+
+        // WHEN
+        clientService.deleteClient(uuid);
+
+        // THEN
+        verify(identityGateway).supprimerUtilisateur(utilisateurId);
+        verify(identityGateway).supprimerGroupe("Dupont");
+        verify(clientRepository).delete(client);
     }
 }

@@ -11,22 +11,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.CacheControl;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Duration;
@@ -72,14 +62,15 @@ public class ClientController {
         return ResponseEntity.ok(clientService.updateClient(id, payload));
     }
 
-    /**
-     * Renvoie les octets du logo.
-     * <p>
-     * L'endpoint exige un JWT comme le reste de l'API : une balise
-     * {@code <img src="...">} ne peut pas porter d'en-tête Authorization, le
-     * front doit donc récupérer le logo en {@code responseType: 'blob'} via son
-     * intercepteur, puis passer par {@code URL.createObjectURL(blob)}.
-     */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPERADMIN')")
+    @Operation(summary = "Supprime un client et ses utilisateurs Keycloak")
+    public ResponseEntity<Void> deleteClient(@PathVariable UUID id) {
+        clientService.deleteClient(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Renvoie les octets du logo. */
     @GetMapping("/{id}/logo")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Logo du client (image binaire)")
@@ -87,8 +78,6 @@ public class ClientController {
             @PathVariable UUID id,
             @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch) {
 
-        // L'ETag est lu seul : une requête conditionnelle se résout en 304 sans
-        // que le contenu binaire ne soit chargé depuis la base.
         String etag = clientLogoService.getEtag(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Logo", "client", id));
         String enteteEtag = "\"%s\"".formatted(etag);
@@ -100,10 +89,7 @@ public class ClientController {
         ClientLogoContentDTO logo = clientLogoService.getLogo(id);
         return ResponseEntity.ok()
                 .eTag(enteteEtag)
-                // Positionner Cache-Control ici désactive le "no-store" que Spring
-                // Security applique par défaut : son writer laisse l'en-tête en place
-                // dès lors qu'il est déjà présent sur la réponse.
-                .cacheControl(CacheControl.maxAge(Duration.ofHours(1)).cachePrivate())
+                .cacheControl(org.springframework.http.CacheControl.maxAge(Duration.ofHours(1)).cachePrivate())
                 .contentType(MediaType.parseMediaType(logo.contentType()))
                 .body(logo.content());
     }
