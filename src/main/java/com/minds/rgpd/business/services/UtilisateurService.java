@@ -1,12 +1,22 @@
 package com.minds.rgpd.business.services;
 
 import com.minds.rgpd.business.dtos.UtilisateurDTO;
-import org.springframework.stereotype.Service;
-
+import com.minds.rgpd.business.dtos.UtilisateurFilterCriteria;
+import com.minds.rgpd.business.dtos.UtilisateurWriteDTO;
 import java.util.List;
+import java.util.UUID;
 
-@Service
 public interface UtilisateurService {
 
-    List<UtilisateurDTO> getUtilisateurs();
+    List<UtilisateurDTO> rechercher(UtilisateurFilterCriteria criteres);
+
+    UtilisateurDTO creer(UtilisateurWriteDTO payload);
+
+    UtilisateurDTO modifier(UUID id, UtilisateurWriteDTO payload);
+
+    void supprimer(UUID id);
+
+    UtilisateurDTO getUtilisateurParId(UUID id);
+
+    List<String> listerRolesDisponibles();
 }

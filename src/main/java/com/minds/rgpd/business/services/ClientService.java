@@ -2,12 +2,9 @@ package com.minds.rgpd.business.services;
 
 import com.minds.rgpd.business.dtos.ClientDTO;
 import com.minds.rgpd.business.dtos.ClientWriteDTO;
-import org.springframework.stereotype.Service;
-
 import java.util.List;
 import java.util.UUID;
 
-@Service
 public interface ClientService {
 
     List<ClientDTO> getClients();
@@ -19,4 +16,6 @@ public interface ClientService {
     ClientDTO createClient(ClientWriteDTO payload);
 
     ClientDTO updateClient(UUID id, ClientWriteDTO payload);
+
+    void deleteClient(UUID id);
 }

@@ -99,9 +99,64 @@ La liste des variables et leurs valeurs par défaut sont dans `docs/parametrage.
 
 ### Configurer les droits applicatifs
 
-Les droits applicatifs sont attribués à des royaumes (realms) gérés par [Keycloack](https://sso.minds.k8s/auth/realms/creative/account/applications).
+Les droits applicatifs sont gérés par [Keycloack](https://sso.minds.k8s/auth/realms/creative/account/applications) :
+l'API ne stocke plus les utilisateurs en base, elle interroge le realm Keycloak au travers d'une couche d'identité dédiée.
 
-**Note :** Ajouter explication de la gestion des droits utilisateurs.
+#### Architecture de la couche identité
+
+- **Port** : `business/identity/IdentityGateway` — l'interface consommée par les services métier
+  (utilisateurs, groupes, rôles disponibles, synchronisation à la création/suppression de client).
+- **Adaptateur** : `infrastructure/keycloak/KeycloakIdentityGateway` — implémentation Keycloak appuyée sur
+  `KeycloakAdminClient` (API d'administration REST, authentification `client_credentials`, pagination `first/max`).
+- **Substitution de test** : `NoopIdentityGateway` (profil `test`) — les tests d'intégration tournent sans Keycloak.
+
+#### Conventions Keycloak
+
+| Élément | Convention |
+| --- | --- |
+| Realm | `minds-rgpd` (variable `KEYCLOAK_REALM`) |
+| Client d'administration | `minds-rgpd-admin` (service account, `client_credentials`) |
+| Client applicatif porteur des rôles | `minds-saas-rgpd` (rôles clients Keycloak) |
+| Groupes clients | sous-groupes du parent `/clients` : `/clients/{nom du client}` (variable `KEYCLOAK_GROUP_PREFIX`) |
+| Rôles applicatifs | rôles clients Keycloak `admin` / `user`, exposés au frontend en `ROLE_ADMIN` / `ROLE_USER` |
+
+Un utilisateur appartient à **au plus un** sous-groupe client : la modification d'un utilisateur retire
+son ancien groupe client avant de l'affecter au nouveau, et remplace ses rôles clients.
+
+#### Provisionnement initial du realm
+
+La connexion d'administration suppose trois éléments créés une fois dans le realm `minds-rgpd` :
+
+1. **Le client d'administration** `minds-rgpd-admin` (Clients → Create client) :
+   - Client authentication **ON**, Service accounts **ON**, Standard flow et Direct access grants **OFF** ;
+   - Credentials → copier le *Client secret* → variable d'environnement `KEYCLOAK_ADMIN_CLIENT_SECRET` de l'API ;
+   - Service accounts → *Assign role* → filtrer sur `realm-management` → attribuer au minimum
+     `view-users`, `manage-users`, `view-clients`, `view-groups`, `manage-groups`
+     (ainsi que `query-users`, `query-groups`, `query-clients` si disponibles).
+2. **Le client applicatif** `minds-saas-rgpd` : ses rôles clients — en minuscules, ex. `admin`, `user` —
+   constituent le vocabulaire exposé par `GET /utilisateurs/roles` et attendu dans les payloads.
+3. **Le groupe parent** `clients` à la racine du realm (Groups → Create group) : l'API crée les groupes
+   clients dessous (`/clients/{nom}`) ; un utilisateur n'est rattaché à son client que si son groupe
+   est sous ce préfixe.
+Les rôles et groupes ne sont jamais inclus dans les réponses de l'API d'administration Keycloak : la passerelle
+les reconstitue par requêtes inverses (rôles du client → utilisateurs par rôle, parent → sous-groupes → membres).
+
+#### Synchronisation automatique avec les clients SaaS
+
+- **Création** d'un client : le groupe `/clients/{nom}` est créé (un groupe préexistant est purgé puis recréé).
+- **Renommage** : le groupe est synchronisé avec le nouveau nom.
+- **Suppression** : les membres du groupe sont supprimés de Keycloak, puis le groupe lui-même.
+
+#### Variables d'environnement
+
+`KEYCLOAK_BASE_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_ADMIN_CLIENT_ID`, `KEYCLOAK_ADMIN_CLIENT_SECRET`,
+`KEYCLOAK_RESOURCE_CLIENT_ID`, `KEYCLOAK_GROUP_PREFIX` — valeurs par défaut dans `docs/parametrage.md`.
+
+#### Tests de la couche identité
+
+Les tests unitaires `KeycloakAdminClientTest` (serveur HTTP simulé via `MockRestServiceServer`) et
+`KeycloakIdentityGatewayTest` (client simulé via Mockito) valident jeton, pagination, relance après 401,
+reconstitution des rôles/groupes et changements de groupe — aucun Keycloak réel n'est requis pour `mvn test`.
 
 ## Run the app locally
 
