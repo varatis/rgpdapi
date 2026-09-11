@@ -118,7 +118,14 @@ l'API ne stocke plus les utilisateurs en base, elle interroge le realm Keycloak 
 | Client d'administration | `minds-rgpd-admin` (service account, `client_credentials`) |
 | Client applicatif porteur des rôles | `minds-saas-rgpd` (rôles clients Keycloak) |
 | Groupes clients | sous-groupes du parent `/clients` : `/clients/{nom du client}` (variable `KEYCLOAK_GROUP_PREFIX`) |
-| Rôles applicatifs | rôles clients Keycloak `admin` / `user`, exposés au frontend en `ROLE_ADMIN` / `ROLE_USER` |
+| Rôles applicatifs | rôles **clients** Keycloak `user` / `admin` / `superadmin`, exposés au frontend en `ROLE_USER` / `ROLE_ADMIN` / `ROLE_SUPERADMIN` |
+
+> ⚠️ **Le back ne lit pas `realm_access`** : `JwtAuthConverter` ne mappe que
+> `resource_access.minds-saas-rgpd.roles` (et `client_groups`). Un rôle de *realm*
+> (même nommé `superadmin`) ne donnera jamais `ROLE_SUPERADMIN` côté API.
+> Les droits doivent être des **rôles client** de `minds-saas-rgpd`, injectés dans
+> le token via le client scope `minds-saas-rgpd` (mappers `client roles` et
+> `group-membership`) — voir `docs/rapport-integration-front.md` §2.2.
 
 Un utilisateur appartient à **au plus un** sous-groupe client : la modification d'un utilisateur retire
 son ancien groupe client avant de l'affecter au nouveau, et remplace ses rôles clients.
@@ -133,8 +140,9 @@ La connexion d'administration suppose trois éléments créés une fois dans le 
    - Service accounts → *Assign role* → filtrer sur `realm-management` → attribuer au minimum
      `view-users`, `manage-users`, `view-clients`, `view-groups`, `manage-groups`
      (ainsi que `query-users`, `query-groups`, `query-clients` si disponibles).
-2. **Le client applicatif** `minds-saas-rgpd` : ses rôles clients — en minuscules, ex. `admin`, `user` —
-   constituent le vocabulaire exposé par `GET /utilisateurs/roles` et attendu dans les payloads.
+2. **Le client applicatif** `minds-saas-rgpd` : ses rôles clients — en minuscules, ex. `user`, `admin`, `superadmin` —
+   constituent le vocabulaire exposé par `GET /utilisateurs/roles` et attendu dans les payloads ;
+   le rôle `superadmin` est requis pour le CRUD clients/logos.
 3. **Le groupe parent** `clients` à la racine du realm (Groups → Create group) : l'API crée les groupes
    clients dessous (`/clients/{nom}`) ; un utilisateur n'est rattaché à son client que si son groupe
    est sous ce préfixe.
