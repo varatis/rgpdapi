@@ -5,10 +5,17 @@ application:
 # Configuration Keycloak pour la gestion des utilisateurs et des rôles
 keycloak:
   enabled: ${KEYCLOAK_SYNC_ENABLED:true}
-  base-url: ${KEYCLOAK_BASE_URL}
+  # Valeurs par défaut alignées sur l'environnement principal (sso.minds.k8s).
+  # En k8s, KEYCLOAK_BASE_URL (et les autres) sont injectées par la configMap
+  # et écrasent ces défauts ; la prod (sso.groupe-creative.fr) définit les
+  # siennes dans ses values Helm. Sans défaut, un environnement privé de
+  # variable lie la chaîne littérale "${KEYCLOAK_BASE_URL}" et toute requête
+  # échoue avec un 400 ("Illegal character in path") — cf. KeycloakAdminClient
+  # qui refuse désormais de démarrer dans ce cas.
+  base-url: ${KEYCLOAK_BASE_URL:https://sso.minds.k8s/auth}
   realm: ${KEYCLOAK_REALM:minds-rgpd}
   admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:minds-rgpd-admin}
-  admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+  admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET:}
   resource-client-id: ${KEYCLOAK_RESOURCE_CLIENT_ID:minds-saas-rgpd}
   group-prefix: ${KEYCLOAK_GROUP_PREFIX:/clients}
   page-size: 200

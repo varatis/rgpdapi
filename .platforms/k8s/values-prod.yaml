@@ -10,6 +10,12 @@ back:
   security:
     issuer_uri: https://sso.groupe-creative.fr/auth/realms/minds-rgpd
     jwk_set_uri: https://sso.groupe-creative.fr/auth/realms/minds-rgpd/protocol/openid-connect/certs
+  keycloak:
+    baseUrl: https://sso.groupe-creative.fr/auth
+    realm: minds-rgpd
+    adminClientId: minds-rgpd-admin
+    resourceClientId: minds-saas-rgpd
+    groupPrefix: /clients
   cors:
     allowed-origins: "https://minds-rgpd.intra.groupe-creative.fr"
   debug:

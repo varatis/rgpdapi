@@ -160,6 +160,17 @@ les reconstitue par requêtes inverses (rôles du client → utilisateurs par r�
 `KEYCLOAK_BASE_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_ADMIN_CLIENT_ID`, `KEYCLOAK_ADMIN_CLIENT_SECRET`,
 `KEYCLOAK_RESOURCE_CLIENT_ID`, `KEYCLOAK_GROUP_PREFIX` — valeurs par défaut dans `docs/parametrage.md`.
 
+- **Hors Kubernetes** : `application.yaml` fournit des défauts (SSO `https://sso.minds.k8s/auth`, realm `minds-rgpd`) ;
+  seul `KEYCLOAK_ADMIN_CLIENT_SECRET` n'a pas de défaut et doit être fourni.
+- **Sur Kubernetes** (chart Helm `.platforms/k8s/helm`) : la configMap injecte `keycloak.base-url`,
+  `keycloak.realm`, `keycloak.admin-client-id`, `keycloak.resource-client-id` et `keycloak.group-prefix`
+  (values `back.keycloak.*`, prod sur `https://sso.groupe-creative.fr/auth`) ; l'ExternalSecret lit
+  `KEYCLOAK_ADMIN_CLIENT_SECRET` dans Vault, propriété `keycloak_admin_client_secret` du chemin
+  `back.secret.path` (une par environnement).
+- **Sans variable du tout** : si `keycloak.enabled` est vrai mais que `KEYCLOAK_BASE_URL` ou
+  `KEYCLOAK_ADMIN_CLIENT_SECRET` manque, l'application **refuse de démarrer** avec un message explicite
+  (`KeycloakAdminClient`), au lieu de répondre 400 `Illegal character in path` sur chaque appel.
+
 #### Tests de la couche identité
 
 Les tests unitaires `KeycloakAdminClientTest` (serveur HTTP simulé via `MockRestServiceServer`) et

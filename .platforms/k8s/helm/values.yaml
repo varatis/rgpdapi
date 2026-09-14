@@ -45,6 +45,12 @@ back:
   security:
     issuer_uri: xxx
     jwk_set_uri: xxx
+  keycloak:
+    baseUrl: https://sso.minds.k8s/auth
+    realm: minds-rgpd
+    adminClientId: minds-rgpd-admin
+    resourceClientId: minds-saas-rgpd
+    groupPrefix: /clients
   tracing:
     endpoint: "http://jaeger-collector.outillage.svc.cluster.local:4317"
     sampler: "always_on"

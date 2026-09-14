@@ -56,6 +56,36 @@ spec:
                 configMapKeyRef:
                   name: {{.Values.back.name}}
                   key: application.allowed-origins
+            - name: KEYCLOAK_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{.Values.back.name}}
+                  key: keycloak.base-url
+            - name: KEYCLOAK_REALM
+              valueFrom:
+                configMapKeyRef:
+                  name: {{.Values.back.name}}
+                  key: keycloak.realm
+            - name: KEYCLOAK_ADMIN_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: {{.Values.back.name}}
+                  key: keycloak.admin-client-id
+            - name: KEYCLOAK_RESOURCE_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: {{.Values.back.name}}
+                  key: keycloak.resource-client-id
+            - name: KEYCLOAK_GROUP_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: {{.Values.back.name}}
+                  key: keycloak.group-prefix
+            - name: KEYCLOAK_ADMIN_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.back.name }}
+                  key: KEYCLOAK_ADMIN_CLIENT_SECRET
             {{- if .Values.back.debug }}
             {{- if .Values.back.debug.jwt }}
             - name: DEBUG_JWT_ENABLED
