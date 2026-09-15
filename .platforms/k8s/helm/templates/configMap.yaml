@@ -9,6 +9,11 @@ data:
   spring.datasource.username: {{ .Values.back.database.minds_rgpd_api.username }}
   spring.security.oauth2.resourceserver.jwt.issuer-uri: {{ .Values.back.security.issuer_uri  }}
   spring.security.oauth2.resourceserver.jwt.jwk-set-uri: {{ .Values.back.security.jwk_set_uri }}
+  keycloak.base-url: { { .Values.back.keycloak.baseUrl | default "https://sso.minds.k8s/auth" | quote } }
+  keycloak.realm: { { .Values.back.keycloak.realm | default "minds-rgpd" | quote } }
+  keycloak.admin-client-id: { { .Values.back.keycloak.adminClientId | default "minds-rgpd-admin" | quote } }
+  keycloak.resource-client-id: { { .Values.back.keycloak.resourceClientId | default "minds-saas-rgpd" | quote } }
+  keycloak.group-prefix: { { .Values.back.keycloak.groupPrefix | default "/clients" | quote } }
   application.allowed-origins: {{ index .Values.back.cors "allowed-origins" | quote }}
   {{- if .Values.back.debug }}
   {{- if .Values.back.debug.jwt }}

@@ -5,10 +5,10 @@ application:
 # Configuration Keycloak pour la gestion des utilisateurs et des rôles
 keycloak:
   enabled: ${KEYCLOAK_SYNC_ENABLED:true}
-  base-url: ${KEYCLOAK_BASE_URL}
+  base-url: ${KEYCLOAK_BASE_URL:https://sso.minds.k8s/auth}
   realm: ${KEYCLOAK_REALM:minds-rgpd}
   admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:minds-rgpd-admin}
-  admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+  admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET:}
   resource-client-id: ${KEYCLOAK_RESOURCE_CLIENT_ID:minds-saas-rgpd}
   group-prefix: ${KEYCLOAK_GROUP_PREFIX:/clients}
   page-size: 200

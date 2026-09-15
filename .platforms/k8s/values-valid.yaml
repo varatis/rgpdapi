@@ -15,6 +15,12 @@ back:
   security:
     issuer_uri: https://sso.minds.k8s/auth/realms/minds-rgpd
     jwk_set_uri: https://sso.minds.k8s/auth/realms/minds-rgpd/protocol/openid-connect/certs
+  keycloak:
+    baseUrl: https://sso.minds.k8s/auth
+    realm: minds-rgpd
+    adminClientId: minds-rgpd-admin
+    resourceClientId: minds-saas-rgpd
+    groupPrefix: /clients
   cors:
     allowed-origins: "https://valid.minds-rgpd.minds.k8s,https://jaeger-query.mingds.svc.cluster.local"
   debug:

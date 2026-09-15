@@ -52,6 +52,48 @@ public class KeycloakAdminClient {
     public KeycloakAdminClient(KeycloakProperties properties, RestTemplate restTemplate) {
         this.properties = properties;
         this.restTemplate = restTemplate;
+        validerConfiguration(properties);
+    }
+
+    /**
+     * Refuse de démarrer avec une configuration inexploitable lorsque la
+     * synchronisation est activée. Sans cela, une variable d'environnement
+     * manquante (ex. KEYCLOAK_BASE_URL absente du pod) laisse une chaîne
+     * littérale "{@code ${KEYCLOAK_BASE_URL}}" dans l'URL, et l'API répond
+     * 400 "Illegal character in path" à chaque appel — une panne déroutante
+     * en production. Mieux vaut un échec explicite au démarrage.
+     */
+    private static void validerConfiguration(KeycloakProperties properties) {
+        if (!properties.isEnabled()) {
+            return;
+        }
+        if (!estUrlUtilisable(properties.getBaseUrl())) {
+            throw new IllegalStateException(
+                    "keycloak.base-url non résolue ou invalide : '" + properties.getBaseUrl()
+                            + "' — définissez la variable KEYCLOAK_BASE_URL"
+                            + " (ex. https://sso.minds.k8s/auth)");
+        }
+        if (!estValeurResolue(properties.getAdminClientSecret())) {
+            throw new IllegalStateException(
+                    "keycloak.admin-client-secret non défini — définissez la variable"
+                            + " KEYCLOAK_ADMIN_CLIENT_SECRET (secret du compte de service minds-rgpd-admin)");
+        }
+    }
+
+    private static boolean estUrlUtilisable(String url) {
+        if (url == null || url.isBlank() || url.contains("${")) {
+            return false;
+        }
+        try {
+            URI.create(url);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    private static boolean estValeurResolue(String valeur) {
+        return valeur != null && !valeur.isBlank() && !valeur.contains("${");
     }
 
     private String tokenUrl() {
