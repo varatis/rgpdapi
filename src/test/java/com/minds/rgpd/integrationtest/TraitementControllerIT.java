@@ -14,6 +14,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -73,20 +76,31 @@ public class TraitementControllerIT extends AbstractITSpring {
 
     @Test
     void testRecupPartialTraitements() throws Exception {
-        // GIVEN
+        // GIVEN un utilisateur rattaché à un seul client : c'est son registre qui est listé
+        Jwt jwt = Jwt.withTokenValue("jeton")
+                .header("alg", "none")
+                .claim("preferred_username", "alice")
+                .claim("client_groups", List.of("La breteche"))
+                .build();
+        SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt, List.of()));
 
-        // WHEN
-        String traitementsPartielDTOPage = mockMvc.perform(get("/traitements").param("page", "0").param("size", "10")).andReturn().getResponse().getContentAsString();
+        try {
+            // WHEN
+            String traitementsPartielDTOPage = mockMvc.perform(get("/traitements").param("page", "0").param("size", "10")).andReturn().getResponse().getContentAsString();
 
-        // THEN
-        assertThat(traitementsPartielDTOPage).isNotNull();
-        List<TraitementPartielDTO> partielDTOS = stringToTraitementPartielList(traitementsPartielDTOPage);
-        partielDTOS.forEach(traitementPartielDTO -> {
-            assertThat(traitementPartielDTO.idFonctionnel()).isNotNull();
-            assertThat(traitementPartielDTO.nom()).isNotNull().isNotBlank();
-            assertThat(traitementPartielDTO.gestionnaireMiseEnOeuvre()).isNotNull().isNotBlank();
-            assertThat(traitementPartielDTO.finalitePrincipale()).isNotNull().isNotBlank();
-        });
+            // THEN
+            assertThat(traitementsPartielDTOPage).isNotNull();
+            List<TraitementPartielDTO> partielDTOS = stringToTraitementPartielList(traitementsPartielDTOPage);
+            assertThat(partielDTOS).isNotEmpty();
+            partielDTOS.forEach(traitementPartielDTO -> {
+                assertThat(traitementPartielDTO.idFonctionnel()).isNotNull();
+                assertThat(traitementPartielDTO.nom()).isNotNull().isNotBlank();
+                assertThat(traitementPartielDTO.gestionnaireMiseEnOeuvre()).isNotNull().isNotBlank();
+                assertThat(traitementPartielDTO.finalitePrincipale()).isNotNull().isNotBlank();
+            });
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
     }
 
     @Test

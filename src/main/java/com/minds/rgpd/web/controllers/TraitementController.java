@@ -5,6 +5,7 @@ import com.minds.rgpd.business.dtos.TraitementFilterCriteria;
 import com.minds.rgpd.business.dtos.TraitementPartielDTO;
 import com.minds.rgpd.business.exceptions.ResourceNotFoundException;
 import com.minds.rgpd.business.services.TraitementService;
+import com.minds.rgpd.business.utilities.AccessUserInformation;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Size;
@@ -18,6 +19,8 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
@@ -34,11 +37,13 @@ public class TraitementController {
 
     @GetMapping
     public ResponseEntity<Page<TraitementPartielDTO>> getTraitements(
+            @AuthenticationPrincipal Jwt jwt,
             @PageableDefault(size = 20, sort = "nom", direction = Sort.Direction.ASC) Pageable pageable,
-            @RequestParam(required = false) @Size(max = 255) String clientNom,
             @RequestParam(required = false) @Size(max = 255) String nom,
             @RequestParam(required = false) @Size(max = 255) String gestionnaireMiseEnOeuvre,
             @RequestParam(required = false) @Size(max = 255) String finalitePrincipale) {
+        // Le registre consulté est celui du client porté par le jeton.
+        String clientNom = AccessUserInformation.getClientUniqueDuJeton(jwt);
         TraitementFilterCriteria criteria = new TraitementFilterCriteria(nom, gestionnaireMiseEnOeuvre, finalitePrincipale);
         Page<TraitementPartielDTO> traitements = traitementService.getTraitements(pageable, clientNom, criteria);
         return ResponseEntity.ok(traitements);

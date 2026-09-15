@@ -6,6 +6,7 @@ import com.minds.rgpd.business.dtos.InfoFichierDTO;
 import com.minds.rgpd.business.dtos.InfoFichierDTO.InfoFichierDTOBuilder;
 import com.minds.rgpd.business.services.ClientService;
 import com.minds.rgpd.business.services.FichierService;
+import com.minds.rgpd.business.utilities.AccessUserInformation;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -113,12 +114,9 @@ public class FichierController {
     @GetMapping("/export")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Exporte le registre de traitements du client au format d'import")
-    public ResponseEntity<Resource> exportExcel(
-            @AuthenticationPrincipal Jwt jwt,
-            @RequestParam(value = "clientNom", required = false) String clientNomParam) throws IOException {
+    public ResponseEntity<Resource> exportExcel(@AuthenticationPrincipal Jwt jwt) throws IOException {
 
-        String clientName = resolveClientName(jwt, clientNomParam);
-        ClientDTO client = clientService.getClientByNom(clientName);
+        ClientDTO client = clientService.getClientByNom(AccessUserInformation.getClientUniqueDuJeton(jwt));
 
         // Le nom du client doit rester le premier segment : c'est lui que l'import
         // relit pour retrouver le registre à remplacer.
@@ -133,23 +131,4 @@ public class FichierController {
                 .body(resource);
     }
 
-    /**
-     * Le client est déduit du jeton ; le paramètre n'est utilisé qu'en secours,
-     * lorsque la revendication {@code client_groups} est absente.
-     */
-    private String resolveClientName(Jwt jwt, String clientNomParam) {
-        String claim = Objects.isNull(jwt) ? null : jwt.getClaimAsString("client_groups");
-        if (Objects.nonNull(claim) && !claim.isBlank()) {
-            String valeur = claim.trim();
-            if (valeur.startsWith("[") && valeur.endsWith("]")) {
-                valeur = valeur.substring(1, valeur.length() - 1);
-            }
-            // Un utilisateur peut appartenir à plusieurs groupes : on retient le premier.
-            return valeur.split(",")[0].trim();
-        }
-        if (Objects.nonNull(clientNomParam) && !clientNomParam.isBlank()) {
-            return clientNomParam;
-        }
-        throw new IllegalArgumentException("Aucun client associé à l'utilisateur connecté");
-    }
 }

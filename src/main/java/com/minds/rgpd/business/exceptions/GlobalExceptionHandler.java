@@ -29,6 +29,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
     }
 
+    @ExceptionHandler(ResourceInUseException.class)
+    public ResponseEntity<String> handleInUse(ResourceInUseException e) {
+        log.warn("Ressource utilisée : {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+    }
+
     @ExceptionHandler(InvalidFileException.class)
     public ResponseEntity<ProblemDetail> handleInvalidFile(InvalidFileException e) {
         log.warn("Fichier invalide : {}", e.getMessage());

@@ -4,6 +4,7 @@ import com.minds.rgpd.business.dtos.PreconisationDTO;
 import com.minds.rgpd.business.dtos.PreconisationFilterCriteria;
 import com.minds.rgpd.business.dtos.PreconisationPartielDTO;
 import com.minds.rgpd.business.services.PreconisationService;
+import com.minds.rgpd.business.utilities.AccessUserInformation;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Size;
@@ -23,6 +24,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.minds.rgpd.business.exceptions.ResourceNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -44,12 +47,14 @@ public class PreconisationController {
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @Operation(summary = "Liste paginée des préconisations d'un client")
     public ResponseEntity<Page<PreconisationPartielDTO>> getPreconisations(
+            @AuthenticationPrincipal Jwt jwt,
             @PageableDefault(size = 20, sort = "libelle", direction = Sort.Direction.ASC) Pageable pageable,
-            @RequestParam(required = false) @Size(max = 255) String clientNom,
             @RequestParam(required = false) @Size(max = 255) String libelle,
             @RequestParam(required = false) @Size(max = 100) String etatAvancement,
             @RequestParam(required = false) UUID idTraitement
     ) {
+        // Les préconisations consultées sont celles du client porté par le jeton.
+        String clientNom = AccessUserInformation.getClientUniqueDuJeton(jwt);
         PreconisationFilterCriteria criteria = new PreconisationFilterCriteria(libelle, etatAvancement, idTraitement);
         return ResponseEntity.ok(preconisationService.getPreconisations(pageable, clientNom, criteria));
     }

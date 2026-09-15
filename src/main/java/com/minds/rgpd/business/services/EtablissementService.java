@@ -1,12 +1,21 @@
 package com.minds.rgpd.business.services;
 
 import com.minds.rgpd.business.dtos.EtablissementDTO;
-import org.springframework.stereotype.Service;
+import com.minds.rgpd.business.dtos.EtablissementFilterCriteria;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
-import java.util.List;
+import java.util.UUID;
 
-@Service
 public interface EtablissementService {
 
-    List<EtablissementDTO> getEtablissements();
+    Page<EtablissementDTO> getEtablissements(Pageable pageable, String clientNom, EtablissementFilterCriteria criteria);
+
+    EtablissementDTO getOneEtablissement(UUID id);
+
+    EtablissementDTO createEtablissement(EtablissementDTO etablissement);
+
+    EtablissementDTO updateEtablissement(UUID id, EtablissementDTO etablissement);
+
+    void deleteEtablissementById(UUID id);
 }
