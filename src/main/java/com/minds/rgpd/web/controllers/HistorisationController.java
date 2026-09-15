@@ -3,21 +3,22 @@ package com.minds.rgpd.web.controllers;
 import com.minds.rgpd.business.dtos.HistorisationCreationDTO;
 import com.minds.rgpd.business.dtos.HistorisationDTO;
 import com.minds.rgpd.business.services.HistorisationService;
+import com.minds.rgpd.business.utilities.AccessUserInformation;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -51,17 +52,20 @@ public class HistorisationController {
     @GetMapping("/registre/historique")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Historique du registre d'un client (imports, suppressions, versions)")
-    public ResponseEntity<List<HistorisationDTO>> getHistoriqueRegistre(
-            @RequestParam @Size(max = 255) String clientNom) {
-        return ResponseEntity.ok(historisationService.getHistoriqueRegistre(clientNom));
+    public ResponseEntity<List<HistorisationDTO>> getHistoriqueRegistre(@AuthenticationPrincipal Jwt jwt) {
+        // Le registre consulté est celui du client porté par le jeton.
+        return ResponseEntity.ok(
+                historisationService.getHistoriqueRegistre(AccessUserInformation.getClientUniqueDuJeton(jwt)));
     }
 
     @PostMapping("/registre/historique")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Ajoute une entrée d'historique sur le registre (CA4)")
     public ResponseEntity<HistorisationDTO> ajouterHistoriqueRegistre(
-            @RequestParam @Size(max = 255) String clientNom,
+            @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody HistorisationCreationDTO creation) {
+        // L'entrée est rattachée au registre du client porté par le jeton.
+        String clientNom = AccessUserInformation.getClientUniqueDuJeton(jwt);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(historisationService.ajouterHistoriqueRegistre(clientNom, creation));
     }

@@ -6,6 +6,7 @@ import com.minds.rgpd.business.dtos.ViolationPartielDTO;
 import com.minds.rgpd.business.enums.ViolationStatut;
 import com.minds.rgpd.business.exceptions.ResourceNotFoundException;
 import com.minds.rgpd.business.services.ViolationService;
+import com.minds.rgpd.business.utilities.AccessUserInformation;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -21,6 +22,8 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -40,8 +43,8 @@ public class ViolationController {
     @GetMapping
     @Operation(summary = "Liste paginée des violations d'un client")
     public ResponseEntity<Page<ViolationPartielDTO>> getViolations(
+            @AuthenticationPrincipal Jwt jwt,
             @PageableDefault(size = 20, sort = "dateViolation", direction = Sort.Direction.DESC) Pageable pageable,
-            @RequestParam(required = false) @Size(max = 255) String clientNom,
             @RequestParam(required = false) @Size(max = 255) String natureViolation,
             @RequestParam(required = false) @Size(max = 255) String donneesConcernees,
             @RequestParam(required = false) Boolean risqueEleveDroitsLibertes,
@@ -50,6 +53,8 @@ public class ViolationController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateViolationFin,
             @RequestParam(required = false) @PositiveOrZero Integer nombrePersonnesConcerneesMin,
             @RequestParam(required = false) @PositiveOrZero Integer nombrePersonnesConcerneesMax) {
+        // Le registre consulté est celui du client porté par le jeton.
+        String clientNom = AccessUserInformation.getClientUniqueDuJeton(jwt);
         ViolationFilterCriteria criteria = new ViolationFilterCriteria(
                 natureViolation, donneesConcernees, risqueEleveDroitsLibertes, statut,
                 dateViolationDebut, dateViolationFin,

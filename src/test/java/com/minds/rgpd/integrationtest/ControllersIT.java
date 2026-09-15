@@ -14,6 +14,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -45,6 +48,16 @@ public class ControllersIT extends AbstractITSpring {
                 throw new RuntimeException(e);
             }
         }).toList();
+    }
+
+    /**
+     * Meme lecture que {@link #stringToList}, pour un endpoint pagine : les
+     * elements sont sous la propriete {@code content} de la page.
+     */
+    private static <T> List<T> stringToPageContent(String contentAsString, Class<T> classe) {
+        return stringToList(
+                JsonParser.parseString(contentAsString).getAsJsonObject().getAsJsonArray("content").toString(),
+                classe);
     }
 
     @BeforeEach
@@ -94,14 +107,25 @@ public class ControllersIT extends AbstractITSpring {
 
     @Test
     void getEtablissements() throws Exception {
-        // GIVEN
+        // GIVEN un utilisateur rattaché à un seul client
+        Jwt jwt = Jwt.withTokenValue("jeton")
+                .header("alg", "none")
+                .claim("preferred_username", "alice")
+                .claim("client_groups", List.of("La breteche"))
+                .build();
+        SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt, List.of()));
 
-        // WHEN
-        String result = mockMvc.perform(get("/etablissements")).andReturn().getResponse().getContentAsString();
+        try {
+            // WHEN
+            String result = mockMvc.perform(get("/etablissements")).andReturn().getResponse().getContentAsString();
 
-        // THEN
-        assertThat(result).isNotNull().isNotBlank();
-        List<EtablissementDTO> etablissementsList = stringToList(result, EtablissementDTO.class);
-        assertThat(etablissementsList).isNotNull().isNotEmpty().hasSize(3);
+            // THEN : seuls les établissements du client porté par le jeton sont listés
+            assertThat(result).isNotNull().isNotBlank();
+            List<EtablissementDTO> etablissementsList = stringToPageContent(result, EtablissementDTO.class);
+            assertThat(etablissementsList).extracting(EtablissementDTO::nom)
+                    .containsExactly("Agence Lyon", "Siège Paris");
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
     }
 }

@@ -33,7 +33,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -153,27 +152,20 @@ public class TraitementServiceImpl implements TraitementService {
             return new ArrayList<>();
         }
 
+        // Les établissements sont uniquement sélectionnés parmi ceux déjà enregistrés :
+        // le CRUD traitement n'en crée plus à la volée.
         return etablissementDTOs.stream()
-                .map(dto -> findExistingEtablissement(dto, client)
-                        .orElseGet(() -> createEtablissement(dto, client)))
+                .map(dto -> findExistingEtablissement(dto, client))
                 .collect(Collectors.toCollection(ArrayList::new));
     }
 
-    private Optional<Etablissement> findExistingEtablissement(EtablissementDTO dto, Client client) {
+    private Etablissement findExistingEtablissement(EtablissementDTO dto, Client client) {
         if (dto.id() != null) {
-            return etablissementRepository.findById(dto.id());
+            return etablissementRepository.findById(dto.id())
+                    .orElseThrow(() -> new ResourceNotFoundException("Etablissement", "id", dto.id()));
         }
-        return etablissementRepository.findByNomAndClient(dto.nom(), client);
-    }
-
-    private Etablissement createEtablissement(EtablissementDTO dto, Client client) {
-        Etablissement etablissement = Etablissement.builder()
-                .id(UUID.randomUUID())
-                .nom(dto.nom())
-                .client(client)
-                .build();
-
-        return etablissementRepository.save(etablissement);
+        return etablissementRepository.findByNomAndClient(dto.nom(), client)
+                .orElseThrow(() -> new ResourceNotFoundException("Etablissement", "nom", dto.nom()));
     }
 
     @Override

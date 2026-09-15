@@ -1,6 +1,7 @@
 package com.minds.rgpd.persistence.repositories;
 
 import com.minds.rgpd.persistence.entities.Client;
+import com.minds.rgpd.persistence.entities.Etablissement;
 import com.minds.rgpd.persistence.entities.Traitement;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -61,4 +62,6 @@ public interface TraitementRepository extends JpaRepository<Traitement, UUID>, J
     List<Traitement> findByClient(Client client);
 
     long countByClient(Client client);
+
+    long countByEtablissementsContains(Etablissement etablissement);
 }
