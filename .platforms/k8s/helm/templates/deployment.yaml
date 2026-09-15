@@ -83,8 +83,8 @@ spec:
                   key: keycloak.group-prefix
             - name: KEYCLOAK_ADMIN_CLIENT_SECRET
               valueFrom:
-                ecretKeyRef:
-                  name: { { .Values.back.name } }-keycloak
+                secretKeyRef:
+                  name: {{ .Values.back.name }}-keycloak
                   key: KEYCLOAK_ADMIN_CLIENT_SECRET
             {{- if .Values.back.debug }}
             {{- if .Values.back.debug.jwt }}
