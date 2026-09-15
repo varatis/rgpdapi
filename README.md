@@ -171,6 +171,52 @@ les reconstitue par requêtes inverses (rôles du client → utilisateurs par r�
   `KEYCLOAK_ADMIN_CLIENT_SECRET` manque, l'application **refuse de démarrer** avec un message explicite
   (`KeycloakAdminClient`), au lieu de répondre 400 `Illegal character in path` sur chaque appel.
 
+##### Déposer le secret Keycloak dans Vault
+
+Le *Client secret* du compte de service `minds-rgpd-admin` est la seule valeur que l'API ne peut pas
+déduire : elle doit être ajoutée dans Vault, **dans le secret déjà utilisé pour `dbpassword`**
+(`back.secret.path`), sous la clé `keycloak_admin_client_secret`. Le secret de la base de données n'est
+pas touché : la clé s'ajoute à côté.
+
+| Environnement | Chemin Vault (`back.secret.path`) | SSO / realm | Valeur à recopier |
+| --- | --- | --- | --- |
+| int | `saas_rgpd/int/k8s` | `https://sso.minds.k8s/auth` — realm `minds-rgpd` | Client secret de `minds-rgpd-admin` |
+| valid | `saas_rgpd/valid/k8s` | idem | idem |
+| demo | `saas_rgpd/demo/k8s` | idem | idem |
+| prod | `minds-rgpd/k8s/config` | `https://sso.groupe-creative.fr/auth` — realm `minds-rgpd` | Client secret du `minds-rgpd-admin` de prod |
+
+Les environnements int, valid et demo pointent sur le **même** SSO et le même realm : la valeur est
+identique pour les trois (seul le chemin Vault diffère). La prod est un autre Keycloak, donc une autre
+valeur.
+
+Interface Vault : *Secrets engines* → moteur KV → chemin de l'environnement → **Create new version**
+→ *Add* → clé `keycloak_admin_client_secret` → coller le *Client secret* → *Save*.
+
+En CLI, le *mount* KV est celui du `SecretStore` `vault-backend` (`vault secrets list` pour le retrouver) :
+
+```bash
+vault kv patch <mount>/saas_rgpd/int/k8s     keycloak_admin_client_secret='<secret>'
+vault kv patch <mount>/saas_rgpd/valid/k8s   keycloak_admin_client_secret='<secret>'
+vault kv patch <mount>/saas_rgpd/demo/k8s    keycloak_admin_client_secret='<secret>'
+vault kv patch <mount>/minds-rgpd/k8s/config keycloak_admin_client_secret='<secret prod>'
+```
+
+`kv patch` conserve `dbpassword`. En KV v1 (pas de patch), réécrire toutes les clés avec `vault kv put`.
+
+Vérification, après `helm upgrade` :
+
+```bash
+vault kv get <mount>/saas_rgpd/valid/k8s                     # dbpassword + keycloak_admin_client_secret
+kubectl get externalsecret -n <namespace>                    # <back.name>-keycloak : SecretSynced=True
+kubectl get secret <back.name>-keycloak -n <namespace> \
+  -o jsonpath='{.data.KEYCLOAK_ADMIN_CLIENT_SECRET}' | base64 -d   # doit renvoyer le secret
+```
+
+Sans la clé dans Vault, le `Secret` `<back.name>-keycloak` n'existe pas : le pod reste en
+`CreateContainerConfigError` (sur `KEYCLOAK_ADMIN_CLIENT_SECRET` uniquement — le secret de la base
+n'est pas concerné). C'est le comportement voulu : une configuration Keycloak incomplète doit être
+visible au déploiement, pas sous forme de 400 à l'usage.
+
 #### Tests de la couche identité
 
 Les tests unitaires `KeycloakAdminClientTest` (serveur HTTP simulé via `MockRestServiceServer`) et
