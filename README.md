@@ -130,9 +130,11 @@ La connexion d'administration suppose trois éléments créés une fois dans le 
 1. **Le client d'administration** `minds-rgpd-admin` (Clients → Create client) :
    - Client authentication **ON**, Service accounts **ON**, Standard flow et Direct access grants **OFF** ;
    - Credentials → copier le *Client secret* → variable d'environnement `KEYCLOAK_ADMIN_CLIENT_SECRET` de l'API ;
-   - Service accounts → *Assign role* → filtrer sur `realm-management` → attribuer au minimum
-     `view-users`, `manage-users`, `view-clients`, `view-groups`, `manage-groups`
-     (ainsi que `query-users`, `query-groups`, `query-clients` si disponibles).
+   - Service accounts → *Assign role* → filtrer sur `realm-management` → attribuer les rôles
+     `view-users`, `manage-users`, `view-clients`, `query-users`, `query-groups`, `query-clients`
+     (sur Keycloak 26.x, `manage-users` couvre aussi la gestion des groupes — création, renommage,
+     adhésions — et `query-groups` leur lecture ; les rôles `view-groups`/`manage-groups` n'existent
+     pas dans `realm-management`. Ne pas confondre avec le `view-groups` du client `account`.)
 2. **Le client applicatif** `minds-saas-rgpd` : ses rôles clients — en minuscules, ex. `admin`, `user` —
    constituent le vocabulaire exposé par `GET /utilisateurs/roles` et attendu dans les payloads.
 3. **Le groupe parent** `clients` à la racine du realm (Groups → Create group) : l'API crée les groupes
