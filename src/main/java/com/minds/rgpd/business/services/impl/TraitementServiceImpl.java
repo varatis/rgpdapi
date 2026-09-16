@@ -12,6 +12,7 @@ import com.minds.rgpd.business.utilities.TraitementDiff;
 import com.minds.rgpd.business.utilities.DefinitionResolver;
 import com.minds.rgpd.business.utilities.DureeResolver;
 import com.minds.rgpd.business.utilities.ResponsableTraitementResolver;
+import com.minds.rgpd.business.utilities.TraitementValidator;
 import com.minds.rgpd.business.utilities.mappers.TraitementMapper;
 import com.minds.rgpd.persistence.entities.Client;
 import com.minds.rgpd.persistence.entities.Etablissement;
@@ -50,6 +51,7 @@ public class TraitementServiceImpl implements TraitementService {
     private final DureeResolver dureeResolver;
     private final ResponsableTraitementResolver responsableTraitementResolver;
     private final HistorisationService historisationService;
+    private final TraitementValidator traitementValidator;
 
     @Override
     public Page<TraitementPartielDTO> getTraitements(Pageable pageable, String clientName, TraitementFilterCriteria criteria) {
@@ -81,6 +83,8 @@ public class TraitementServiceImpl implements TraitementService {
     @Override
     @Transactional
     public TraitementDTO createTraitement(TraitementDTO traitementDTO) {
+        traitementValidator.validateCreation(traitementDTO);
+
         Client client = clientRepository.findById(traitementDTO.client().id())
                 .orElseThrow(() -> new ResourceNotFoundException("Client", "id", traitementDTO.client().id()));
 
@@ -103,6 +107,7 @@ public class TraitementServiceImpl implements TraitementService {
         dureeResolver.resolveDurees(traitement, client);
         responsableTraitementResolver.resolveResponsableTraitement(traitement, client);
         traitement.setEtablissements(etablissements);
+        applyBooleanDefaults(traitement);
 
         Traitement cree = traitementRepository.save(traitement);
         historisationService.historiserTraitement(cree, "Création du traitement");
@@ -117,6 +122,8 @@ public class TraitementServiceImpl implements TraitementService {
         if (traitement == null) {
             throw new ResourceNotFoundException("Traitement", "idFonctionnel", idFonctionnel);
         }
+
+        traitementValidator.validateUpdate(traitementDTO);
 
         Client client = clientRepository.findById(traitementDTO.client().id())
                 .orElseThrow(() -> new ResourceNotFoundException("Client", "id", traitementDTO.client().id()));
@@ -138,6 +145,7 @@ public class TraitementServiceImpl implements TraitementService {
 
         traitement.setEtablissements(etablissements);
         traitement.setDateMiseAJour(LocalDate.now());
+        applyBooleanDefaults(traitement);
 
         Traitement modifie = traitementRepository.save(traitement);
 
@@ -166,6 +174,13 @@ public class TraitementServiceImpl implements TraitementService {
         }
         return etablissementRepository.findByNomAndClient(dto.nom(), client)
                 .orElseThrow(() -> new ResourceNotFoundException("Etablissement", "nom", dto.nom()));
+    }
+
+    /** Recours aux traitements automatisés, archivage et transferts hors UE : obligatoires, faux par défaut. */
+    private static void applyBooleanDefaults(Traitement traitement) {
+        traitement.setRecoursTraitementAutomatises(Boolean.TRUE.equals(traitement.getRecoursTraitementAutomatises()));
+        traitement.setArchivage(Boolean.TRUE.equals(traitement.getArchivage()));
+        traitement.setTransfertsHorsUE(Boolean.TRUE.equals(traitement.getTransfertsHorsUE()));
     }
 
     @Override

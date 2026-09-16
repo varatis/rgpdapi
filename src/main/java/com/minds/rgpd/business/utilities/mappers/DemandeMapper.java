@@ -4,6 +4,7 @@ import com.minds.rgpd.business.dtos.DemandeDTO;
 import com.minds.rgpd.persistence.entities.Demande;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
 
 import java.util.List;
 
@@ -23,4 +24,9 @@ public interface DemandeMapper {
     Demande map(DemandeDTO demandeDTO);
 
     List<Demande> mapToDemandeList(List<DemandeDTO> demandesDTO);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "client", ignore = true)
+    @Mapping(target = "statut", ignore = true)
+    void updateDemandeFromDto(DemandeDTO demandeDTO, @MappingTarget Demande demande);
 }

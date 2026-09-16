@@ -2,6 +2,7 @@ package com.minds.rgpd.web.controllers;
 
 import com.minds.rgpd.business.dtos.DemandeDTO;
 import com.minds.rgpd.business.services.DemandeService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -45,6 +46,25 @@ public class DemandeController {
         return ResponseEntity.ok(
                 demandeService.createDemande(demandeDTO)
         );
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Met à jour une demande identifiée par son UUID")
+    public ResponseEntity<DemandeDTO> updateDemande(
+            @PathVariable UUID id,
+            @RequestBody DemandeDTO demandeDTO) {
+        return ResponseEntity.ok(
+                demandeService.updateDemande(id, demandeDTO)
+        );
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Supprime une demande identifiée par son UUID")
+    public ResponseEntity<Void> deleteDemande(@PathVariable UUID id) {
+        demandeService.deleteDemandeById(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{id}/traiter")
