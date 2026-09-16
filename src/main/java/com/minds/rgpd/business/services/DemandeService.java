@@ -14,6 +14,10 @@ public interface DemandeService {
 
     DemandeDTO createDemande(DemandeDTO demandeDTO);
 
+    DemandeDTO updateDemande(UUID id, DemandeDTO demandeDTO);
+
+    void deleteDemandeById(UUID id);
+
     @Transactional
     DemandeDTO traiterDemande(UUID id);
 }

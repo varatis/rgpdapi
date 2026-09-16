@@ -74,6 +74,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(pd);
     }
 
+    @ExceptionHandler(InvalidTraitementException.class)
+    public ResponseEntity<ProblemDetail> handleInvalidTraitement(InvalidTraitementException e) {
+        log.warn(e.getMessage());
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        pd.setTitle("Traitement invalide");
+        pd.setDetail(String.join(" ", e.getErrors().values()));
+        pd.setProperty("errors", e.getErrors());
+        return ResponseEntity.badRequest().body(pd);
+    }
+
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ProblemDetail> handleConstraintViolation(ConstraintViolationException ex) {
         ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);

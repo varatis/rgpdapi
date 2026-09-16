@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -38,23 +39,14 @@ public class DemandeServiceImpl implements DemandeService {
     @Override
     public DemandeDTO getDemande(UUID id) {
 
-        Demande demande = demandeRepository.findById(id)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Demande", "id", id));
-
-        return demandeMapper.map(demande);
+        return demandeMapper.map(findDemande(id));
     }
 
     @Override
     @Transactional
     public DemandeDTO createDemande(DemandeDTO demandeDTO) {
 
-        Client client = clientRepository.findById(demandeDTO.clientId())
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Client",
-                                "id",
-                                demandeDTO.clientId()));
+        Client client = resolveClient(demandeDTO.clientId());
 
         Demande demande = demandeMapper.map(demandeDTO);
 
@@ -66,17 +58,48 @@ public class DemandeServiceImpl implements DemandeService {
         return demandeMapper.map(savedDemande);
     }
 
+    @Override
+    @Transactional
+    public DemandeDTO updateDemande(UUID id, DemandeDTO demandeDTO) {
+
+        Demande demande = findDemande(id);
+
+        // Le client n'est réaffecté que s'il est transmis : une modification de
+        // contenu n'a pas à rappeler le rattachement pour le conserver.
+        if (Objects.nonNull(demandeDTO.clientId())) {
+            demande.setClient(resolveClient(demandeDTO.clientId()));
+        }
+
+        demandeMapper.updateDemandeFromDto(demandeDTO, demande);
+
+        return demandeMapper.map(demandeRepository.save(demande));
+    }
+
+    @Override
+    @Transactional
+    public void deleteDemandeById(UUID id) {
+
+        demandeRepository.delete(findDemande(id));
+    }
+
     @Transactional
     @Override
     public DemandeDTO traiterDemande(UUID id){
-        Demande demande = demandeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(
-                "Demande",
-                "id",
-                id));
+        Demande demande = findDemande(id);
         demande.setStatut(DemandeStatut.TRAITEE);
         Demande savedDemande = demandeRepository.save(demande);
         return demandeMapper.map(savedDemande);
+    }
 
+    private Demande findDemande(UUID id) {
+        return demandeRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Demande", "id", id));
+    }
 
+    private Client resolveClient(UUID clientId) {
+        return clientRepository.findById(clientId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Client", "id", clientId));
     }
 }
