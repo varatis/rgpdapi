@@ -35,3 +35,7 @@ security-reports/
 
 #Cache local de OWASP Dependency-Check
 .odc-data/
+
+# Documentation locale (Python / MkDocs)
+.venv/
+__pycache__/

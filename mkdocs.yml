@@ -1,0 +1,74 @@
+site_name: RGPD API · Guide de référence
+site_description: Architecture, développement et exploitation de l’API SaaS RGPD
+site_author: Équipe RGPD API
+use_directory_urls: false
+docs_dir: docs
+site_dir: target/documentation
+theme:
+  name: material
+  language: fr
+  font: false
+  palette:
+    - scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/weather-night
+        name: Passer au thème sombre
+    - scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/weather-sunny
+        name: Passer au thème clair
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+plugins:
+  - search:
+      lang: fr
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+extra_css:
+  - stylesheets/extra.css
+hooks:
+  - tools/docs_hooks.py
+exclude_docs: |
+  adr/
+nav:
+  - Accueil: index.md
+  - Prendre ses repères:
+      - Comprendre le produit: guides/01-produit.md
+      - Premier démarrage: guides/02-demarrage.md
+      - Architecture: guides/03-architecture.md
+  - Développer:
+      - API et exemples: guides/04-api.md
+      - Identité et sécurité: guides/05-securite.md
+      - Import et export Excel: guides/06-import-export.md
+      - Tests et contribution: guides/07-developpement.md
+  - Exploiter:
+      - Configuration: parametrage.md
+      - CI/CD et Kubernetes: guides/08-exploitation.md
+      - Diagnostic et points de vigilance: guides/09-vigilance.md
+  - Références:
+      - Catalogue des routes: reference/routes.md
+      - Modèle et migrations: reference/donnees.md
+      - Objets échangés (DTO): reference/dto.md
+      - Index du code: reference/code.md
+      - Entretien de la documentation: guides/10-documentation.md
